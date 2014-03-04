@@ -1,0 +1,323 @@
+/*
+ This file is part of the econometric software package JMulTi.
+ Copyright (C) 2000-2005  Alexander Benkwitz
+
+ This program is free software; you can redistribute it and/or
+ modify it under the terms of the GNU General Public License
+ as published by the Free Software Foundation; either version 2
+ of the License, or (at your option) any later version.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, write to the Free Software
+ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ */
+ 
+#ifos2win 
+/* to be used by library creation, windows only */
+#include var.dec
+#endif
+
+/*
+** PURPOSE
+** Auxiliary procedure. Estimates VAR model.
+**
+** SYNTAX
+** y = vml__EstimateVARModel(model,isVECM);
+**
+** INPUT
+** model / (Y,1) / data buffer / Defining  VAR.
+**
+** OUTPUT 
+** y / (Z,1) / data buffer / Estimated VAR.
+** 
+** REMARK
+** This procedure interprets the input argument as a VAR($p$) model. 
+**
+** Changes in data buffer:\\ 
+** {\tt + A0, A, B, C, F}
+*/
+proc(1)= vml__EstimateVARModel(model,isVECM);
+	local y,py,T,K,x,px,d,Z, unlaggedTerm, 
+	      keyList,tmp, tmp1,
+	      R_A0,R_A,R_B,R_C_VAR,R_F_VAR,RC_A0,RC_A,RC_B,RC_C_VAR,RC_F_VAR,
+	      S_A0,S_A,S_B,S_C_VAR,S_F_VAR,
+	      em_sys,
+	      A0,A,B,C,F,em_exe,u,cvu,cv_par,
+	      strucForm, genLinRest, subSetRest;
+
+	  /* read out variables */
+		y     =vml_vread(model,"y");
+		py    =vml_vread(model,"py");
+		T     = rows(y)-py;
+		K     = cols(y);
+	
+		x    = vml_vread(model,"x"); 
+		if rows(x)>0;
+			px =vml_vread(model,"px");
+		else;
+			px = 0;
+		endif;
+		      
+		d    = vml_vread(model,"d");
+		if rows(d);
+		  d = d[py+1:py+T,.];
+		endif;
+		z    = vml_vread(model,"Z");
+
+	/* read out restriction matrices */
+	   	let keyList={"R_A0",  "R_A",  "R_B",  "R_C_VAR",  "R_F_VAR",
+		             "RC_A0", "RC_A", "RC_B", "RC_C_VAR", "RC_F_VAR",
+	    	         "S_A0",  "S_A",  "S_B",  "S_C_VAR",  "S_F_VAR"};
+		tmp  = vnamecv(model)$+"        ";
+   		tmp  = indcv(keyList$+"        ", tmp);
+		tmp1 = {};
+   		for i(1,rows(tmp),1);
+			if scalmiss(tmp[i]);
+   				call varputl( tmp1, keyList[i]);
+			else;
+   				call varputl(vml_vread( model, keyList[i]), keyList[i]);
+			endif;
+	   	endfor;
+
+	/*  **************************************************  */
+		strucForm  = rows(R_A0)     or rows(RC_A0) or rows(S_A0);
+		genLinRest = rows(R_A)      or rows(RC_A)      or 
+		             rows(R_B)      or rows(RC_B)      or  
+		             rows(R_C_VAR)  or rows(RC_C_VAR)  or  
+		             rows(R_F_VAR)  or rows(RC_F_VAR);
+		subSetRest = rows(S_A)      or 
+		             rows(S_B)      or 
+		             rows(S_C_VAR)  or 
+		             rows(S_F_VAR);
+
+		if genLinRest;
+   			if not(rows(R_A0) or rows(RC_A0)) and rows(S_A0);
+	   			R_A0 = vml__subsetToGeneralRestriction(S_A0);
+			endif;
+	   		if not(rows(R_A) or rows(RC_A)) and rows(S_A);
+				R_A = vml__subsetToGeneralRestriction(S_A);
+	   		endif;
+			if not(rows(R_B) or rows(RC_B)) and rows(S_B);
+	   			R_B = vml__subsetToGeneralRestriction(S_B);
+			endif;
+	   		if not(rows(R_C_VAR) or rows(RC_C_VAR)) and rows(S_C_VAR);
+				R_C_VAR = vml__subsetToGeneralRestriction(S_C_VAR);
+	   		endif;
+			if not(rows(R_F_VAR) or rows(RC_F_VAR)) and rows(S_F_VAR);
+	   			R_F_VAR = vml__subsetToGeneralRestriction(S_F_VAR);
+			endif;
+		endif;
+
+
+	/* read out estimation method */
+		em_sys = vml_vread(model,"em");
+		if rows(em_sys)==0;
+			em_sys = "OLS";
+			if K>1;
+				if genLinRest or subSetRest;
+					em_sys = "GLS";
+				endif;
+				if strucForm;
+					em_sys = "3SLS";
+				endif;
+			endif;
+		endif;
+
+	/* call estimation routine */
+
+	A0={}; A={}; B={}; C={}; F={}; u={}; cvu={};
+	em_exe="not estimated";
+   	if strrindx(em_sys,"OLS",1) or strrindx(em_sys,"GLS",1);
+		if genLinRest;
+			{R_C_VAR,RC_C_VAR} = vml__mergeRConstraints(cols(d),cols(z), 
+			                                  R_C_VAR,RC_C_VAR, R_F_VAR,RC_F_VAR);
+			unlaggedTerm=d~z;
+			if strucForm;
+				{R_C_VAR,RC_C_VAR} = vml__mergeRConstraints(cols(unlaggedTerm),K, 
+				                               R_C_VAR,RC_C_VAR, R_A0,RC_A0);
+				unlaggedTerm=unlaggedTerm~y[py+1:py+T,.];
+			endif;
+			if strrindx(em_sys,"OLS",1);
+	   			{A, B, C, u, cv_par, cvu} = 
+					vml__ols_lr(y,x,unlaggedTerm, py,px, R_A,RC_A, R_B,RC_B, R_C_VAR,RC_C_VAR,isVECM);
+				em_exe="OLS";
+
+			else;
+   				{A, B, C, u, cv_par, cvu, em_exe} = 
+		   			vml__gls_lr(y,x,unlaggedTerm, py,px, R_A,RC_A, R_B,RC_B, R_C_VAR,RC_C_VAR,isVECM);
+				if em_exe$/="";	
+				  em_exe="EGLS "$+em_exe;
+				else;
+				  em_exe="EGLS";
+				endif;
+
+			endif; 
+		else;
+			S_C_VAR      = vml__syncSRMatrix(S_C_VAR, K, cols(d))
+			               ~vml__syncSRMatrix(S_F_VAR, K, cols(z));
+			unlaggedTerm = d~z;
+			if strucForm;
+				S_C_VAR = S_C_VAR~S_A0;
+				unlaggedTerm = unlaggedTerm~y[py+1:py+T,.];
+			endif;
+			if strrindx(em_sys,"OLS",1);
+
+		   		{A, B, C, u, cv_par, cvu} = 
+					vml__ols_sr(y,x,unlaggedTerm, py,px, S_A, S_B, S_C_VAR,isVECM);
+				em_exe="OLS";
+
+			else;
+				{A, B, C, u, cv_par, cvu, em_exe} = 
+				    vml__gls_sr(y,x,unlaggedTerm, py,px, S_A, S_B, S_C_VAR,isVECM);
+			    if em_exe$/="";	
+			      em_exe="EGLS "$+em_exe;
+			    else;
+			      em_exe="EGLS";
+			    endif;
+			endif;
+	   	endif;
+
+		@ split C-coeff @
+			tmp = cols(d)+cols(z);
+			if strucForm;
+					A0=-1*C[.,tmp+1:tmp+K];
+   			endif;
+			tmp = cols(d);
+   			if cols(z);
+   				F=C[.,tmp+1:tmp+cols(z)];
+			endif;
+			if cols(d);
+	   			C=C[.,1:cols(d)];
+			else;
+				C={};
+			endif;
+
+		@ write covariance matrices to results buffer @
+			if rows(A);
+				tmp  = 0;
+				tmp1 = rows(A)*cols(A);
+				model = vput(model,cv_par[tmp+1:tmp+tmp1,tmp+1:tmp+tmp1],"cv_A");
+			endif;
+			if rows(B);
+				tmp  = rows(A)*cols(A);
+				tmp1 = rows(B)*cols(B);
+				model = vput(model,cv_par[tmp+1:tmp+tmp1,tmp+1:tmp+tmp1],"cv_B");
+			endif;
+			if rows(C);
+				tmp  = rows(A)*cols(A)+rows(B)*cols(B);
+				tmp1 = rows(C)*cols(C);
+				model = vput(model,cv_par[tmp+1:tmp+tmp1,tmp+1:tmp+tmp1],"cv_C_VAR");
+			endif;
+			if rows(F);
+				tmp  = rows(A)*cols(A)+rows(B)*cols(B)+rows(C)*cols(C);
+				tmp1 = rows(F)*cols(F);
+				model = vput(model,cv_par[tmp+1:tmp+tmp1,tmp+1:tmp+tmp1],"cv_F");
+			endif;
+			if rows(A0);
+				tmp  = rows(A)*cols(A)+rows(B)*cols(B)+rows(C)*cols(C)+rows(F)*cols(F);
+				tmp1 = rows(A0)*cols(A0);
+				model = vput(model,cv_par[tmp+1:tmp+tmp1,tmp+1:tmp+tmp1],"cv_A0");
+			endif;
+
+   	elseif strrindx(em_sys,"3SLS",1);
+
+		if genLinRest; 
+			"";
+			errorlog("3SLS with general linear restrictions not implemented yet!");
+   			em_exe="estimation failed";
+
+		else;
+			@ prepare estimation call @
+				if not(rows(S_A0));
+					S_A0=zeros(K,K);
+				endif;
+				S_A = vml__syncSRMatrix(S_A, K, py*K);
+				S_B = vml__syncSRMatrix(S_B, K, (px+1)*cols(x));
+				S_C_VAR = vml__syncSRMatrix(S_C_VAR, K, cols(d));
+				S_F_VAR = vml__syncSRMatrix(S_F_VAR, K, cols(z));
+				S_A0  = S_A0~S_A~S_B~S_C_VAR~S_F_VAR;
+
+				y = vml__lagObservations(y,py,0,py)~vml__lagObservations(x,px,0,px)~d~z;
+
+			@ estimation @
+				{A0,cv_par,u,cvu,em_exe} = xxx_3sls( y, S_A0);
+	
+			@ recover estimates @
+   				tmp = K;
+	   			if cols(S_A);  
+		   			A = A0[.,tmp+1:tmp+cols(S_A)];
+					tmp = K * K;
+					tmp1 = rows(S_A) * cols(S_A);
+					model = vput(model,cv_par[tmp+1:tmp+tmp1,tmp+1:tmp+tmp1],"cv_A");
+   				endif; 
+				tmp = K + cols(S_A);
+	   			if cols(S_B);  
+   		   			B = A0[.,tmp+1:tmp+cols(S_B)];
+					tmp = K * K + rows(S_A) * cols(S_A);
+					tmp1 = rows(S_B) * cols(S_B);
+					model = vput(model,cv_par[tmp+1:tmp+tmp1,tmp+1:tmp+tmp1],"cv_B");
+   				endif; 
+
+				tmp = K + cols(S_A) + cols(S_B);
+	   			if cols(S_C_VAR);  
+   					C = A0[.,tmp+1:tmp+cols(S_C_VAR)];
+					tmp = K * K + rows(S_A) * cols(S_A) + rows(S_B) * cols(S_B);
+					tmp1 = rows(S_C_VAR) * cols(S_C_VAR);
+					model = vput(model,cv_par[tmp+1:tmp+tmp1,tmp+1:tmp+tmp1],"cv_C_VAR");
+   				endif; 
+				tmp = K + cols(S_A) + cols(S_B)+ cols(S_C_VAR);
+	   			if cols(S_F_VAR);  
+   					F = A0[.,tmp+1:tmp+cols(S_F_VAR)];
+					tmp=K*K+rows(S_A)*cols(S_A)+rows(S_B)*cols(S_B)+rows(S_C_VAR)*cols(S_C_VAR);
+					tmp1 = rows(S_F_VAR) * cols(S_F_VAR);
+					model = vput(model,cv_par[tmp+1:tmp+tmp1,tmp+1:tmp+tmp1],"cv_F_VAR");
+	   			endif; 
+
+		   		A0 = -1*A0[.,1:K];
+				model = vput(model,cv_par[1:K*K,1:K*K],"cv_A0");
+
+				@  handle the coefficient covariance matrix as in the other cases: @
+					if not(strucForm);
+						cv_par=cv_par[K*K+1:rows(cv_par),K*K+1:cols(cv_par)];
+					endif;
+
+   				em_exe="3SLS "$+em_exe;
+
+		endif;
+
+	else;
+		"";
+		errorlog("Unknown estimation method for system estimation!");
+	   	errorlog(" --> "$+em_sys);
+   	endif;
+   	@ put estimated parameters in data buffer @
+		model = vml_vput(model,cv_par  ,"cv_par"); 
+		model = vml_vput(model,A0      ,"A0"    ); 
+		model = vml_vput(model,A       ,"A"     );
+		model = vml_vput(model,B       ,"B"     );
+   		model = vml_vput(model,C       ,"C_VAR" );
+		model = vml_vput(model,F       ,"F_VAR" );
+   		model = vml_vput(model,u       ,"u"     );
+		model = vml_vput(model,cvu     ,"cvRes" );
+   		model = vml_vput(model,em_exe  ,"em_exe");
+   		model =     vput(model,"VAR"   ,"id"    );
+
+	retp(model);
+endp;
+
+
+
+
+
+
+
+
+
+
+
+

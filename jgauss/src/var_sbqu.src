@@ -1,0 +1,215 @@
+/*
+ This file is part of the econometric software package JMulTi.
+ Copyright (C) 2000-2005  Ralf Brueggemann, Markus Kraetzig
+
+ This program is free software; you can redistribute it and/or
+ modify it under the terms of the GNU General Public License
+ as published by the Free Software Foundation; either version 2
+ of the License, or (at your option) any later version.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, write to the Free Software
+ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ */
+
+#ifos2win 
+/* to be used by library creation, windows only */
+#include var.dec
+#endif
+/* Containe procs to estimated Blanchard-Qua SVAR model as well as  */
+/* to bootstrap the std. errors. */
+
+/*
+**	computes contempor. and long run impact mat in Blanchard-Quah model
+**
+**	{mA0,mPhiOne_ident} = GetmA0_svar_var(mA,S);
+**
+**	Input:	mA: 	K x Kp, matrix of autoregressive par. (A_1 : A_2 : ... : A_p) 
+**
+**			S: 		K x K, reduced form covariance matrix
+**
+**	Ouput: mA0: 	K x K, comtemp. impact matrix 
+**
+**	      mPhiOne_ident: 	K x K , matrix of identified long run effects
+**			
+*/
+proc(2) = GetmA0_svar_var(mA,S);
+local K,p,mPhiOne,i, mA0;
+
+K = rows(mA);
+p = cols(mA)/K;
+
+mPhiOne = eye(K);	
+i = 1;
+do while i<=p;	
+  mPhiOne = mPhiOne - mA[.,(i-1)*K+1:i*K];
+  i = i +1;
+endo;	
+  mPhiOne = inv(mPhiOne);
+  mA0 = inv(mPhiOne)*chol(mPhiOne*S*mPhiOne')';
+	   
+retp(mA0,mPhiOne*mA0);
+endp;
+
+
+/*
+**	Computes bootstrap standard errors and t-values of
+**	contemp. and long run impact matrix. It also computes the point estimates again.
+**	
+**		      	
+**                      var:            databuffer with parameters of reduced form estimation
+**                      bootRep:        skalar, number of bootstrap replication 
+**                      seed:           skalar, seed value
+**
+**
+**	Output: 
+**			mA0:   		K x K, point estimate of contemp. impact matrix	
+**
+**			mPhiOne:	K x K, of point estimate of long run impact matrix
+**
+**                      m_se_mA0:	K x K, bootstrap std errors of contemp. impact matrix	
+**
+**			m_se_mPhiOne 	K x K, bootstrap std errors of long run impact matrix	
+**
+**			m_tv_mA0:	K x K, bootstap t-values of contemp. impact matrix
+**			
+**		 m_tv_mPhiOne:		K x K, bootstrap t-values of long run impact matrix	
+**			
+**	
+**
+*/
+proc(6) = GetBootStdErr_svar_var(var,bootRep,seed);
+local m_se_mA0,m_se_mPhiOne,m_tv_mA0,m_tv_mPhiOne, mR_C,K,i,varhat;
+local A0,A,B,C_VAR,F_VAR, mx_c_var,mx_tf, y0,u,x,d,z,y_star,varStar;
+local M_mA0_BS,mA0_BS,M_mPhiOne_BS,mPhiOne_BS, s_bs, ma_bs,mA0,mPhiOne,S;
+
+	@ model estimation @
+
+	varHat = var_EstimateModel(var); 
+
+	@ point estimates @
+	A    = vml_VeRead(varHat,"A");
+	S    = vml_VeRead(varHat,"cvRes");
+	
+	{mA0,mPhiOne}=GetmA0_svar_var(A,S);
+
+	M_mA0_BS = {}; M_mPhiOne_BS = {};
+	
+	@ prepare all parameters to recompute the time series @
+	{A0,A,B,C_VAR,F_VAR, mx_c_var,mx_tf, y0,u,x,d,z} = 
+	vml_residualBootstrap_prepare(varHat);
+
+	i = 1;
+	do while i<=bootRep;
+		@ compute bootstrap time series @
+			{y_star,seed} = 
+			     vml_residualBootstrap(A0,A,B,C_VAR,F_VAR, mx_c_var,mx_tf, y0,u,x,d,z, seed);
+
+		@ update var @
+			varStar = vml_SetEndogenousVariables(var, y_star);
+
+		@ estimate model (bootstrap data) @
+			varStar = var_EstimateModel(varStar);
+			S_BS    = vml_VeRead(varStar,"cvRes");
+			mA_BS   = vml_VeRead(varStar,"A");
+
+		@ estimate Blanchard-Quah @
+		{mA0_BS, mPhiOne_BS} = GetmA0_svar_var(mA_BS,S_BS);
+		@ append to bootstrap results @
+		M_mA0_BS = M_mA0_BS~vec(mA0_BS);
+		M_mPhiOne_BS = M_mPhiOne_BS~vec(mPhiOne_BS);
+		
+		@ Progress notification @
+			var__ProgressNotification(i+0,bootRep);
+		i = i + 1;
+	endo;
+
+	
+K = rows(mA0);
+
+/*
+** M_mA0_BS:  	        K^2 x M, each column holds vectorized bootstrapped contemp. impact matrix 
+**				(M: # of bootstrap replications)			
+**
+** M_mPhiOne_BS:  	K^2 x M, each column holds vectorized bootstrapped long run impact matrix 
+**/
+
+
+/* compute bootstrap standard errors of A0 	*/
+m_se_mA0     = reshape(sqrt(meanc(((M_mA0_BS-vec(mA0))^2)')),K,K)';		
+
+/* compute bootstrap standard errors of C1 	*/
+m_se_mPhiOne = reshape(sqrt(meanc(((M_mPhiOne_BS-vec(mPhiOne))^2)')),K,K)';	
+
+m_tv_mA0 	   = mA0./m_se_mA0 ; 	  	 
+m_tv_mPhiOne  = mPhiOne./m_se_mPhiOne;
+
+mR_C   = eye(K^2);			
+/* restriction matrix to select only non-zero elements */	 
+mR_C   = mR_C[.,vech(reshape(seqa(1,1,K^2),K,K)')];  	
+
+m_se_mPhiOne = reshape(mR_C*vech(m_se_mPhiOne),K, K)';
+m_tv_mPhiOne = reshape(mR_C*vech(m_tv_mPhiOne),K, K)';
+
+retp(mA0, mPhiOne, m_se_mA0,m_se_mPhiOne,m_tv_mA0,m_tv_mPhiOne);
+endp;
+
+
+/*
+**	Purpose:	Write estimation results in ASCII file, filename given in "fname"
+**	
+**	OutputBQresults_svar_var(mA0, mPhiOne, mSE_mA0, mSE_mPhiOne, mt_mA0, mt_mPhiOne, BS_ind, fname);
+**
+**  Input:		mA0: 	K x K estimated contemp. impact matrix
+**
+**			mPhiOne:	K xK estimated long run impact matrix
+**
+**			mSE_mA0     K x K matrix of boostrap standard errors of mA0
+**
+**			mSE_mPhiOne	K x K matrix of bootstrap standard errors of mPhiOne
+**
+**			mt_mA0		K x K matrix of boostrap t-values of mA0
+**
+**			mt_mPhiOne  K x K matrix of bootstrap t-values of mPhiOne
+**
+**			BS_ind		scalar, 1 when bootstrap results are available
+**
+**			fname		string, containing file name
+*/
+proc(0) = OutputBQresults_svar_var(mA0, mPhiOne, mSE_mA0, mSE_mPhiOne, mt_mA0, mt_mPhiOne, BS_ind, fname);
+screen off;
+output file = ^fname reset;
+
+format /rd 8,4;
+"Structural VAR Estimation Results";
+"Structural VAR is just identified";
+"Identified accumulated long run impact matrix is lower diagonal";
+"";
+"Estimated contemporaneous impact matrix:"  mA0;
+"";
+if BS_ind == 1;
+	"Bootstrap standard errors:"
+	mSE_mA0;
+	"";
+	"Bootstrap t-values:"
+	mt_mA0;
+	"";
+endif;
+"Estimated identified long run impact matrix:"  mPhiOne;
+"";
+if BS_ind == 1;
+	"Bootstrap standard errors:"
+	mSE_mPhiOne;
+	"";
+	"Bootstrap t-values:"
+	mt_mPhiOne;
+	"";
+endif;	
+output off;
+screen on;
+endp;

@@ -1,0 +1,948 @@
+/*
+ This file is part of the econometric software package JMulTi.
+ Copyright (C) 2000-2005  Markku Lanne, Markus Kraetzig
+
+ This program is free software; you can redistribute it and/or
+ modify it under the terms of the GNU General Public License
+ as published by the Free Software Foundation; either version 2
+ of the License, or (at your option) any later version.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, write to the Free Software
+ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ */
+
+#ifos2win 
+/* to be used by library creation, windows only */
+#include extern.dec
+#endif
+
+/*to compute a unit root test with strucutral breaka
+references: 
+procedures by Markku Lanne and some Extensions by Markus Kraetzig*/
+
+
+declare matrix _ar_ver != { 3, 1, 2 };
+
+  declare matrix _arinit;   /* if = 1, initial estimates only */
+  declare matrix _ariter;   /* if 1, prints iteration information */
+  declare matrix _arvsig;   /* variance of sigsq (variance of the variance of */
+                            /*  white noise error) */
+  declare matrix _archisq;  /* -2*log-likelihood */
+  declare matrix _artobs;   /* number of observations */
+  declare matrix _arrsq;    /* explained variance */
+  declare matrix _ar_lbl;   /* variable labels */
+  declare matrix _max_iter ?= 10000;   /* max iterations */
+
+
+
+   external matrix _arinit;
+   external matrix _ariter;
+   external matrix _arvsig;
+   external matrix _archisq;
+   external matrix _artobs;
+   external matrix _arrsq;
+   external matrix _ar_lbl;
+   external matrix _ar_ver;
+
+
+proc(7) = autoreg_structbr(dataset,depvar,indvars,lagvars,order);
+
+    local kb, kp, tobs, nmp, np, ybar, yy, xx, xy, beta0, tstart,
+        uhat, rv, tv, df, sigsq0, acov, varu, acor, dmt, dmtt, phi0,
+        gm, rho, qpi, qp, cholqpi, converge, iter, param0, ystar, xstar,
+        ytstar, xtstar, ysy, xsy, xsx, beta1, sigsq1, gma, phi1, mtlnl1,
+        dmtlnl, param1, db, cxx, vcb, stderrb, vcphi, stderrph,
+        vcsigsq, rsq, vp, mtlnl0,
+        detqpi, sigsq0t, klnl, outfn, itout,
+        x, y, fh, i, dta, ind1, ind2, xxi, old, oldnfmt;
+
+    itout = 1;
+
+/*    if __output;
+#ifDOS
+        cls;
+#endif
+        call header("AUTOREG",dataset,_ar_ver);
+    endif;
+*/    
+    if type(indvars) == 13;
+        indvars = stof(indvars);
+    endif;
+
+/* use OLS if order == 0 */
+
+    if order == 0;
+        errorlog "ERROR: The specified order must be greater than 0.";
+        retp(error(0),error(0),error(0),error(0),error(0),error(0),error(0));
+    endif;
+
+/* *************************** GET VARIABLES *******************************/
+
+    dataset = "" $+ dataset;
+    if dataset $== "";
+        y = depvar;
+        x = indvars;
+       if __altnam $== "";
+            depvar = 0$+"Y";
+            indvars = 0$+"X"$+
+               ftocv(seqa(1,1,cols(x)),1*floor((log(cols(x)))+1),0);
+        else;
+            depvar = __altnam[1];
+            indvars = __altnam[2:rows(__altnam)];
+        endif;
+    else;
+        outfn = dataset;
+        { depvar,ind1,indvars,ind2 } = indices2(outfn,depvar,indvars);
+        open fh = ^outfn;
+        if fh == -1;
+            errorlog " data set not found";
+            retp(error(0),error(0),error(0),error(0),error(0),error(0),
+                error(0));
+        endif;
+
+        y = {};
+        x = {};
+        do until eof(fh);
+            if ((rows(x)+1)*cols(x)>=maxvec);
+                errorlog "ERROR: matrix of independent variables won't fit i"\
+                    "n memory";
+                fh = close(fh);
+                retp(error(0),error(0),error(0),error(0),error(0),error(0),
+                     error(0));
+            endif;
+            dta = readr(fh,1);
+            y = y|dta[ind1];
+            x = x|dta[ind2];
+        endo;
+        fh = close(fh);
+    endif;
+
+    if not (lagvars == 0);
+        if rows(lagvars)/=rows(indvars);
+            errorlog "ERROR: rows(LAGVARS) not equal to rows(INDVARS)";
+            retp(error(0),error(0),error(0),error(0),error(0),error(0),
+               error(0));
+        endif;
+
+        x = packr(shiftr(x', lagvars, miss(0,0))');
+        y = y[(rows(y)-rows(x)+1):rows(y),.];
+        i = 0;
+        do until i==rows(lagvars);
+            i = i+1;
+            if lagvars[i]==0;
+                continue;
+            endif;
+            ind1 = "" $+ indvars[i];
+            ind2 = minc(strindx(ind1," ",1)-1|6);
+            if ind2==-1;
+                ind2 = 6;
+            elseif ind2==0;
+                ind2 = 1;
+            endif;
+            indvars[i] = 0 $+ strsect(ind1,1,ind2) $+ "-" $+
+                ftocv(lagvars[i],1,0);
+        endo;
+    endif;
+
+    tstart = hsec;
+/*
+    if __con;
+        if ((rows(x)+1)*cols(x)>=maxvec);
+            errorlog "ERROR: matrix of independent variables won't fit in me"\
+                "mory when constant has been added";
+            retp(error(0),error(0),error(0),error(0),error(0),error(0),
+                    error(0));
+        endif;
+        x = ones(rows(x),1)~x;
+        indvars = "CONSTANT"|indvars;       /* add this for printing  */
+    endif;
+*/    
+    _ar_lbl = depvar|indvars;
+
+    kp = order;
+    kb = cols(x);           /* number of independent variables */
+    tobs = rows(x);         /* number of observations */
+    klnl = tobs*( ln(2*pi) + 1 );           /* constant to be added to log
+                                            :: likelihood
+                                            */
+
+/* define symetric array of numbers */
+    vp = seqa(1,1,kp+1);
+    np = seqa(1,1,kp);
+    nmp = (ones(kp+1,1).*vp') + vp - 1;     /* used in initial approx to phi */
+  /*  nmk = nmp[1:kp,1:kp];    */       /* symmetric array of numbers */
+
+    clear dmt;
+/* ============================ Initial Estimates =========================== */
+
+/* Mean and Variance of dependent variable */
+
+    tobs = rows(y);         /* Number of observations. */
+    _artobs = tobs;
+
+/* Step 1: Initial OLS estimates */
+    old = trapchk(1);
+    trap 1,1;
+    ybar = meanc(y);
+    yy = y'y;
+    xx = moment(x,0);
+    xy = x'y;
+    xxi = invpd(xx);
+
+    trap old,1;
+    if scalerr(xxi);
+        errorlog "covariance matrix of independent variables is";
+        errorlog "not positive definite at initial OLS estimate";
+        retp(error(0),error(0),error(0),error(0),error(0),error(0),error(0));
+    endif;
+    beta0 = xxi*xy;
+    vcb = ((yy - xy*beta0')/(rows(x)-cols(x)))*xxi;
+
+/* Step 2: Compute residuals and related statistics */
+
+    uhat = y - x*beta0;
+
+    rv = uhat'uhat;
+    tv = yy - tobs*ybar*ybar;
+    df = tobs - kb;
+/*    see = sqrt(rv/df);*/
+    df = tobs - kb;
+    rsq = 1-(rv/tv);
+    _arrsq = rsq;
+/* Step 3: Compute autocovariances and autocorrelations of residuals. */
+        /* this is the same as: autocov(uhat,0,kp) */
+
+    acov = rev( conv(uhat, rev(uhat), tobs-kp, tobs) ) / tobs;
+    varu = acov[1,1];
+    if varu == 0;
+        errorlog "ERROR: No residual variance in the specified model.";
+        retp(error(0),error(0),error(0),error(0),error(0),error(0),error(0));
+    endif;
+
+    acor = acov/varu;
+
+/* Step 4: Compute D-matrix and obtain first approximations to
+          autoregresive parameters */
+
+    gosub sdmat;    /* returns dmt, uses uhat, kp */
+
+    dmtt = tobs*dmt./(tobs+1-nmp);
+    phi0 = dmtt[2:kp+1,1]/dmtt[2:kp+1,2:kp+1];      /* Initial Estimates of
+                                                    :: Phi
+                                                    */
+
+/* Step 5: Compute logl for initial estimates. */
+    trap 1;
+
+    /* Generate true qp matrix */
+    gm = phi0.*ones(kp,1)';
+    rho = ( phi0/(eye(kp) - shiftr(gm',-np,0)' - shiftr(gm',np,0)') );
+    qp = submat( rotater( (rev(rho)| 1 | rho )', np-1 ), 0, np+kp ) /
+        (1-phi0'rho);
+
+    qpi = invpd(qp);
+    detqpi = detl;
+    if scalerr(qpi);
+        errorlog "WARNING: The model is not stationary at the initial estim"\
+            "ates.";
+        errorlog "Therefore the estimates cannot be computed.";
+        retp(error(0),error(0),error(0),error(0),error(0),error(0),error(0));
+    else;
+        sigsq0 = (dmt[1,1]-2*phi0'dmt[2:kp+1,1]+phi0'dmt[2:kp+1,2:kp+1]
+            *phi0)/tobs;
+
+        mtlnl0 = klnl + tobs*ln(sigsq0) - ln(detqpi);
+    endif;
+
+    cholqpi = chol(qpi);
+
+/* Step 6: Compute Variances, etc, for initial estimates. */
+
+    gosub compstat(xx,rv/df);       /* compute as though just ols */
+
+/* Step 7: Print out initial parameter estimates */
+    _archisq = mtlnl0;
+/*    
+    if __output;
+        print;
+        print "------------------------ INITIAL ESTIMATES -----------------"\
+            "-----";
+        call autoprt_structbr(beta0,vcb,phi0,vcphi,sigsq0,acov,acor);
+    endif;
+*/
+    if _arinit == 1;
+        retp(beta0,vcb,phi0,vcphi,sigsq0,acov,acor);
+    endif;
+
+/* ============================ ML ESTIMATES ================================ */
+    converge = 0;
+    iter = 1;
+    param0 = beta0|sigsq0|phi0;     /* initial parameter vector */
+/*    
+    if __output /= 0 and _ariter == 1 and itout;
+        print;
+        print;
+    print " ------------------------ COMPUTING ML ITERATIONS ----------------"\
+            "-------- ";
+        print;
+    endif;
+*/    local counter ;
+     counter = 0;
+    do until converge;      /* see below for convergence test */
+
+    /* 1. Given phi0, qpi, and cholqpi, transform y and x and estimate beta */
+
+        ytstar = conv(1|-phi0,y,kp+1,tobs);         /* Transform last T-
+                                                    :: P obs.
+                                                    */
+        xtstar = conv(1|-phi0,x,kp+1,tobs);
+
+        ystar = (cholqpi*y[1:kp,.])|ytstar;         /* Transform first P obs
+                                                    :: and concatenate
+                                                    */
+        xstar = (cholqpi*x[1:kp,.])|xtstar;
+
+        ysy = ystar'ystar;
+        xsx = moment(xstar,0);
+        xsy = xstar'ystar;
+
+        beta1 = solpd(xsy,xsx);     /* Regression */
+        clear ystar, xstar;
+
+    /* 2. New Sigsq (variance of white-noise error). */
+
+        rv = ysy - beta1'xsy;
+
+        sigsq1 = rv/tobs;
+
+    /* 3. New Untransformed Residuals. */
+
+        uhat = y - x*beta1;
+
+    /* 4. DMAT -- this is used to compute phi */
+
+        gosub sdmat;        /* returns dmt, uses uhat, kp */
+
+    /* 5. New Estimates of phi. */
+
+        gma = -qp*(phi0.*np);       /* Partials of det(invpd(qp)) */
+
+        phi1 = (gma*sigsq1 + dmt[2:kp+1,1]) / dmt[2:kp+1,2:kp+1];
+
+    /* 6. Compute new qpi (inverse(qp)), qp, and cholqpi */
+
+    /* Generate true qp matrix */
+        gm = phi1.*ones(kp,1)';
+        rho = ( phi1/(eye(kp) - shiftr(gm',-np,0)' - shiftr(gm',np,0)') );
+        qp = submat( rotater( (rev(rho)| 1 | rho )', np-1 ), 0, np+kp ) /
+            (1-phi1'rho);
+
+        qpi = invpd(qp);
+
+        if scalerr(qpi);
+         errorlog ("WARNING: The model is not stationary at the"\
+                  " estimates for iteration " ftos(iter,"%*.*lf",1,0));
+         errorlog "Therefore the estimates cannot be computed.";
+         retp(error(0),error(0),error(0),error(0),error(0),error(0),error(0));
+        else;
+            mtlnl1 = klnl + tobs*( ln(sigsq1) ) - ln( detl );
+        endif;
+
+        cholqpi = chol(qpi);
+
+    /* 7. Print Results for this iteration. */
+/*
+        if __output /= 0 and _ariter == 1;
+
+            print (" --------------------------- ITERATION " $+
+                    ftos(iter,"%*.*lf",1,0) $+ "---------------------------");
+            oldnfmt = formatnv("-*.*lf"~10~6);
+            print "        Beta: ";;
+            printfmt(beta1',1);
+            print;
+            print "         Phi: ";;
+            printfmt(phi1',1);
+            print;
+            print "       Sigsq: ";;
+            printfmt(sigsq1,1);
+            print;
+            print "     -2*lnL = ";;
+            printfmt(mtlnl1,1);
+            print;
+            dmtlnl = 100*(mtlnl1-mtlnl0)/mtlnl0;
+            print "    %Change in -2*lnL = ";;
+            printfmt(dmtlnl,1);
+            print;
+            print;
+            call formatnv(oldnfmt);
+        endif;
+*/
+/* 9. Computation of change in parameter values -- db. */
+
+        param1 = beta1|sigsq1|phi1;
+        db = (param1 - param0) ./ param1;           /* Proportionate change
+                                                    :: parameters.*/
+        counter = counter + 1;                                                    
+        if abs(db) < __tol or counter > _max_iter;         /* convergence test */
+            converge = 1;
+        endif;
+
+/* 10. Reset Starting Values for next iteration. */
+
+        beta0 = beta1;
+        sigsq0 = sigsq1;
+        phi0 = phi1;
+        mtlnl0 = mtlnl1;
+        param0 = param1;
+
+        iter = iter+1;
+
+        if key;     /* switch printing on if key pressed */
+            itout = 1 - itout;
+        endif;
+
+    endo;
+
+/* ---------------------- END OF ML ITERATION LOOP ------------------- */
+
+    /* Compute Estimates of Asymptotic Variance-Covariance Matrices  */
+    gosub compstat(xsx,sigsq1);
+
+    acor = 1|rho;
+    varu = sigsq0/(1-rho'phi0);     /* 0-th order autocovariance */
+    acov = acor*varu;
+    _archisq = mtlnl0;
+/*    
+    if __output;
+        print;
+        print (" Total Time for Computation and Printing: " $+
+            ftos((hsec-tstart)/100,"%*.*lf",4,2) $+ "(seconds)");
+        print ("                    Number of Iterations: " $+ 
+            ftos(iter-1,"%*.*lf",4,0));
+        print;
+        call autoprt_structbr(beta0,vcb,phi0,vcphi,sigsq0,acov,acor);
+    endif;
+*/
+    retp(beta0,vcb,phi0,vcphi,sigsq0,acov,acor);
+
+/*------------------------- SUBROUTINES FOLLOW -----------------------------*/
+/* COMPSTAT:  Subroutine to compute variances, etc, */
+
+compstat:
+        pop sigsq0t;
+        pop cxx;    /* pop X'INV(S)*X */
+
+    vcb = sigsq0t * invpd(cxx);     /* For betas */
+    stderrb = sqrt(diag(vcb));
+
+    vcphi = qpi / tobs;    /* For phi */
+    stderrph = sqrt(diag(vcphi));
+
+    vcsigsq = sigsq0t*sigsq0t*2/tobs;       /* For sigsq */
+    _arvsig = vcsigsq;
+    /* R-squared */
+
+    rsq = 1-(rv/tv);
+    _arrsq = rsq;
+    clear cxx;
+    return;
+
+/*
+** SDMAT -- computes matrix of symmetric products and crossproducts -- see
+**          Box & Jenkins, page 276-279.
+*/
+sdmat:
+    /* uses uhat, kp; returns dmt */
+    dmt = zeros(kp+1,kp+1);
+    i = 0;
+    do until i > kp;
+
+        dmt[i+1:kp+1,i+1] = rev( conv(trimr(uhat,i,0), rev(trimr(uhat,0,i))
+            , tobs-kp-i, tobs-2*i ) );
+
+        i = i + 1;
+    endo;
+
+    dmt = ((dmt.*(.not(eye(kp+1)))+dmt'));
+    return;
+
+endp;
+
+
+
+
+/*
+**             coefs  Kx1, vector of estimated regression coefficients
+**
+**               vcb  KxK, covariance matrix of estimated regression
+**                         coefficients
+**
+**               phi  Lx1, vector of lag coefficients
+**
+**             vcphi  LxL, covariance matrix of phi
+**
+**             sigsq  variance of white noise error
+**
+**              acov  autocovariances
+**
+**              acor  autocorrelations
+**
+**
+**  Globals:
+**           __con   1x1, if 1, constant will be used in model; else not.
+**                   Default = 1.
+**
+**           __tol   1x1, convergence tolerance.  Default = 1e-5.
+**
+**           _arvsig  variance of sigsq (variance of the variance of
+**                         white noise error)
+**
+**           _archisq  -2*log-likelihood
+**
+**           _artobs  number of observations
+**
+**           _arrsq   explained variance
+**
+**           _ar_lbl  variable labels
+**
+*/
+proc(7) = autoprt_structbr(coefs,vcb,phi,vcphi,sigsq,acov,acor);
+    local indvars,omat,mask,fmt,stderr,ts,pv,lg,vcsigsq,chisq,tobs,rsq;
+    print;
+    print "convergence tolerance set to " ftos(__tol,"%*.*lf",10,5);
+    rsq = _arrsq;
+    tobs = _artobs;
+    chisq = _archisq;
+    vcsigsq = _arvsig;
+    print;
+    print "DEPENDENT VARIABLE:  " $_ar_lbl[1];
+    print "                Number of Observations: " ftos(tobs,"%*.*lf",7,0);
+    print "                             R-squared:" ftos(rsq,"%*.*lf",10,3);
+    print ("            Standard Error of Estimate:" $+
+            ftos(sqrt(acov[1,1]/acor[1,1]),"%*.*lf",10,3));
+    print " Variance of White Noise Error (sigsq):" ftos(sigsq,"%*.*lf",10,3);
+    print "                     Variance of sigsq:" ftos(vcsigsq,"%*.*lf",10,3);
+    print "                    -2*log(likelihood):" ftos(chisq,"%*.*lf",10,3);
+    print;
+    print "                COEFFICIENTS OF INDEPENDENT VARIABLES (beta)";
+    print;
+    print "Var             Coef           Std. Error     t-Ratio       P-Value";
+    print "-------------------------------------------------------------------";
+
+    stderr = sqrt(diag(vcb));
+    ts = coefs./stderr;
+    pv = 2 * cdftc(abs(ts),tobs-rows(coefs));       /* Prob Values  */
+    indvars = _ar_lbl[2:rows(_ar_lbl)];
+    omat = indvars~coefs~stderr~ts~pv;
+    mask = 0~1~1~1~1;
+    let fmt[5,3] = "-*.*s" 10 8 "*.*lf " 14 6 "*.*lf " 14 6 "*.*lf " 14 6 ""\
+        "*.*lf " 11 3;
+
+    call printfm(omat,mask,fmt);
+
+    print ;
+    print "                      AUTOREGRESSIVE PARAMETERS (Phi)";
+    print;
+    print "Lag         Phi            Std. Error     T-Ratio        P-Value";
+    print "----------------------------------------------------------------";
+    lg = seqa(1,1,rows(phi));
+    stderr = sqrt(diag(vcphi));
+    ts = phi./stderr;
+    pv = 2 * cdftc(abs(ts),tobs-rows(phi));         /* Prob Values  */
+    omat = lg~phi~stderr~ts~pv;
+    mask = 1~1~1~1~1;
+    let fmt[5,3] = "-*.*lf" 6 0 "*.*lf " 14 6 "*.*lf " 14 6 "*.*lf " 14 6
+        "*.*lf " 11 3;
+
+    call printfm(omat,mask,fmt);
+
+    print;
+    print "                   AUTOCORRELATIONS AND AUTOCOVARIANCES";
+    print;
+    print "            Lag           Autocovariances      Autocorrelations";
+    print "            ----------------------------------------------------";
+    omat = (0|lg)~acov~acor;
+    mask = 1~1~1;
+    let fmt[3,3] = "*.*lf " 13 0 "*.*lf " 20 6 "*.*lf " 20 6;
+    call printfm(omat,mask,fmt);
+
+    retp(coefs,vcb,phi,vcphi,sigsq,acov,acor);
+endp;
+
+ 
+/* computes the tau+_int test statistic 
+   procedure "autoreg_structbr" needed
+   procedure "autoprt_structbr" needed
+   procedure "varinfo_infocrit" needed
+   procedure "vartrendinfo_infocrit" needed
+
+   INPUT: 
+    trend = 1 if linear trend
+	    ll = lag length (>=1) of levels !
+	    t1 = start break date (2*(ll-1)+1 < t1 < n-2); 
+	    t2 = end break date (2*(ll-1)+1 < t2 < n-2); 
+	    sf = shift function (0,1, 2 or 3)
+	    0-impulse dummy,1-shift dummy, 2-exponential, 3-rational
+	    seasdum = seasonal dummies (periodicity - 1 dummies)
+	    if t1==t2 that means break date is known, otherwise searched
+	    search is only with shift dummy
+   OUTPUT:
+    value of the tau+_int statistic 
+    (estimated) break date 
+    estimate of theta
+    u = residuals 
+    x = orig series - deterministic part
+    thetasearch = searched theta
+    objective = corresponding values of the objective function
+    shiftfkt = the shiftfunktion that is used in the regression
+*/
+
+
+proc(7)=tauint_structbr(yy,trend,ll,t1,t2,sf,seasdum, maxiter);
+local d,t,n,y,z,zz,b,x,x1,vcb,phi,vcphi,sigsq,acov,acor,l,
+msigsq,phi0,i,t10,b0,u,s2,ixx,dx,lx,vcphi0,xx,bx,fff,
+theta0,theta1,theta,th,f,ff,s0,lf,lff, thetasearch, objective, shiftfkt;
+
+_max_iter = maxiter;
+
+
+
+n=rows(yy);
+if t1==t2; /*means, break date is known*/
+  /*some checking whether dates are in allowed bounds*/
+  if t1 > n-2;
+    t1=n-2;
+  endif;
+  if ll > 1;
+    if t1 < 2*(ll-1)+2;
+      t1 = 2*(ll-1)+2;
+    endif;
+  else;
+    if t1 < 2*(ll)+2;
+      t1 = 2*(ll)+2;
+    endif;
+  endif;
+  t2=t1;
+endif;
+
+if ll < 1;
+  ll = 1;
+endif;
+if t2 > n-2;
+  t2=n-2;
+endif;
+if ll > 1;
+  if t1 < 2*(ll-1)+2;
+    t1 = 2*(ll-1)+2;
+  endif;
+else;
+  if t1 < 2*(ll)+2;
+    t1 = 2*(ll)+2;
+  endif;
+endif;
+
+
+t=seqa(1,1,n);
+y=yy[1]|(yy[2:n]-yy[1:n-1]);
+zz=1|zeros(n-1,1);
+if trend==1; zz=(1|(seqa(2,1,n-1)-seqa(1,1,n-1)))~zz; 
+endif;
+if sumc(seasdum[.,1]) > 0;zz = (ones(1,cols(seasdum))|(seasdum[2:n,.] - seasdum[1:n-1,.]))~zz;
+endif;
+if t1 > t2; t2=t1;
+endif;  
+  if t1==t2;                                /* known break date */
+    t10=t1;
+    if sf==0;                               /* shift function 0 */
+      theta=miss(1,1);
+      z=zz~(zeros(t10-1,1)|1|-1|zeros(n-t10-1,1));      
+      if ll==1; 
+	b0=inv(z'z)*z'y; phi0=0;vcphi0=0;  sigsq=(y-z*b0)'(y-z*b0);
+      else;
+	{b0,vcb,phi0,vcphi0,sigsq,acov,acor}=autoreg_structbr("",y,z,0,ll-1);
+      endif;
+
+    elseif sf==1;                               /* shift function 1 */
+      theta=miss(1,1);
+      z=zz~(zeros(t10-1,1)|1|zeros(n-t10,1));
+      if ll==1; 
+	b0=inv(z'z)*z'y; phi0=0;vcphi0=0;  sigsq=(y-z*b0)'(y-z*b0);
+      else;
+	{b0,vcb,phi0,vcphi0,sigsq,acov,acor}=autoreg_structbr("",y,z,0,ll-1);
+      endif;
+
+    elseif sf==2;                             /* shift function 2 */
+      thetasearch = 0;
+      objective = 0;
+      theta0=0.1; theta1=3.0;           /* range of search */
+      s0=9999;                          /* initialize the sum of squared residuals */
+      th=theta0;                        /* begin the search */
+      do while th<=theta1;
+	thetasearch = thetasearch | th;
+	fff = (1-exp(-th*(t-t10+1)));
+	fff[1:t10-1]=zeros(t10-1,1);
+	z=zz~(0|(fff[2:n]-fff[1:n-1]));
+	if ll==1; 
+	  b0=inv(z'z)*z'y; phi=0;vcphi=0;b=b0; sigsq=(y-z*b0)'(y-z*b0);
+	else;
+	  {b,vcb,phi,vcphi,sigsq,acov,acor}=autoreg_structbr("",y,z,0,ll-1);
+	endif;
+	if th == theta0; 
+	  b0=b;
+	  theta = th;
+	  phi0 = phi;
+	  vcphi0 = vcphi;
+	endif;
+	objective = objective | sigsq;
+      if sigsq<s0; b0=b;vcphi0 = vcphi; phi0=phi; theta=th; s0=sigsq; endif;
+      th=th+0.01; 
+    endo;                 /* 0.01 => search up to 2 decimal places */
+  elseif sf==3;                             
+    thetasearch = 0;
+    objective = 0;
+    d=zeros(t10-1,1)|ones(n-t10+1,1);
+    theta0=0.0; theta1=0.8;                  /* range of search */
+    s0=9999;                          /* initialize the sum of squared residuals */
+    th=theta0;                        /* begin the search */
+    do while th<=theta1;
+      thetasearch = thetasearch | th;
+      f=zeros(n,1);
+    i=2; do while i<=n; f[i] = th*f[i-1] + d[i]; i=i+1; endo;
+    f=f~lag1(f); f[1,2]=0;
+    z=zz~(f-lag1(f));
+    z[1,cols(z)-1:cols(z)]=f[1,.];
+    if ll==1; 
+      b0=inv(z'z)*z'y; phi=0;vcphi=0; sigsq=(y-z*b0)'(y-z*b0);b=b0;
+    else;
+      {b,vcb,phi,vcphi,sigsq,acov,acor}=autoreg_structbr("",y,z,0,ll-1);
+    endif;
+    if th == theta0; 
+      b0=b;
+      theta = th;
+      phi0 = phi;
+      vcphi0 = vcphi;
+    endif;
+    objective = objective | sigsq;
+  if sigsq<s0; b0=b;vcphi0=vcphi ;phi0=phi; theta=th; s0=sigsq; endif;
+th=th+0.01; endo;  /* 0.01 => search up to 2 decimal places */
+endif;
+
+else;                               /*unknown break date*/
+  if t2 > n-2;
+    t2=n-2;
+  endif;
+  if ll > 1;
+    if t1 < 2*(ll-1)+2;
+      t1 = 2*(ll-1)+2;
+    endif;
+  else;
+    if t1 < 2*(ll)+2;
+      t1 = 2*(ll)+2;
+    endif;
+  endif;
+  
+  theta=miss(1,1);
+  msigsq=9999; 
+  t10=t1;
+  i=t1; do while i<t2;
+    if sf == 0;
+	z=zz~(zeros(i-1,1)|1|-1|zeros(n-i-1,1));
+    else;
+	z=zz~(zeros(i-1,1)|1|zeros(n-i,1));
+    endif;
+    if ll<=1; 
+      b=inv(z'z)*z'y; b0=b; phi=0;vcphi = 0; sigsq=sumc((y-z*b).^2);
+    else;
+      {b,vcb,phi,vcphi,sigsq,acov,acor}=autoreg_structbr("",y,z,0,ll-1);
+    endif;
+    if i == t1; 
+      b0=b;
+      phi0 = phi;
+      vcphi0 = vcphi;
+    endif;
+    if sigsq<msigsq;
+      msigsq=sigsq;vcphi0=vcphi; phi0=phi; t10=i; b0=b;
+    endif;
+  i=i+1; 
+endo;
+
+  b0 = b0~b0./sqrt(diag(sigsq/(rows(y)-rows(b0))*z'z));
+  if sumc(vcphi0[.,1]) > 0 ;
+    b0 = b0 | (phi0~phi0./sqrt(diag(vcphi0)));
+  endif;
+  retp(0~t10~0,0,0,b0,0,0,0);  
+endif;
+
+/* compute the residuals */
+if sf==0;
+  shiftfkt = zeros(t10-1,1)|1|zeros(n-t10,1);
+  d=ones(n,1)~shiftfkt;
+elseif sf==1;
+  shiftfkt = zeros(t10-1,1)|ones(n-t10+1,1);
+  d=ones(n,1)~shiftfkt;
+elseif sf==2;
+  d=ones(n,1)~(1-exp(-theta*(t-t10+1)));
+  d[1:t10-1,cols(d)]=0*d[1:t10-1,cols(d)];
+  shiftfkt = d[.,cols(d)];
+elseif sf==3;
+  f=zeros(n,1);                    
+  i=2; do while i<=n;
+    f[i] = theta*f[i-1] + d[i];
+  i=i+1; endo;
+  f=f~lag1(f); f[1,2]=0;
+  d=ones(n,1)~f;      
+  shiftfkt=f;
+endif;
+if trend==1; d=seqa(1,1,n)~d; endif;
+if sumc(seasdum[.,1]) > 0; d=seasdum~d; endif;
+x=yy-d*b0;
+bx = inv(d'd)*d'yy;
+xx=yy-d*bx;
+/*estimates and t-values*/
+
+b0 = b0~b0./sqrt(diag(sigsq/(rows(y)-rows(b0))*z'z));
+if sumc(vcphi0[.,1]) > 0 ;
+  b0 = b0 | (phi0~phi0./sqrt(diag(vcphi0)));
+endif;
+
+/* compute the tau+_int test statistic */
+n=rows(x);
+t=seqa(1,1,n);
+dx=x-lag1(x);
+lx=lag1(x);
+i=2; do while i<=ll-1; lx=lx~lagn(x,i); i=i+1; endo;
+x=x-lx*phi0;
+x1=lag1(x)~ones(n,1);
+
+
+if sf==0;
+  f=(zeros(t10-1,1)|1|-1|zeros(n-t10-1,1));
+  lf=lag1(f);
+i=2; do while i<=ll-1; lf=lf~lagn(f,i); i=i+1; endo;
+x1=x1~(f-lf*phi0);
+
+elseif sf==1;
+  f=(zeros(t10-1,1)|1|zeros(n-t10,1));
+  lf=lag1(f);
+i=2; do while i<=ll-1; lf=lf~lagn(f,i); i=i+1; endo;
+x1=x1~(f-lf*phi0);
+
+elseif sf==2;
+  f=1-exp(-theta*(t-t10+1)); f[1:t10-1]=zeros(t10-1,1);
+  f=f-lag1(f);
+  ff=(t-t10).*exp(-theta*(t-t10+1)); ff[1:t10-1]=zeros(t10-1,1);
+  ff=ff-lag1(ff);
+  lf=lag1(f);
+  lff=lag1(ff);
+i=2; do while i<=ll-1; lf=lf~lagn(f,i); lff=lff~lagn(ff,i); i=i+1; endo;
+x1=x1~(f-lf*phi0)~(ff-lff*phi0);
+
+elseif sf==3;
+  d=(zeros(t10-1,1)|ones(n-t10+1,1));
+  f=zeros(n,1); ff=zeros(n,1);
+  i=3; do while i<=n; 
+    f[i] = theta*f[i-1] + d[i];
+    ff[i] = 2*theta*ff[i-1] - (theta^2)*ff[i-2] + d[i-1];
+  i=i+1; endo;
+  f=f~lag1(f);
+  ff=lag1(ff)~lagn(ff,2);
+  f=f-lag1(f);
+  ff=ff-lag1(ff);
+  lf=lag1(f)*phi0[1];
+  lff=lag1(ff)*phi0[1];   
+i=2; do while i<=ll-1; lf=lf+lagn(f,i)*phi0[i]; lff=lff+lagn(ff,i)*phi0[i]; i=i+1; endo;
+x1=x1~(f-lf)~(ff-lff);
+
+endif;
+
+i=1; do while i<=ll-1; x1=x1~lagn(dx,i); i=i+1; endo;
+
+x=trimr(x,ll+1+2*(sf==3),0); x1=trimr(x1,ll+1+2*(sf==3),0);
+
+
+ixx=inv(x1'x1);
+b=ixx*x1'x;
+u=x-x1*b;
+s2=u'u/rows(u);
+t=(b[1]-1)/sqrt(ixx[1,1]*s2);
+if sf > 1;
+  thetasearch = trimr(thetasearch,1,0); /*to display the gridsearch*/
+  objective = trimr(objective,1,0);     /*the objective function*/
+endif;
+if sf <= 1 ;
+  thetasearch = 0;
+  objective = 0;
+endif;
+
+retp(t~t10~theta,u,xx,b0,thetasearch,objective,shiftfkt);
+endp;
+
+
+
+proc(0)=graphics_structbr(titel,y,t0,p,shiftfkt,residsdeterm,thetasearch,objective,theta);
+local s,m,i,tmp;
+graphset;
+
+begwind;
+
+{tmp, tmp} =  asclTS_plot(t0, p, rows(y));
+_ptitle = titel;
+setGlobalPlot_plot();
+_pdate="";
+_plegctl = 0;
+s=smwintit_plot( 2, 2, _ptitle, 0 );
+setwind(s+1);
+title( "original series with deterministic part" );
+if  __jm_show_plot_title == 0;
+  _ptitle = "";
+endif;
+_ptitlht = __jm_height_plot_title; 
+xtics(1,rows(y),10,10);
+xy(seqa(1,1,rows(y)),y~y-residsdeterm);
+setwind(s+2);
+if theta == -1;
+  title( "shift function (dummy)");
+else;
+  title( "shift function (theta = " $+ ftocv(theta,1,4) $+ ")" );
+endif;
+if  __jm_show_plot_title == 0;
+  _ptitle = "";
+endif;
+_ptitlht = __jm_height_plot_title; 
+
+xtics(1,rows(y),10,10);
+xy(seqa(1,1,rows(shiftfkt)),shiftfkt[.,1]);
+
+setwind(s+3);  
+title( "original series - deterministic part" );
+xtics(1,rows(y),10,10);
+if  __jm_show_plot_title == 0;
+  _ptitle = "";
+endif;
+_ptitlht = __jm_height_plot_title; 
+xy(seqa(1,1,rows(residsdeterm)),residsdeterm);  
+graphset;
+setGlobalPlot_plot();
+_pdate="";
+_plegctl = 0;
+
+if sumc(thetasearch) > 0;
+  setwind(s+4);
+  title( "gridsearch for theta (minimum is taken)" );
+    if  __jm_show_plot_title == 0;
+      _ptitle = "";
+    endif;
+    _ptitlht = __jm_height_plot_title;
+  xy(thetasearch,objective);
+endif;
+endwind;
+dllcall showLastGraphic;
+
+endp;
+

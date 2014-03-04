@@ -1,0 +1,233 @@
+/*
+ This file is part of the econometric software package JMulTi.
+ Copyright (C) 2000-2005  Markus Kraetzig
+
+ This program is free software; you can redistribute it and/or
+ modify it under the terms of the GNU General Public License
+ as published by the Free Software Foundation; either version 2
+ of the License, or (at your option) any later version.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, write to the Free Software
+ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ */
+#ifos2win 
+/* to be used by library creation, windows only */
+#include var.dec
+#endif
+/*
+** SYNTAX 
+** {alpha,beta,beta_d,G,C,u,cvu,cv_alpha,cv_beta,cv_beta_d,cv_G,cv_C} 
+**            = var__S2SEstimation(y,pdy,d_ec,d_vec,r,Hmat,free_index,h);
+**
+*/
+proc(12)=var__S2SEstimation(y,py,d_ec,d_vec,r,Hmat,free_index,h);
+	local alpha,beta,beta_d,G,C_VEC,u,
+	      Psi, beta_c,
+	      T, K, Z_0,Z_1, Z_2, Z, Z_dy, 
+	      cv_G, cv_alpha,cv_beta,cv_beta_d,cv_C,cv_p,
+	      y_1,tmp,tmp1,cv_u,w,estfirst,estsecond,y_2,v,cv_estfirst,inv_cv_u,M,
+	      inv_ev,zz,eta,kk,omega_eta,cv_beta_all,somefree,empty,xmat,use_restrictions;
+	      
+	      
+	      /* use restrictions available */
+	      use_restrictions = cols(h);
+
+	K = cols(y);
+	T = rows(y) - py;
+	if py<1;
+		"";
+		errorlog("S2S approach needs at least one presample value");
+		retp(-10,-10,-10,-10,-10,-10,-10,-10,-10,-10,-10,-10);
+
+	      endif;
+	if rows(r)<1 or r<1 or r>=K;
+		"";
+		if rows(r)<1;
+			errorlog("S2S approach: Cointegration rank not specified.");
+		else;
+			errorlog("S2S approach: Cointegration rank is r="$+ftocv(r,1,0));
+		endif;
+		r = 1;
+		errorlog("(must be 0<r<"$+ftocv(K,1,0)$+" .... set to "$+ftocv(r,1,0)$+")");
+	endif;
+
+	G={};C_VEC={};u={};
+
+	if cols(d_vec);
+		d_vec = d_vec[py+1:py+T,.];
+		if rank(d_vec) < cols(d_vec);
+		  errorlog("Unrestricted deterministics have not full column rank. Check your dummy specification.");
+		  retp(-10,-10,-10,-10,-10,-10,-10,-10,-10,-10,-10,-10);
+		endif;		  
+	endif;
+	if cols(d_ec);
+		d_ec  = d_ec[py:py+T-1,.];
+		if rank(d_ec) < cols(d_ec);
+		  errorlog("Restricted deterministics have not full column rank. Check your dummy specification.");
+		  retp(-10,-10,-10,-10,-10,-10,-10,-10,-10,-10,-10,-10);
+		endif;
+	endif;
+	
+	Z_0 = y[py+1:py+T,.]-y[py:py+T-1,.];
+	Z_1 = y[py:py+T-1,.]~d_ec;
+	Z_dy = vml__lagObservations(y[2:py+T,.]-y[1:py+T-1,.], py-1, 1, py-1); 
+	Z_2  = Z_dy~d_vec;
+	M=diagrv(zeros(T,T),ones(T,1)); /* because of 3.2 bug */
+	if cols(z_2);
+	  M = M-Z_2*(inv(Z_2'*Z_2))*Z_2';
+	endif;
+
+	/* first stage estimation of pi and short run parameters */
+	tmp=inv((Z_1~Z_2)'(Z_1~Z_2));
+	estfirst = tmp*(Z_1~Z_2)'Z_0;
+	u=Z_0-(Z_1~Z_2)*estfirst;
+	cv_u = u'u; /* not divided by T */
+	cv_estfirst=tmp.*.cv_u;
+/* 	cv_u; */
+/* 	estfirst; */
+/* 	inv(Z_2'Z_2)*Z_2'(z_0-z_1*estfirst[1:cols(z_1),.]); */
+/*  	tmp = inv((M*z_1)'(M*z_1))*(M*z_1)'M*z_0; */
+/* 	(z_0-z_1*tmp)'*M*(z_0-z_1*tmp); */
+
+        cv_G={};cv_C={};
+	if cols(Z_dy); 
+	  cv_G = cv_estfirst[cols(Z_1)*K+1:rows(cv_estfirst)-cols(d_vec)*k,cols(Z_1)*K+1:cols(cv_estfirst)-cols(d_vec)*k];
+	endif;
+	if cols(d_vec);
+	  cv_C = cv_estfirst[rows(cv_estfirst)-cols(d_vec)*k+1:rows(cv_estfirst),cols(cv_estfirst)-cols(d_vec)*k+1:cols(cv_estfirst)];
+	endif;
+	cv_alpha = cv_estfirst[1:k*r,1:k*r];
+
+	if cols(Z_dy);
+	  G = estfirst[cols(Z_1)+1:rows(estfirst)-cols(d_vec),.]';
+	endif;
+	if cols(d_vec);
+	  C_VEC = estfirst[rows(estfirst)-cols(d_vec)+1:rows(estfirst),.]';
+	endif;
+	
+	alpha=estfirst[1:r,.];
+	inv_cv_u=invpd(cv_u/T);
+	tmp=Z_0'-alpha'*Z_1[.,1:r]';
+
+/* 	if cols(Z_2); */
+/* 	  tmp=tmp-estfirst[cols(Z_1)+1:rows(estfirst),.]'*Z_2'; */
+/* 	endif; */
+	w=inv(alpha*inv_cv_u*alpha')*alpha*inv_cv_u*(tmp);
+	y_2=Z_1[.,r+1:cols(Z_1)]';
+	tmp=sumc(free_index);
+	somefree=tmp[1];
+	
+	/* restrictions on beta taken into account */
+	if use_restrictions and somefree < rows(free_index);
+	  /* first set estimator as there where no free parameters */	  
+	  estsecond=h;
+	  cv_beta_all = zeros(rows(estsecond),rows(estsecond));
+	  
+	  /* some parameters are free, but not all, estimate them */
+	  if somefree;
+	    
+	    inv_ev=alpha*inv_cv_u*alpha'; /* start cov */
+
+	    /* 	     build regressor mats */
+/* 	    zz=zeros(rows(w),cols(w)); */
+/* 	    for i(1,cols(w),1); */
+/* 	      zz[.,i]=w[.,i]-(y_2[.,i]'.*.eye(r))*h; */
+/* 	    endfor; */
+/* 	    zz=vec(zz); */
+
+	    zz=vec(w*M)-(M*y_2'.*.eye(r))*h;
+
+	    /* formula implementation see script*/
+	    eta=inv(Hmat'((y_2*M*y_2').*.inv_ev)*Hmat)*Hmat'(y_2*M.*.inv_ev)*zz;
+/*             eta=inv(Hmat'((y_2*y_2').*.inv_ev)*Hmat)*Hmat'(y_2.*.inv_ev)*zz;  */
+
+            estsecond=Hmat*eta+h;
+	    
+	    v=zeros(rows(w),cols(w));
+	    for i(1,cols(w),1);
+	      tmp=(y_2[.,i]'.*.eye(r));
+	      v[.,i]=w[.,i]-tmp*estsecond;
+	    endfor;
+
+	    inv_ev=invpd(v*M*v');	/*   not divided by T  */
+
+	    omega_eta=inv(Hmat'((y_2*M*y_2').*.inv_ev)*Hmat);
+/* 	    omega_eta=inv(Hmat'((y_2*y_2').*.inv_ev)*Hmat); */
+
+	    estsecond=Hmat*eta+h;
+
+	    kk=1;      
+	    for i(1,rows(estsecond),1);
+	      if free_index[i];
+		cv_beta_all[i,i]=omega_eta[kk,kk];
+		kk=kk+1;
+	      endif;
+	    endfor;
+	  endif;
+	  
+	  estsecond=reshape(estsecond,rows(y_2),r)';
+
+	/* no restrictions specified */
+      else;
+	  estsecond=w*M*y_2'inv(y_2*M*y_2'); 
+	  v=(w-estsecond*y_2)';
+	  tmp=v'*M*v; /*  not divided by T */
+	  /* without first normalized part */
+	  cv_beta_all = inv(y_2*M*y_2').*.tmp;
+	  
+	endif;
+	estsecond = (eye(r)~estsecond)';
+	/* assemble beta returns */
+	beta_d = {};beta=estsecond;
+	if cols(d_ec);
+	  beta_d = beta[K+1:K+cols(d_ec),.];
+	  beta   = beta[1:K,.];
+	endif;
+	
+	cv_beta = {};cv_beta_d = {};
+	/* compute std dev when something was estimated */
+	if somefree or use_restrictions == 0;
+	  cv_beta = cv_beta_all[1:rows(cv_beta_all)-cols(d_ec),1:cols(cv_beta_all)-cols(d_ec)];
+	  if cols(d_ec);
+	    cv_beta_d = cv_beta_all[rows(cv_beta_all)-cols(d_ec)*r+1:rows(cv_beta_all),cols(cv_beta_all)-cols(d_ec)*r+1:cols(cv_beta_all)];
+	  endif;
+	  /* append zeros as first r rows and cols */
+	  cv_beta = zeros(rows(cv_beta),r^2)~cv_beta;
+	  cv_beta = zeros(r^2,cols(cv_beta))|cv_beta;
+	  /* no computed */
+	endif;
+		
+	
+	/* the library assumes that the covariances of parameters are not divided by T yet! */        
+	cv_u     = cv_u/T;
+	alpha    = alpha';
+	alpha    = var__johansenApproach_CPLX(alpha   ,"alpha");
+	beta     = var__johansenApproach_CPLX(beta    ,"beta");
+	beta_d   = var__johansenApproach_CPLX(beta_d  ,"beta_d");
+	G        = var__johansenApproach_CPLX(G       ,"GAMMA");
+	C_VEC    = var__johansenApproach_CPLX(C_VEC   ,"C_VEC");
+/*	u        = var__johansenApproach_CPLX(u       ,"Residuals"); */
+	cv_u     = var__johansenApproach_CPLX(cv_u    ,"Residual covariance matrix");
+	cv_alpha = var__johansenApproach_CPLX(cv_alpha,"alpha covariance matrix");
+	cv_G     = var__johansenApproach_CPLX(cv_G    ,"GAMMA covariance matrix");
+	/* computing residuals */
+	/* commented out, because residuals from 1st stage estimation are used */
+	@ u = Z_0 - (Z_1 * (alpha*(beta'~beta_d'))' + Z_dy * G' + d_vec * C_VEC'); @
+	u = Z_0 - Z_1 * (alpha*(beta'~beta_d'))';
+
+	if rows(Z_dy);
+	  u = u - Z_dy * G';
+	endif;
+
+	if rows(d_vec);
+	  u = u - d_vec * C_VEC';
+	endif;
+	
+	retp(alpha,beta,beta_d,G,C_vec,u,cv_u,cv_alpha,cv_beta,cv_beta_d,cv_G,cv_C);
+endp;

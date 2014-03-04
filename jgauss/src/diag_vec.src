@@ -1,0 +1,291 @@
+/*
+ This file is part of the econometric software package JMulTi.
+ Copyright (C) 2000-2005  Markus Kraetzig
+
+ This program is free software; you can redistribute it and/or
+ modify it under the terms of the GNU General Public License
+ as published by the Free Software Foundation; either version 2
+ of the License, or (at your option) any later version.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, write to the Free Software
+ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ */
+/*
+**	Computes Autocovariances of Residuals
+**
+**  Input:  mU: 	K x T matrix of residuals
+**			h: 		max. lag for autocovariances
+**
+**	Output: mC:     K x K*h matrix containing C_1:C_2:...:C_h, 
+**					the matrices of Autocovariances
+**
+**			vC:     vec(mC), K^2*K x 1 vector of ACs
+*/
+proc(2)=GetACF_diag(mU,h);
+local T, mC, vC, mU_i, mU_0, i;	
+
+	  mU = mU-meanc(mU');	 /* demean residuals */	    
+
+      T = cols(mU); 
+	 mC = zeros(rows(mU),1);
+	
+	i = 1;	
+	do while i<=h;		
+		mU_i = trimr(lagn(mU',i),i,0)';
+		mU_0 = trimr(mU',i,0)';		
+		  mC = mC~mU_0*mU_i';
+		   i = i+1;
+	endo;
+	
+	mC = trimr(mC',1,0)'/T;
+	vC = vec(mC);
+	
+retp(mC,vC);
+endp;
+
+/* Create the regressor mat mX of VEC model 
+   y - end levels ;x - exog levels ;d - dets ;idx_ec - sel index to restrict ec; 
+   dpy - lagged diffs; px - exog lags;
+   
+*/
+proc(1) = createMX_diag(y,x,d,idx_ec,dpy,px,beta,beta_d);
+local dvec, tmp,z,ylagged,dy,xlagged,maxlag,empty,index,d_ec,ec;
+
+ec = {};
+empty = {};
+dvec={};
+d_ec={};
+z={};
+ylagged = {};
+xlagged = x;
+maxlag = maxc(px|dpy+1);
+dy=y[2:rows(y),.]-y[1:rows(y)-1,.];
+
+if rows(idx_ec);
+  index=seqa(1,1,rows(idx_ec));
+  if sumc(idx_ec) > 0;
+    index = selif(index, idx_ec);
+  else;
+    index = {};
+  endif;
+  {dvec,d_ec} = var__splitDeterministics(d, index);
+endif;
+@ 'ec' contains ec(t-1) @
+ec = y[1:rows(y)-1,.]*beta';  
+if rows(d_ec);
+  ec = ec+d_ec[2:rows(d_ec),.]*beta_d';
+endif;
+ec=trimr(ec,maxlag-1,0);  
+
+
+if rows(dy) > maxlag;
+  for i(1,dpy,1);
+    ylagged=ylagged~lagn(dy,i);
+  endfor;
+  if rows(ylagged);
+    ylagged=trimr(ylagged,maxlag-1,0);  
+  endif;
+endif;
+
+if rows(x) > maxlag;
+  for i(1,px,1);    
+    xlagged=xlagged~lagn(x,i);
+  endfor;
+  xlagged=trimr(xlagged,maxlag,0);
+endif;
+
+if rows(dvec) > maxlag;
+  dvec=trimr(dvec,maxlag,0);
+endif;
+/* rows(dvec);rows(ylagged);rows(xlagged); */
+
+
+z=dvec'|ec'|ylagged'|xlagged';
+
+retp(z);
+endp;
+
+/*
+**	Input: 
+**			mU: 	T x K matrix of residuals
+**
+**
+**			mX:     n x T  matrix of regressors of VECM, 
+**					n is number of regressors in VECM
+**
+**			mR_mod: Restriction matrix for VECM (if subset) (as in Ch. 5 Luetkepohl) 
+**					for full model set: mR_mod = eye(rows(mX)*K);
+**					
+**			h: 	    lag to be tested
+**
+**	Output: (3x1)
+**			Q_BG: 	Breusch-Godfrey test statistic
+**
+**			p_valQ:	p-value for Breusch-Godfrey test
+**
+**			K^2*h:	degrees of freedom
+**	
+*/
+proc(1) = GetARTest_BGNoCIterms_diag(mU,mX, mR_mod,h);
+local tmp, vC, T,K, mSigmaU, mSigmaUinv, mR, mU1, mXX, mSigma_XX, mSigma_ga;
+local Q_BG, p_valQ;
+
+mU1 = lag_resanal(mU,h)';
+mU = mU';
+
+{tmp,vC}   = GetACF_diag(mU,h);
+
+T 		   = cols(mU);
+K  		   = rows(mU);
+mSigmaU    = mU*mU'/T;	
+mSigmaUinv = inv(mSigmaU);
+
+mR  = eye(K^2*h)~zeros(K^2*h,cols(mR_mod))|zeros(rows(mR_mod),K^2*h)~mR_mod;
+
+if (K*(rows(mU1)+rows(mX))) >(K*T);
+/* 	"Too many parameters in auxiliary model! Choose smaller h!";  */
+	retp(-1|-1|-1);	
+else;	
+			       mXX = mU1|mX;
+			       tmp = {};
+			       trap 1;
+			       tmp = inv(mR'*(mXX*mXX'.*.mSigmaUinv)*mR);
+			       trap 0;
+			       if scalerr(tmp);
+				 retp(-2|-2|-2);	/* return noConvergence = 1*/
+			       endif;
+
+			 mSigma_XX = T*mR*(tmp)*mR';
+	  	   mSigma_ga   = mSigma_XX[1:K^2*h,1:K^2*h]; 
+	 
+		 /* Compute test statistics */
+		 Q_BG	= T*vc'(eye(K*h).*.mSigmaUinv)*mSigma_ga*(eye(K*h).*.mSigmaUinv)*vc;	
+		 p_valQ = cdfchic(Q_BG,h*K^2);
+		 
+		 /*format /rd 0,0;
+		 "Breusch-Godfrey Test, h = " ;;
+		 format /rd 0,0;
+		 print h;;
+		 format /rd 6,3;
+		 format /rd 0,0;", Chi^2( ";;h*K^2;; ")= ";;
+		 format /rd 1,3; Q_BG;; "[ ";; p_valQ;; "]";*/
+		 
+
+retp(Q_BG|p_valQ|h*K^2);	
+endif;
+endp;
+
+/*
+**
+**	Input: 
+**			mC:     K x K*h matrix containing C_1:C_2:...:C_h, 
+**					the matrices of Autocovariances
+**
+**			h:		lag to be tested
+**			
+**		mSigmaU:  	C_0, covariance matrix of residuals
+**			
+**			T:		number of observation used in estimation
+*/
+proc(1) = GetModifiedPortmTest_diag(mC, h, mSigmaU, T);
+local C_0inv, sum, i, C_h, Q_Pmod; 
+local K;
+
+K = rows(mC);
+
+C_0inv = inv(mSigmaU);
+	sum=0;
+	i=1;
+	do while i<=h;
+	  C_h = mC[.,K*(i-1)+1:i*K];
+	  sum = sum + sumc(diag(C_h'*C_0inv*C_h*C_0inv))/(T-i); 
+	  i=i+1;
+	endo;  
+
+	Q_Pmod = T^2*sum;
+	
+retp(Q_Pmod);
+endp;
+
+
+/*
+**	Input: 
+**			mU: 	T x K matrix of residuals
+**
+**			p:		lag length of VAR in levels!!
+**			
+**			r: 		cointegration rank of the system
+**	
+**			mR: 	number of free parameters on short-run parameters and on alpha
+**					
+**			h: 	    lag to be tested
+**
+**	Output: (5x1)   Q_P: 	Portmanteau test
+**
+**			Q_Pm:	Mod. Portmanteau test
+**
+**			p_valP	p-value for Q_P
+**
+**			p_valPm p-value for Q_Pm
+**			
+**			df:		degrees of freedom
+**			
+*/
+proc(1) = GetPortmanteauVec_diag(mU,p,r,mR,h);
+local T,K,mSigmaU, mC, vC, Q_P, Q_Pm;
+local df, p_valP, p_valPm;
+
+mU = mU';
+T = cols(mU);
+K = rows(mU);
+mSigmaU = mU*mU'/T;
+
+{mC,vC}   = GetACF_diag(mU,h);
+
+Q_P  	 = T*vc'inv(eye(h).*.mSigmaU.*.mSigmaU)*vc;
+Q_Pm	 = GetModifiedPortmTest_diag(mC,h,mSigmaU,T);
+
+/* if cols(mR)< (K^2*(p-1)+K*r);	 subset is considered  */
+/*   	df = h*K^2-cols(mR); */
+if mR;
+        df = h*K^2-mR;
+else;
+        df = h*K^2-K^2*(p-1)-K*r;
+endif;	
+	
+	if df<=0;
+	p_valP   = {.};
+	p_valPm  = {.};
+	df       = {.};
+	else;
+	p_valP   = cdfchic(Q_P,df);
+	p_valPm  = cdfchic(Q_Pm,df);
+    endif;
+    
+    /* output 
+    "Portmanteau Test, h = ";;
+	format /rd 0,0;
+	print h;;
+	format /rd 6,3;
+	", Chi^2( ";; format /rd 0,0; df;;") = ";; 
+	format /rd 6,3;
+	Q_P;;print"[";;p_valP;;"]";		
+
+	"Mod. Portmanteau Test, h = ";;
+	format /rd 0,0;
+	print h;;
+	format /rd 6,3;
+	", Chi^2( ";; format /rd 0,0; df;;") = ";; 
+	format /rd 6,3;
+	Q_Pm;;print"[";;p_valPm;;"]";		
+*/
+
+    
+retp(Q_P|p_valP|Q_Pm|p_valPm|df);
+endp;

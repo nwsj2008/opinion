@@ -1,0 +1,299 @@
+/*
+ This file is part of the econometric software package JMulTi.
+ Copyright (C) 2000-2005  Alan G. Isaac, David Rapach, Joerg Breitung, Markus Kraetzig
+
+ This program is free software; you can redistribute it and/or
+ modify it under the terms of the GNU General Public License
+ as published by the Free Software Foundation; either version 2
+ of the License, or (at your option) any later version.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, write to the Free Software
+ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ */
+
+/********************************************************************
+*********************************************************************
+UNIT ROOT TESTING: a collection of procedures
+Authors: Alan G. Isaac and David Rapach
+==> For public, non-commercial use only
+==> Please include proper attribution should this code be used in
+    a research project or in other code
+==> Authors make no performance guarantees
+==> Program written for GAUSS Version 3.1.13
+    (vendor: Aptech Systems, Maple Valley, WA)
+*********************************************************************
+********************************************************************/
+
+/* Procedure Definition Area */
+
+/********************************************************************
+Proc            : ADF
+Authors         : Alan G. Isaac and David Rapach
+Last revised    : 27 May 1996
+Input           : y -- (N x 1) vector, the time series of interest
+                  p -- scalar, maximum lag (max autocorr order)
+		  dummies -- 0 or NxK Matrix of Dummies
+	          testState:
+			1 -- no intercept,no dummies, notimetrend
+			2 -- intercept,no dummies, notimetrend
+			3 -- intercept, no dummies, time trend
+			4 -- intercept,dummies, timetrend
+			5 -- intercept,dummies, no timetrend
+Output          : Prints augmented Dickey-Fuller t-stats
+Globals         : None
+Notes           : Requires procs `varlags_urtests()' and `adf_urtests()'(provided)
+References      : Russell Davidson and James G. MacKinnon,
+                      _Estimation and Inference in Econometrics_
+                      (New York: Oxford, 1993)
+
+                      See references therein for original sources
+                      See p.708, table 20.1 for critical values
+                  Harris, 1992, Economics Letters
+********************************************************************/
+
+proc(2)=adf_urtests(y,p,dummies,teststate);
+    local addx,y_1,dy,dylags,report,rhs,
+          T,b,SSE,sig2,covb,seb,ty,i,resids; 
+	  if rows(dummies) > p+1; 
+	    dummies = trimr(dummies,p+1,0);
+	  else;
+	    dummies = {};
+	  endif;
+    T=rows(y);                     @ number of observations @
+    {y,y_1}=varlags_urtests(y,1);          @ generating lags @
+    dy=y-y_1;                      @ differencing @
+    if p /= 0;
+      {dy,dylags}=varlags_urtests(dy,p);   @ generating lags @
+      addx=dylags;
+    endif;
+    T=rows(dy);                    @ # of usable obs @
+    y_1=y_1[p+1:p+T];              @ usable lagged y @
+  if teststate == 1;
+    if p > 0;
+      addx=y_1~addx;
+    else;
+      addx=y_1;
+    endif;
+    gosub regress(addx);
+      pop report;
+    endif;
+    
+  if teststate == 2;
+    if p > 0;
+      addx=y_1~addx~ones(T,1);           @ add constant to regressors @
+    else;
+      addx=y_1~ones(T,1);
+    endif;
+    gosub regress(addx);
+      pop report;
+    endif;
+    
+    
+  if teststate == 3;
+    if p > 0;
+      addx=y_1~addx~ones(T,1)~seqa(-int(T/2),1,T); @ add trend to regressors @
+    else;
+      addx=y_1~ones(T,1)~seqa(-int(T/2),1,T); @ add trend to regressors @
+    endif;
+      
+    gosub regress(addx);
+      pop report;
+    endif;
+
+  if teststate == 4;
+    if p > 0;
+      addx=y_1~addx~ones(T,1)~seqa(-int(T/2),1,T)~dummies;   @ add sais dummies to regressors with trend @
+    else;
+      addx=y_1~ones(T,1)~seqa(-int(T/2),1,T)~dummies;   @ add sais dummies to regressors with trend @
+    endif;
+    gosub regress(addx);
+      pop report;	
+    endif;
+
+  if teststate == 5;
+    if p > 0;
+      addx=y_1~addx~ones(T,1)~dummies;  @ add sais dummies no trend @ 
+    else;
+      addx=y_1~ones(T,1)~dummies;  @ add sais dummies no trend @ 
+    endif;
+    gosub regress(addx);
+      pop report;
+    endif; 
+
+retp(report,resids); @ coef, t-stat, resids @
+regress:
+    pop rhs;
+    b=dy/rhs;                     @ OLS estimates @
+    resids=dy-rhs*b;                   @ resids @
+    SSE=resids'resids;                      @ sum of squared resids @
+    sig2=SSE/(T-cols(rhs));       @ e2 estimate @
+    covb=sig2*invpd(rhs'rhs);     @ var-cov(b) @
+    seb=sqrt(diag(covb));         @ std errs @
+    return((b|SSE)~((b./seb)|miss(0,0)));
+endp;
+
+/**********************  PROC VARLAGS  *****************************
+**   author: Alan G. Isaac
+**   last update: 5 Dec 95      previous: 15 June 94
+**   FORMAT
+**          { x,xlags } = varlags_urtests(var,lags)
+**   INPUT
+**        var  - T x K matrix
+**        lags - scalar, number of lags of var (a positive integer)
+**   OUTPUT
+**          x -     (T - lags) x K matrix, the last T-lags rows of var
+**          xlags - (T - lags) x lags*cols(var) matrix,
+**                  being the 1st through lags-th
+**                  values of var corresponding to the values in x
+**                  i.e, the appropriate rows of x(-1)~x(-2)~etc.
+**   GLOBAL VARIABLES: none
+**********************************************************************/
+proc(2)=varlags_urtests(var,lags);
+    local xlags;
+    xlags = shiftr((ones(1,lags) .*. var)',seqa(1-lags,1,lags)
+                                            .*. ones(cols(var),1),miss(0,0))';
+    retp(trimr(var,lags,0),trimr(xlags,0,lags));
+endp;
+
+/***************************************************************************
+Proc            : KPSS
+Author          : David Rapach
+Last revised    : 27 May 1996
+Input           : y -- (T x 1) vector of obs on variable of interest
+                : p -- specified max order of autocorrelation
+		: kpsstyp -- 1:level; 2:trend
+Output          : Prints KPSS statistics
+Globals         : None
+Reference       : Denis Kwiatowski, Peter C.B. Phillips, Peter Schmidt,
+                      and Tongcheol Shin, "Testing the null hypothesis of
+                      stationarity against the alternative of a unit root:
+                      How sure are we that economic series have a unit
+                      root?" _Journal of Econometrics_ 54 (Oct./Dec.
+                      1992): 159-178
+Notes           : KPSS(trend) based on y(t)=a+bt+e(t) -- trend stationarity
+                  KPSS(level) based on y(t)=a+e(t)    -- level stationarity
+***************************************************************************/
+proc(1)=kpss_urtests(y,l,kpsstyp);
+    local T,trend,X,b,e,g0,p,g,i,w,s2,S,ei,etathat,etamhat,lag,
+          eta;
+
+    /* Level-stationary test */
+
+    T=rows(y);              @ # of obs @
+    X=ones(T,1);            @ RHS var @
+    b=y/X;                  @ OLS estimates @
+    e=y-X*b;                @ OLS resids @
+    g0=e'e/T;               @ gamma_0=(1/T)sum[e(t)^2] @
+    etamhat=zeros(l+1,1);
+    p=1;
+    do until p>l;
+        g=zeros(p,1);       @ autocovs @
+        i=1;
+        do until i>p;
+            g[i,1]=(e[1+i:T,1]'e[1:T-i,1])/T;@ gamma_i=(1/T)sum[e(t)e(t-i)] @
+            i=i+1;
+        endo;
+        w=zeros(p,1);
+        i=1;
+        do until i>p;
+            w[i,1]=(p+1-i)/(p+1);   @ Bartlett window weight @
+            i=i+1;
+        endo;
+        s2=g0+2*w'g;                @ consistent error variance estimate @
+        S=zeros(T,1);               @ resid partial sum process @
+        i=1;
+        do until i>T;
+            ei=e[1:i,.];
+            S[i,.]=sumc(ei);        @ S(i)=sum[e(i)] @
+            i=i+1;
+        endo;
+        etamhat[1,.]=(1/(g0*T^2))*S'S;      @ KPSS eqn (13), l=0 @
+        etamhat[p+1,.]=(1/(s2*T^2))*S'S;    @ KPSS eqn (13) @
+        p=p+1;
+    endo;
+
+    /* Trend-stationary test */
+
+    trend=seqa(1,1,T);      @ linear time trend @
+    X=ones(T,1)~trend;      @ regressor matrix @
+    b=y/X;                  @ OLS estimates @
+    e=y-X*b;                @ OLS resids @
+    g0=e'e/T;               @ gamma_0=(1/T)sum[e(t)^2] @
+    etathat=zeros(l+1,1);
+    p=1;
+    do until p>l;
+        g=zeros(p,1);       @ autocovs @
+        i=1;
+        do until i>p;
+            g[i,1]=(e[1+i:T,1]'e[1:T-i,1])/T;@ gamma_i=(1/T)sum[e(t)e(t-i)] @
+            i=i+1;
+        endo;
+        w=zeros(p,1);
+        i=1;
+        do until i>p;
+            w[i,1]=(p+1-i)/(p+1);   @ Bartlett window weight @
+            i=i+1;
+        endo;
+        s2=g0+2*w'g;                @ consistent error variance estimate @
+        S=zeros(T,1);               @ resid partial sum process @
+        i=1;
+        do until i>T;
+            ei=e[1:i,.];
+            S[i,.]=sumc(ei);        @ S(i)=sum[e(i)] @
+            i=i+1;
+        endo;
+        etathat[1,.]=(1/(g0*T^2))*S'S;      @ KPSS eqn (17), l=0 @
+        etathat[p+1,.]=(1/(s2*T^2))*S'S;    @ KPSS eqn (17) @
+        p=p+1;
+    endo;
+
+    lag=seqa(0,1,l+1);
+    eta=etamhat~etathat;
+
+    retp(eta[l+1,kpsstyp]);
+endp;
+
+
+@ ====================================================== @
+@               The Schmidt-Phillips Test (1992)         @
+@ ====================================================== @
+@    INPUT:  y    Time series vector in levels           @
+@            l    Truncation lag of the Bartlett window  @
+@    OUTPUT: z[1]  Z(rho) statistic                      @
+@            z[2]  Z(tau) statistic (eqn. 26)            @
+@ ====================================================== @
+
+proc newest_urtests(u,l);
+  local n,f0,i;
+  n=rows(u);
+  f0=u'u/n;
+  i=1; do while i<=l;
+    f0=f0+2*(l-i+1)/(l+1)*u[1:n-i]'u[i+1:n]/n;
+  i=i+1; endo;
+  retp(f0);
+endp;
+
+proc(1)=SPTEST_urtests(y,l,lg);
+  local n,s,phi,u,x,sig2,tau,omega2,Zrho,Ztau,xinv,result;
+    n=rows(y)-1;
+    y=y[2:n+1]-y[1:n];
+    y=y-meanc(y);
+    s=cumsumc(y); /*here the adjusted series x_t=y_t-mu_0-mu_1*t is created*/
+    x=s[1:n-1]~ones(n-1,1);
+    phi=y[2:n]/x;
+    u=y[2:n]-x*phi;
+    sig2=u'u/n;
+    xinv=invpd(x'x);
+    tau=phi[1]/sqrt(sig2*xinv[1,1]);
+    omega2=sig2/newest_urtests(u,l);
+    Zrho=n*phi[1]/omega2;
+    Ztau=tau/sqrt(omega2);
+    result=(zrho|ztau);
+retp (result[lg]);
+endp;

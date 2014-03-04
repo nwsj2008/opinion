@@ -1,0 +1,29 @@
+/*
+ This file is part of the econometric software package JMulTi.
+ Copyright (C) 2000-2005  Alexander Benkwitz
+
+ This program is free software; you can redistribute it and/or
+ modify it under the terms of the GNU General Public License
+ as published by the Free Software Foundation; either version 2
+ of the License, or (at your option) any later version.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, write to the Free Software
+ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ */
+ /*
+** PURPOSE
+** In the future, this procedure might do some model transformations desired
+** when performing IRA. 
+**
+** SYNTAX
+** newVAR = vml_VAR_For_IRA(model);
+*/
+proc(1)=vml_VAR_For_IRA(model);
+	retp(model);
+endp;

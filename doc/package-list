@@ -1,0 +1,9 @@
+edu.opinion.forecast
+edu.opinion.forecast.convert
+edu.opinion.forecast.convert.database
+edu.opinion.forecast.display
+edu.opinion.forecast.exception.convert
+edu.opinion.forecast.exception.model
+edu.opinion.forecast.model
+edu.opinion.forecast.model.ARIMA
+edu.opinion.forecast.test.other

@@ -1,0 +1,185 @@
+/*
+ This file is part of the econometric software package JMulTi.
+ Copyright (C) 2000-2005  Alexander Benkwitz, Markus Kraetzig
+
+ This program is free software; you can redistribute it and/or
+ modify it under the terms of the GNU General Public License
+ as published by the Free Software Foundation; either version 2
+ of the License, or (at your option) any later version.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, write to the Free Software
+ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ */
+#ifos2win 
+/* to be used by library creation, windows only */
+#include var.dec
+#endif
+/*
+**
+** PURPOSE  Computes Hall and Efron percentile bootstrap confidence intervals
+**          of impulse responses of a given VAR or SVAR model. The distinction between
+**          these models is done via the databuffer that is given. 
+**
+** SYNTAX  {irf_ferr_hat,ferr_ep_lower,ferr_ep_upper,ferr_hp_lower,ferr_hp_upper,
+**	        irf_orth_hat,orth_ep_lower,orth_ep_upper,orth_hp_lower,orth_hp_upper,
+**          newSeed } =
+**		              var__IRA_CI_HEP(var,nob,seed,ir_max,coverage);
+**
+** INPUT    var    / (N,1) / matrix / data buffer with model information
+**          nob    / (1,1) / matrix / number of bootstrap replications
+**          seed   / (1,1) / matrix / seed for drawing residuals 
+**                                    (seed=0 for using no seed)
+**          ir_max / (1,1) / matrix / maximum number impulse responses to compute
+**          coverage /  (1,1) / matrix / coverage of confidence intervals, in (0,1)
+**
+** OUTPUT   irf_ferr_hat  / (1+ir_max,K*K*2) / matrix / point estimates forecast
+**                                                    error impulse responses~point estimates forecast accumulated ferir
+**          ferr_ep_lower / (1+ir_max,K*K*2) / matrix /normal~accumulated 
+**          ferr_ep_upper / (1+ir_max,K*K*2) / matrix /normal~accumulated  
+**          ferr_hp_lower / (1+ir_max,K*K*2) / matrix /normal~accumulated  
+**          ferr_hp_upper / (1+ir_max,K*K*2) / matrix /normal~accumulated  
+**          irf_orth_hat  / (1+ir_max,K*K*2) / matrix /  point estimates orthogonal
+**                                                     impulse responses~point estimates forecast accumulated orir
+**          orth_ep_lower / (1+ir_max,K*K*2) / matrix /normal~accumulated  
+**          orth_ep_upper / (1+ir_max,K*K*2) / matrix /normal~accumulated  
+**          orth_hp_lower / (1+ir_max,K*K*2) / matrix /normal~accumulated  
+**          orth_hp_upper / (1+ir_max,K*K*2) / matrix /normal~accumulated  
+**          newSeed       / (1,1)          / matrix / updated seed
+**          rtnFERR		  / (bootrep, (K*horizon+1)) / all bootstrapped FE IAs
+**          rtnOR		  / (bootrep, (K*horizon+1)) / all bootstrapped ORTH IAs
+**
+** REMARK   computes Hall and Efron percentile bootstrap confidence intervals
+**          system is estimated in VAR-form
+**
+** GLOBAL
+** __var_Note_StartTime
+**
+*/
+proc(13)=var__IRA_CI_HEP(var, nob, seed, ir_max, coverage);
+	local irfe_hat, irfe_star, irfe_ep_lo,irfe_ep_up,iror_ep_lo,iror_ep_up,
+	      iror_hat, iror_star, irfe_hp_lo,irfe_hp_up,iror_hp_lo,iror_hp_up,
+	      irfe_hat_ac, irfe_star_ac,iror_hat_ac, iror_star_ac,
+	      irfe_ep_lo_ac,irfe_ep_up_ac,iror_ep_lo_ac,iror_ep_up_ac,
+	      irfe_hp_lo_ac,irfe_hp_up_ac,iror_hp_lo_ac,iror_hp_up_ac,
+	      trash1, trash2, trash3, t1,t2,rtnFERR, rtnOR;
+	      
+	iror_hat = {}; irfe_hat = {}; irfe_star = {}; iror_star = {};
+	if vml__bootstrapIRCheckInputs("proc:var__IRA_CI_HEP()", coverage, nob, ir_max);
+	  retp(-10,-10,-10,-10,-10,-10,-10,-10,-10,-10,-10,-10,-10);
+	endif;
+
+	@ compute bootstrap impulse responses @
+		{irfe_hat, irfe_star, trash1,irfe_hat_ac, irfe_star_ac, trash1, 
+		 iror_hat, iror_star, trash2,iror_hat_ac, iror_star_ac, trash2,  
+		 seed, trash3} = vml__bootstrapIR(var, nob, seed, 0, 0, 0, ir_max);
+	    rtnFERR =   irfe_star;
+		rtnOR =   iror_star;
+		 
+	@ compute efron style confidence intervals @
+	
+		if rows(irfe_hat) and rows(irfe_hat_ac);
+		  {irfe_ep_lo,irfe_ep_up}=vml__quantiles(irfe_star,coverage);
+		  irfe_ep_lo = vml_regroup(irfe_ep_lo,ir_max+1);
+		  irfe_ep_up = vml_regroup(irfe_ep_up,ir_max+1);
+		  @ accumulated @
+		  {irfe_ep_lo_ac,irfe_ep_up_ac}=vml__quantiles(irfe_star_ac,coverage);
+		  irfe_ep_lo_ac = vml_regroup(irfe_ep_lo_ac,ir_max+1);
+		  irfe_ep_up_ac = vml_regroup(irfe_ep_up_ac,ir_max+1);
+		else;
+		  irfe_ep_lo = {};
+		  irfe_ep_up = {};
+		  irfe_ep_lo_ac = {};
+		  irfe_ep_up_ac = {};
+		endif;
+		if rows(iror_hat) and rows(iror_hat_ac);
+		  {iror_ep_lo,iror_ep_up}=vml__quantiles(iror_star,coverage);
+		  iror_ep_lo = vml_regroup(iror_ep_lo,ir_max+1);
+		  iror_ep_up = vml_regroup(iror_ep_up,ir_max+1);
+		  @ accumulated @
+		  {iror_ep_lo_ac,iror_ep_up_ac}=vml__quantiles(iror_star_ac,coverage);
+		  iror_ep_lo_ac = vml_regroup(iror_ep_lo_ac,ir_max+1);
+		  iror_ep_up_ac = vml_regroup(iror_ep_up_ac,ir_max+1);
+		else;
+		  iror_ep_lo = {};
+		  iror_ep_up = {};
+		  iror_ep_lo_ac = {};
+		  iror_ep_up_ac = {};
+		endif;
+
+	@ compute hall style confidence intervals @
+		if rows(irfe_hat) and rows(irfe_hat_ac);
+		  irfe_star  = irfe_star - irfe_hat;
+		  {t1,t2}    = vml__quantiles(irfe_star,coverage);		  
+		  irfe_hp_lo = irfe_hat - t2;
+		  irfe_hp_up = irfe_hat - t1;
+		  irfe_hat   = vml_regroup(irfe_hat  , ir_max+1);
+		  irfe_hp_lo = vml_regroup(irfe_hp_lo, ir_max+1);
+		  irfe_hp_up = vml_regroup(irfe_hp_up, ir_max+1);
+		  @ accumulated @
+		  irfe_star_ac  = irfe_star_ac - irfe_hat_ac;
+		  {t1,t2}    = vml__quantiles(irfe_star_ac,coverage);		  
+		  irfe_hp_lo_ac = irfe_hat_ac - t2;
+		  irfe_hp_up_ac = irfe_hat_ac - t1;
+		  irfe_hat_ac   = vml_regroup(irfe_hat_ac  , ir_max+1);
+		  irfe_hp_lo_ac = vml_regroup(irfe_hp_lo_ac, ir_max+1);
+		  irfe_hp_up_ac = vml_regroup(irfe_hp_up_ac, ir_max+1);
+		else;
+		  irfe_hp_lo={};
+		  irfe_hp_up={};
+		  irfe_hp_lo_ac={};
+		  irfe_hp_up_ac={};
+		endif;
+		if rows(iror_hat) and rows(iror_hat_ac);
+		  iror_star  = iror_star - iror_hat;
+		  {t1,t2}    = vml__quantiles(iror_star,coverage);
+		  iror_hp_lo = iror_hat - t2;
+		  iror_hp_up = iror_hat - t1;
+		  iror_hat   = vml_regroup(iror_hat  , ir_max+1);
+		  iror_hp_lo = vml_regroup(iror_hp_lo, ir_max+1);
+		  iror_hp_up = vml_regroup(iror_hp_up, ir_max+1);
+		  @ accumulated @
+		  iror_star_ac  = iror_star_ac - iror_hat_ac;
+		  {t1,t2}    = vml__quantiles(iror_star_ac,coverage);
+		  iror_hp_lo_ac = iror_hat_ac - t2;
+		  iror_hp_up_ac = iror_hat_ac - t1;
+		  iror_hat_ac   = vml_regroup(iror_hat_ac  , ir_max+1);
+		  iror_hp_lo_ac = vml_regroup(iror_hp_lo_ac, ir_max+1);
+		  iror_hp_up_ac = vml_regroup(iror_hp_up_ac, ir_max+1);
+		else; 
+		  iror_hp_lo={};
+		  iror_hp_up={};
+		  iror_hp_lo_ac={};
+		  iror_hp_up_ac={};
+		endif;
+	
+	@ finish @
+	retp(irfe_hat~irfe_hat_ac,
+	irfe_ep_lo~irfe_ep_lo_ac,
+	irfe_ep_up~irfe_ep_up_ac,
+	irfe_hp_lo~irfe_hp_lo_ac,
+	irfe_hp_up~irfe_hp_up_ac,
+	iror_hat~iror_hat,
+	iror_ep_lo~iror_ep_lo_ac,
+	iror_ep_up~iror_ep_up_ac,
+	iror_hp_lo~iror_hp_lo_ac,
+	iror_hp_up~iror_hp_up_ac, 
+	seed,rtnFERR,rtnOR);
+endp;
+
+
+
+
+
+
+
+
+
+
+
+

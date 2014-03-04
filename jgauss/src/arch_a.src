@@ -1,0 +1,184 @@
+/*
+ This file is part of the econometric software package JMulTi.
+ Copyright (C) 2000-2005  Helmut Herwartz, Christian Kascha, Markus Kraetzig
+
+ This program is free software; you can redistribute it and/or
+ modify it under the terms of the GNU General Public License
+ as published by the Free Software Foundation; either version 2
+ of the License, or (at your option) any later version.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, write to the Free Software
+ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ */
+
+
+/**
+ * Procedures Estimation of ARCH with Gaussian Errors
+ */
+
+/**
+ * AUTHORS	    
+ * PD Dr. Helmut Herwartz     helmut@wiwi.hu-berlin.de
+ * Christian Kascha	      christian_kascha@gmx.de
+ *
+ * Chair of Econometrics
+ * Humboldt University Berlin
+ * Spandauer Str. 1
+ * 10178 Berlin
+ * ise.wiwi.hu-berlin.de/oekonometrie/engl/indexeng.html		
+ * Berlin, January 2003
+ */
+
+/**
+ * output:
+ * g = intercept | q parameters | likelihood 
+ * S = variance covariance mat
+ * tvalues = intercept | q parameters 
+ * psi = residuals
+ * ivar = variance process
+ */
+proc(5)=arch_wrapper_arch(r,q);
+
+local T,r2,e2,theta, ucvar,Z,g,S1,S,SH,tvalues,Z0,ivar0,ivar,psi;
+
+T=rows(r);
+r2=r.*r;         /****** original squared errors ********** */
+e2=r2[q+1:T,.];  /* ***** "explained" squared errors ****** */
+
+theta=ones(q+1,1)*0.5/q; /* ***** Initial Parameters **************** */
+ucvar=sumc(r2)/T;
+theta[1,1]=ucvar*0.5;	/* ***** initial value constant term **** */
+
+Z=genZ_arch_arch(r2,T,q);	/* ***** Matrix of explanatory errors ***** */
+
+/* ***** Estimation of Parameters ******** */
+g=BHHH_arch_arch(r2,q,theta,e2,Z,T,&Ableit_arch_arch,&LIK_arch_arch);	
+
+
+theta=g[1:q+1,.];
+S1=Ableit_arch_arch(e2,Z,theta);
+S=(S1*S1')/(T-q);	
+S=inv(S)/(T-q);		/* ***** Variance-Covariance Matrix ****** */	
+SH=diag(S);
+SH=sqrt(SH);
+tvalues=theta./SH;
+
+Z0=genZ0_arch_arch(r2,T,q,ucvar);
+ivar0=Z0*theta;
+ivar=Z*theta;										
+ivar=ivar0|ivar;
+ivar=sqrt(ivar);	/* ***** Vector of implied standard deviations ****** */	
+
+psi=r./ivar;	       /* ***** Residuals ***** */
+
+retp(g,S,tvalues,psi,ivar);
+endp;
+
+ 
+/* ******************************************************************************* */
+/* ** Estimation of ARCH with Gaussian Errors using  BHHH-Algorithm ****** */
+/*     
+INPUT 
+			r    (T x 1) 		Vector of Residuals
+
+PARAMETERS 
+
+			q  (1 x 1) 			ARCH - Order
+
+OUTPUT 
+			g ((q+2) x 1)		Vector of Parameters starting with the constant term
+							plus value of log-likelihood at the end
+
+			S ((q+1)x(q+1)) 	Variance-Covariance Matrix
+
+			tvalues ((q+1)x1)	tvalues of parameters
+
+AUTHORS	    PD Dr. Helmut Herwartz	helmut@wiwi.hu-berlin.de
+			Christian Kascha		christian_kascha@gmx.de
+
+			Chair of Econometrics
+			Humboldt University Berlin
+			Spandauer Str. 1
+			10178 Berlin
+			GERMANY
+			ise.wiwi.hu-berlin.de/oekonometrie/engl/indexeng.html			
+
+			Berlin, January 2003
+*/
+/* ******************************************************************************** */ 
+/* ******************************************************************************** */
+
+
+
+/* ******************************************************************************* */
+/* ***************** Calculation of Gaussian log-likelihood ******************** */
+/*
+OUTPUT
+		loglik	negative Log-likelihood (1 x 1)
+*/
+/* ******************************************************************************* */
+proc(1)=LIK_arch_arch(Z,T,q,theta,e2);
+
+local loglik,b,bb, zv;
+
+zv=Z*theta;			/******* Vector of Variances  ((T-q) x 1) ******/
+b=e2./zv;
+bb=ln(zv);
+
+
+loglik=(0.5*(T-q)*ln(2*pi)+0.5*sumc(bb)+0.5*sumc(b));			
+
+if imag(loglik) ne 0;
+loglik = 0;
+endif;
+
+retp(loglik);
+endp;                    
+
+
+/* ******************************************************************************* */
+/* ********* Calculation of Derivative of Gaussian Log-likelihood ************* */
+/*
+OUTPUT
+		ltv		Matrix of Derivatives  ((q+1) x (T-q))
+*/
+/* ******************************************************************************* */
+proc(1)=Ableit_arch_arch(e2,Z,theta);
+
+local ltv,vz, siggi1, siggi2;
+
+vz=Z*theta;		/* ***** Vector of Variances ***** */
+siggi1=vz^(-1);
+siggi2=vz^(-2);
+siggi1=siggi1.*Z;
+siggi2=siggi2.*Z;
+
+
+ltv=(0.5)*((-1)*siggi1+e2.*siggi2);
+
+ltv=ltv';
+
+retp(ltv);
+endp;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

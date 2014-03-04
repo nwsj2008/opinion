@@ -1,0 +1,1175 @@
+/*
+ This file is part of the econometric software package JMulTi.
+ Copyright (C) 2000-2005  Ralf Brueggemann, Markus Kraetzig
+
+ This program is free software; you can redistribute it and/or
+ modify it under the terms of the GNU General Public License
+ as published by the Free Software Foundation; either version 2
+ of the License, or (at your option) any later version.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, write to the Free Software
+ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ */
+#ifos2win 
+/* to be used by library creation, windows only */
+#include var.dec
+#endif
+/*
+** Format: 
+**
+**  {ResOfSubsetModel|b_egls|se_egls|tv_egls,u,S} 
+**                               = ComputeSubsetJM_subset(y,z,UserRestrictions,strat~crit~thres); 
+**
+** Input: 	y:		(K x T) matrix, dep variables                       
+**
+**		z:		(# of regressors x T) Regressor matrix  
+**
+**	UserRestrictions:	-has same format as coefficient matrix
+**				
+**				0 = exclude variable from the beginning
+**				1 = include variable in search
+**				2 = exclude variable from search
+**
+**          mode:               (3 x 1) vector with strat, crit, threshold
+**	         strat:	        scalar indicating the model selection strategy
+**				1 = System SER
+**				2 = TestingProcedure /SER
+**				3 = TopDown
+**				4 = System Testing
+**	         crit:		scalar indicating the information criteria:
+**
+**				1 = AIC
+**				2 = HQ
+**				3 = SC
+**
+** Output: 
+**		b_egls:		EGLS estimates of subset model
+**		
+**		se_egls:	standard errors of subset model
+**		
+**		tv_egls:	t-values of subset model
+**
+**		u:		K x T  matrix of residuals
+**
+**		(S: 		the covariance matrix of the subset model)
+**
+**		b:		the restricted LS estimates
+**
+**		se:		standard errors of restricted LS estimates
+**
+**	Restrictions:		Restrictions matrix, same dimensions as UserRestrictions
+**				1 = variable included
+**				0 = variable exclcuded
+**
+**	RestrictionsII:		Restriction matrix as in Lütkepohl, Chapter 5	
+**		
+**
+**
+*/
+proc(3)=ComputeSubsetJM_subset(y,z,Restrictions,mode);
+local k, se, b, tv, sel,i, b_egls,se_egls,tv_egls,u,S,RestrictionsII,v,strat,crit,thres,resdum;  		
+   strat = mode[1];
+   crit = mode[2];
+   thres = mode[3];
+   resdum = Restrictions; 
+   if counts(vec(Restrictions),0)==rows(vec(Restrictions));
+   	"You have specified too many zero restrictions!";
+   	"There is nothing to model!";
+	retp(0,0,0);  
+   endif;
+   
+   v = {1.5, 3};      
+   v = counts(vec(Restrictions),v);
+   
+   if v[2] == rows(vec(Restrictions));
+      	"According to your restriction matrix all variables remain in the model.";
+      	"Check your restriction matrix!";
+      	retp(0,0,0);  
+   endif;
+  
+    if strat==1;    	
+    	{b_egls,se_egls,tv_egls,u,S,b,se,Restrictions,RestrictionsII} = DoSystemSER_subset(y,z,crit,Restrictions); 
+    elseif strat ==2; 	
+    	{b_egls,se_egls,tv_egls,u,S,b,se,Restrictions,RestrictionsII} = DoTestingProcedure_subset(y,z,crit,Restrictions);    	    
+    elseif strat ==3; 	
+    	{b_egls,se_egls,tv_egls,u,S,b,se,Restrictions,RestrictionsII} = DoTopDown_subset(y,z,crit,Restrictions);    	    
+    elseif strat ==4;	
+    	{b_egls,se_egls,tv_egls,u,S,b,se,Restrictions,RestrictionsII} = DoSystemTP_subset(y,z,crit,Restrictions, thres);   
+   endif;
+   Restrictions = resdum.*Restrictions;
+
+retp(Restrictions|b_egls|se_egls|tv_egls,u',S);  
+endp; 
+
+/*
+** Format:	{bres,tw,seres} = PutZerosIn_subset(b,sel,twerte,noreg,se);
+**
+** Puts restricted estimates in vector that has the same
+** dimensions as the unrestricted vector. Restricted variables have
+** zero coefficients
+**
+** Input: 	b: 	restricted estimator
+**
+**		sel:	selection matrix
+**	
+**   	     twerte:   restricted t-values
+**
+**	     noreg:	number of unrestricted regressors
+**
+**		se:	restricted standard errors
+**
+** Output: 	bres:	estimation vector with zeros
+**		
+**		tw:	t-values of b with zeros
+**		
+**		seres: 	standard errors of b with zeros
+*/  
+ proc(3)=PutZerosIn_subset(b,sel,twerte,noreg,se);
+  	local bres,v,i,tw,seres;
+  		bres=zeros(noreg,1);
+  		tw=zeros(noreg,1);
+  		seres = zeros(noreg,1); 
+  		v=indexcat(sel,1);
+  		i=1;
+  		do while i<=rows(b);
+  			bres[v[i]]=b[i];
+  			tw[v[i]]=twerte[i];
+  			seres[v[i]] = se[i]; 
+  		i=i+1;
+  		endo;
+  	retp(bres,tw,seres);	
+  endp;		
+  
+/*
+** Format:	{b,aic,hq,sc,t,se} = EstimateSingleEquation_subset(y,x);
+**
+** Computes single equation regression. 
+**
+** Input: 	y: 	(T x 1) data vector
+**
+**		x:	(Tx #of Regressors) regression matrix
+**
+** Output: 	b:	LS estimate
+**		
+**		aic:	Akaike Information Criterion
+**
+**		hq:	Hannan Quinn Information Criterion
+**
+**		sc:	Schwarz Information Criterion
+**
+**		t:	t-values of b
+**		
+**		se: 	standard errors of b
+*/ 
+  proc(6)=EstimateSingleEquation_subset(y,x);        @does single equation estimation @				      @input y(tx1),x(txk)            @	
+  	local b,e,sse,aic,hq,sc,sigma,covb,t,se;	  	  
+  	b=inv(x'x)*x'y;
+  	e=y-x*b;
+  	sse= e'e;
+  	aic   = ln(sse/rows(y)) + 2*cols(x)/rows(y);
+  	hq    = ln(sse/rows(y)) + 2*cols(x)*ln(ln(rows(y)))/rows(y);
+  	sc    = ln(sse/rows(y)) + cols(x)*ln(rows(y))/rows(y);
+  	sigma = sse/(rows(y)-cols(x)); 
+  	covb  = sigma * inv(x'x);
+  	t     = b./(sqrt(diag(covb)));
+  	se    = sqrt(diag(covb));
+  	retp(b,aic,hq,sc,t,se);
+  endp;
+  
+
+/*
+** Format:	{crit,crit,crit} = ComputeCrit_subset(y);
+**
+** Computes the information criterion for a model with no
+** regressors. 
+**
+** Input: 	y: 	(T x 1) data vector
+**
+** Output: 	crit:	scalar, the IC
+**
+*/
+proc(3)=ComputeCrit_subset(y);
+local sse,crit;
+	 sse = y'y;
+  	crit = ln(sse/rows(y));
+retp(crit,crit,crit);
+endp;
+
+
+/*
+** Format: {b,tv,se,sel} = TestingProcedure_subset(yi,xi,crit,Res_i);
+**
+** Computes subset using the Testing Procedure proposed 
+** by Brüggemann & Lütkepohl (2000)
+**
+** Input:	yi:	(T x 1) , dependent variable 
+**
+**		xi:	(T x noreg) , matrix of inital regressors
+**
+** 	      crit:     scalar,   	1 = AIC
+**					2 = HQ
+**					3 = SC
+**
+**	     Res_i:	i-th row from user defined restriction matrix
+**			2 : keep variable 
+**			1 : include in search
+**			0 : excluded from the beginning
+**
+** Output:	 b:   	restricted ols estimate
+**		tv:	t-values associated with b
+**		se:	standard errors associated with b
+**	       sel:	selection vector:
+**			1 = included variable
+**			0 = excluded variable
+**
+*/    
+  proc(4)=TestingProcedure_subset(yi,xi,crit,Res_i); 
+  	local noreg,t,sel,keep1,ex,j,x,thres,b,se,aic,hq,sc,tv,keep,tv_s,lowest_t;   
+  	
+  	noreg = cols(xi);
+  	t     = rows(xi);
+  	
+  	sel   =  dummydn(Res_i',.5,1);
+  	keep1 =  dummydn(Res_i',1.5,1);
+  
+  	ex=0;
+  	j=1;
+      do while ex==0;
+      	x=selif(xi',sel)'; 
+      	if     crit==1;thres=sqrt((exp(2/t)-1)*(t-cols(xi)+j-1));		@AIC@
+      	elseif crit==2;thres=sqrt((exp(2*ln(ln(T))/t)-1)*(t-cols(xi)+j-1));	@HQ @
+      	elseif crit==3;thres=sqrt((exp(ln(T)/t)-1)*(t-cols(xi)+j-1));     	@SC @
+  	endif;
+  	
+  	if ismiss(x) ne 1;
+  	  {b,aic,hq,sc,tv,se} = EstimateSingleEquation_subset(yi,x);	  	       	       	     
+  	     		keep  = selif(keep1,sel); 	             	           
+  			tv_s  = delif(tv,keep);		/* keep restricted variables */
+  		     lowest_t = tv_s[minindc(abs(tv_s))];   		     
+			   ex = ismiss(lowest_t);
+  	          {b, tv, se} = PutZerosIn_subset(b,sel,tv,noreg,se);						   	 			
+  	               if abs(lowest_t)<=thres;				  	                 
+  			 sel[indexcat(tv,lowest_t)]=0;  			
+  			elseif abs(lowest_t) gt thres;
+  				ex=1;	 
+  			endif;		
+  	elseif ismiss(x)==1;
+  	         b = zeros(noreg,1);
+  	        tv = zeros(noreg,1);
+  	       sel = zeros(noreg,1);
+  	       se  = zeros(noreg,1);
+  	       ex =1;
+  	endif;
+  	j=j+1;
+  	endo;
+      retp(b,tv,se,sel);
+  endp;	
+
+/*
+** Format: {b,tv,se,sel} = TopDown_subset(yi,xi,crit,Res_i);
+**
+** Computes subset using the Tow-Down strategy
+**
+** Input:	yi:	(T x 1) , dependent variable 
+**
+**		xi:	(T x noreg) , matrix of inital regressors
+**
+** 	      crit:     scalar,   	1 = AIC
+**					2 = HQ
+**					3 = SC
+**
+**	     Res_i:	i-th row from user defined restriction matrix
+**			2 : keep variable 
+**			1 : include in search
+**			0 : excluded from the beginning
+**
+** Output:	 b:   	restricted ols estimate
+**		tv:	t-values associated with b
+**		se:	standard errors associated with b
+**	       sel:	selection vector:
+**			1 = included variable
+**			0 = excluded variable
+**
+*/
+proc(4)=TopDown_subset(yi,xi,crit,Res_i);
+local sel, keep1, noreg, x, b, aic, hq, sc, tv, se, crit1, i; 
+	
+	sel   =  dummydn(Res_i',.5,1);
+  	keep1 =  dummydn(Res_i',1.5,1);
+  	noreg =  cols(xi);
+  	
+  	
+  	x = selif(xi',sel)';			/* delete regressors that have been excluded by user */
+
+  	{b,aic,hq,sc,tv,se} = EstimateSingleEquation_subset(yi,x);	  	
+  	        {b, tv, se} = PutZerosIn_subset(b,sel,tv,noreg,se);	
+  	
+  	if     crit==1; crit1=aic;	       /* save criteria for comparison */
+	elseif crit==2; crit1=hq;
+	elseif crit==3; crit1=sc;
+	endif;
+  	
+  	i = cols(xi);
+  	do while i>=1;  			/* start top down loop 		  */	        	
+        					/* keep regressors spec. by users */
+           if (keep1[i] ne 1) and (sel[i] ne 0) and (counts(sel,0) ne rows(sel)); 
+				
+		sel[i] = 0;			/* delete regressor i */
+		x = selif(xi',sel)';			        
+		
+		if counts(sel,0)ne rows(sel);	/* estimate eq. if regressors present */	
+	              {b,aic,hq,sc,tv,se} = EstimateSingleEquation_subset(yi,x);		        
+	                      {b, tv, se} = PutZerosIn_subset(b,sel,tv,noreg,se);		        
+	        else;		
+		              {aic,hq,sc} = ComputeCrit_subset(yi); /* compute IC if no regressors present */
+		endif;  
+			        
+	        if     crit==1 and (aic>crit1); sel[i]=1;   /* if IC increased, put regressor back  */  
+	        elseif crit==2 and (hq>crit1);  sel[i]=1;
+	        elseif crit==3 and (sc>crit1);  sel[i]=1;
+	        endif;	      	       
+	        
+	   elseif (counts(sel,0) == rows(sel));             /* if no regressors present, return zeros */ 
+	      	b = zeros(noreg,1);
+	       tv = zeros(noreg,1);
+	      sel = zeros(noreg,1);
+  	      se  = zeros(noreg,1);
+	   endif;	    		
+	            	if     crit==1 and (aic<=crit1); crit1=aic; /* update criterion only if regressor*/
+			elseif crit==2 and (hq<=crit1);  crit1=hq;  /* has been deleted  		 */
+			elseif crit==3 and (sc<=crit1);  crit1=sc;  
+			endif;
+	    	
+	i = i - 1;
+	endo;   				/* endo top down loop 		*/
+retp(b,tv,se,sel);	
+endp;
+
+
+/*
+** Format: 
+**
+** {R, minVCR, keepl} = SystemMinimum_subset(y,z,S,crit,R,vcrito,keep);
+**
+** Purpose: 	Finds the regressor which leads to largest improvement in
+**		information criterion.
+**
+**
+**
+** Input: 	y:		(K x T) matrix, dep variables                       
+**
+**		z:		(# of regressors x T) Regressor matrix  
+**
+**	     invS:		inverse of covariance matrix from "unrestricted model"
+**				 if user has specified restrictions, this is computed by
+**				 EGLS, otherwhise by unrestricted OLS
+**
+**	     crit:		scalar indicating the information criteria:
+**
+**				1 = AIC
+**				2 = HQ
+**				3 = SC
+**
+**		R:		Restriction matrix as in Lütkepohl, Chapter 5	                   
+**
+**	   vcrito: 		scalar, old Vector criterion from previous reduction step
+**
+**	     keep:		vector that has information on variables to be kept in the system
+**				# rows == #cols(R)
+**
+** Output: 	
+**		R:		Updated restriction matrix (see above)
+**
+**	   minVCR:		The minimal VCR of this step
+**	
+**	    keepl:		Updated keep vector (see input )
+*/
+proc(3)=SystemMinimum_subset(y,z,invS,crit,R,vcrito,keep);
+local k,t,c,mVCR,i,cl,Rl,vecy,ga,b,u,d, keepl,S;
+	
+	   k = rows(y); t = cols(y); c = seqa(1,1,cols(R));	
+	mVCR = zeros(cols(R),1);	  	  
+	   i = 1;
+        vecy = vec(y);	
+	do while i<= cols(R);	                  
+	            if keep[i] ne 1; 
+  	                  cl = delif(c,c.==i); 
+			  Rl = submat(R,0,cl);				  
+		       keepl = submat(keep,cl,0);  	
+			if ismiss(Rl)==0;
+			  ga = inv(rl'(Z*Z'.*.invS)*rl)*rl'(Z.*.invS)*vecy;
+			  b  = reshape(rl*ga, rows(z), k)';			  
+			  u  = y-b*z;
+			  s  = u*u'/t;
+			else;
+			  s  = y*y'/t;
+			endif;  
+		      mVCR[i] = ComputeVCR_subset(Rl,S,t,crit);	
+		     else;
+		       mVCR[i] = vcrito+2;				       			     
+		     endif;  
+		   i = i + 1;
+	endo;    	 	
+         c = delif(c,c.==minindc(mVCR)); 	
+         R = submat(R,0,c);                
+     keepl = submat(keep,c,0);    
+retp(R,minc(mVCR),keepl);         
+endp;		  
+
+/*
+** Format: 
+**
+**  vcrit = ComputeVCR_subset(R, cova, t, crit); 
+**
+** Purpose: Computes Vector Information Criteria	
+**
+**
+**
+**   Input: 	R:		Restriction matrix as in Lütkepohl, Chapter 5	                   
+**
+**	     cova:		K x K estimated covariance matrix
+**
+**		t: 		scaler, obervations used in estimation
+**
+**	     crit:		scalar indicating the information criteria:
+**
+**				1 = AIC
+**				2 = HQ
+**				3 = SC
+*/
+proc(1)=ComputeVCR_subset(R, cova, t, crit);
+local J, vcrit, c_T;
+	
+	if ismiss(R)==0;	/* check wheter regressors present */
+        	J = cols(R);
+        else;
+        	J = 0;
+        endif;
+        
+	if crit==1;   	c_T=2;          	@ AIC @
+	elseif crit==2; c_T=2*ln(ln(t));	@ HQ  @
+	elseif crit==3; c_T=ln(t);		@ SC  @
+	endif;
+vcrit = ln(det(cova))+ (c_T*J/t);
+retp(real(vcrit));
+endp;
+
+/*
+** Format: 
+**
+**  {b_egls,se_egls,tv_egls,u,S,b,se,Restrictions,RestrictionsII} 
+**                               = DoSystemSER_subset(y,z,crit,Restrictions); 
+**
+**   Input: 	y:		(K x T) matrix, dep variables                       
+**
+**		z:		(# of regressors x T) Regressor matrix  
+**
+**
+**	     crit:		scalar indicating the information criteria:
+**
+**				1 = AIC
+**				2 = HQ
+**				3 = SC
+**
+**   Restrictions:	       -has same dimension as coefficient matrix
+**				
+**				0 = exclude variable from the beginning
+**				1 = include variable in search
+**				2 = exclude variable from search
+**
+** Output: 
+**		b_egls:		EGLS estimates of subset model
+**		
+**		se_egls:	standard errors of subset model
+**		
+**		tv_egls:	t-values of subset model
+**
+**		u:		K x T  matrix of residuals
+**
+**		S: 		the covariance matrix of the subset model
+**
+**		b:		the restricted LS estimates
+**
+**		se:		standard errors of restricted LS estimates
+**
+**	Restrictions:		Restrictions matrix, same dimensions as UserRestrictions
+**				1 = variable included
+**				0 = variable exclcuded
+**
+**	        R:		Restriction matrix as in Lütkepohl, Chapter 5	
+**		
+**
+**
+*/
+proc(9)=DoSystemSER_subset(y,z,crit,Restrictions);
+local k,t,b,se,tv,u,S,r,vcrito,vcrit,tmp,sel,keep,i,c,b_egls,
+      se_egls,tv_egls,tmp1,tmp2,tmp3,tmp4,Ro,d,vd,keepl,invS;
+
+    k = rows(y);
+    t = cols(y); 	
+
+  sel =  dummydn(vec(Restrictions),.5,1);  
+ keep =  dummydn(vec(Restrictions),1.5,1);	
+
+    c  = seqa(1,1,rows(sel)); 
+    c  = delif(c,sel.==0);
+    R  = eye(k*rows(z));  		    /*  for the full model */        		    
+    R  = submat(R,0,c);                     /* delete variables specified by user */  				    					
+ keepl = submat(keep,c,0);
+ 
+     	     				   /* Estimate the unrestricted model */	     
+   {b,se,tv,u,S,r} = EstimateEGLS_subset(y,z,R,1);                               
+            vcrito = ComputeVCR_subset(R,S,t,crit);        
+            vcrit  = vcrito;
+            invS   = inv(s);
+	 do while (vcrit <= vcrito) and ismiss(R)==0;	 	
+	           vcrito = vcrit; 
+		       Ro = R;       		   		       
+	  {R,vcrit,keepl} = SystemMinimum_subset(y,z,invS,crit,R,vcrito,keepl);	     
+	 endo;
+
+	if ismiss(R)==0;	
+		  		  	     R = Ro; 				 /* the second last model */
+       		{b_egls,se_egls,tv_egls,u,S,R} = EstimateEGLS_subset(y,z,R,1);  
+                                  Restrictions = reshape(sumc(R'),cols(b),k)';
+                {b,se,tmp,tmp1,tmp2,tmp3,tmp4} = Estimate_subset(Y,Z,2,Restrictions,1); /* restricted LS */
+        else;              
+		 b_egls = zeros(k,rows(z));                  /* assign zeros to coefficients etc. */
+       		se_egls = b_egls;
+       		tv_egls = b_egls;
+ 		     b  = b_egls;
+ 		     se = b_egls; 		      		      
+ 		      s = y*y'/t;
+           Restrictions = b_egls; 
+	endif;                  
+
+retp(b_egls,se_egls,tv_egls,u,S,b,se,Restrictions,R);
+endp;
+
+/*
+** Format: 
+**
+**  {b_egls,se_egls,tv_egls,u,S,b,se,Restrictions,RestrictionsII} 
+**                               = DoTestingProcedure_subset(y,z,crit,Restrictions); 
+**
+**   Input: 	y:		(K x T) matrix, dep variables                       
+**
+**		z:		(# of regressors x T) Regressor matrix  
+**
+**
+**	     crit:		scalar indicating the information criteria:
+**
+**				1 = AIC
+**				2 = HQ
+**				3 = SC
+**
+**   Restrictions:	       -has same dimension as coefficient matrix
+**				
+**				0 = exclude variable from the beginning
+**				1 = include variable in search
+**				2 = exclude variable from search
+**
+** Output: 
+**		b_egls:		EGLS estimates of subset model
+**		
+**		se_egls:	standard errors of subset model
+**		
+**		tv_egls:	t-values of subset model
+**
+**		u:		K x T  matrix of residuals
+**
+**		S: 		the covariance matrix of the subset model
+**
+**		b:		the restricted LS estimates
+**
+**		se:		standard errors of restricted LS estimates
+**
+**	Restrictions:		Restrictions matrix, same dimensions as UserRestrictions
+**				1 = variable included
+**				0 = variable exclcuded
+**
+**	 RestrictionsII:	Restriction matrix as in Lütkepohl, Chapter 5	
+**		
+**
+**
+*/
+proc(9)=DoTestingProcedure_subset(y,z,crit,Restrictions);
+local k,b,tv,se,sel,i,b_egls,se_egls,tv_egls,u,S,RestrictionsII;
+				   /* initialize some variables */	   
+   
+  
+      y = y';		      /* transpose for single equation strategies */
+      z = z';
+   
+      k = cols(y);		    		        
+      b = zeros(cols(z),k);      /* to save subset parameters       */       
+     tv = zeros(cols(z),k);	    /* to save subset t-values         */  
+     se = zeros(cols(z),k);      /* to save subset standard errors  */			            
+    sel = zeros(cols(z),k);      /* restriction matrix 1=in,0=out   */
+   
+    
+    local tmp1,tmp2,tmp3,tmp4;
+
+    i = 1;
+    do while i<=k;   	
+      {tmp1,tmp2,tmp3,tmp4} =  TestingProcedure_subset(y[.,i],z,crit,Restrictions[i,.]);
+      b[.,i]   = tmp1;
+      tv[.,i]  = tmp2;
+      se[.,i]  = tmp3;
+      sel[.,i] = tmp4;
+      i = i+1;
+    endo;
+
+    
+    /* estimate with EGLS */ 
+    {b_egls,se_egls,tv_egls,u,S,Restrictions,RestrictionsII} = Estimate_subset(y',z',3, sel', 1);             
+     b = b'; se = se';                   
+retp(b_egls,se_egls,tv_egls,u,S,b,se,Restrictions,RestrictionsII);    
+endp;
+
+/*
+** Format: 
+**
+**  {b_egls,se_egls,tv_egls,u,S,b,se,Restrictions,RestrictionsII} 
+**                               = DoTopDown_subset(y,z,crit,Restrictions); 
+**
+**   Input: 	y:		(K x T) matrix, dep variables                       
+**
+**		z:		(# of regressors x T) Regressor matrix  
+**
+**
+**	     crit:		scalar indicating the information criteria:
+**
+**				1 = AIC
+**				2 = HQ
+**				3 = SC
+**
+**   Restrictions:	       -has same dimension as coefficient matrix
+**				
+**				0 = exclude variable from the beginning
+**				1 = include variable in search
+**				2 = exclude variable from search
+**
+** Output: 
+**		b_egls:		EGLS estimates of subset model
+**		
+**		se_egls:	standard errors of subset model
+**		
+**		tv_egls:	t-values of subset model
+**
+**		u:		K x T  matrix of residuals
+**
+**		S: 		the covariance matrix of the subset model
+**
+**		b:		the restricted LS estimates
+**
+**		se:		standard errors of restricted LS estimates
+**
+**	Restrictions:		Restrictions matrix, same dimensions as UserRestrictions
+**				1 = variable included
+**				0 = variable exclcuded
+**
+**    RestrictionsII:		Restriction matrix as in Lütkepohl, Chapter 5	
+**		
+**
+**
+*/
+proc(9)=DoTopDown_subset(y,z,crit,Restrictions);
+local k,b,tv,se,sel,i,b_egls,se_egls,tv_egls,u,S,RestrictionsII;				      
+  
+      y = y';		      /* transpose for single equation strategies */
+      z = z';
+   
+      k = cols(y);		  /* initialize some variables */	    		        
+      b = zeros(cols(z),k);      /* to save subset parameters       */       
+     tv = zeros(cols(z),k);	    /* to save subset t-values         */  
+     se = zeros(cols(z),k);      /* to save subset standard errors  */			            
+    sel = zeros(cols(z),k);      /* restriction matrix 1=in,0=out   */
+    local tmp1,tmp2,tmp3,tmp4;
+
+   i = 1;
+    do while i<=k;   	
+      {tmp1,tmp2,tmp3,tmp4}=TopDown_subset(y[.,i],z,crit,Restrictions[i,.]);
+      b[.,i]   = tmp1;
+      tv[.,i]  = tmp2;
+      se[.,i]  = tmp3;
+      sel[.,i] = tmp4;
+      i = i+1;
+    endo;
+    
+    /* estimate with EGLS */ 
+    {b_egls,se_egls,tv_egls,u,S,Restrictions,RestrictionsII} = Estimate_subset(y',z',3, sel', 1);             
+     b = b'; se = se';                   
+retp(b_egls,se_egls,tv_egls,u,S,b,se,Restrictions,RestrictionsII);    
+endp;
+/*
+proc(4)=BottomUp_subset(yi,z,crit,Res_i,k);
+local sel, keep, noreg, x, b, aic, hq, sc, tv, se, crit1, i,R,Rl,c,ck,s2,t,
+c_T, pmax,j,keepl,cl,mkeep,keepn,e; 
+
+        t     = cols(z);            
+        
+	if crit ==1;
+		c_T = 2;
+	elseif crit == 2;
+		c_T = 2*ln(ln(t));
+	elseif crit == 3;
+		c_T = ln(t);
+	endif;
+
+	sel   =  dummydn(Res_i',.5,1);
+  	keep  =  dummydn(Res_i',1.5,1);
+  	c     =  seqa(1,1,rows(keep));
+  	cl    =  delif(c,keep.==0);
+ 	R     =  eye(rows(sel));		/* that is the matrix for the full system          */										
+	Rl    =  submat(R,0,c);			/* fix regressors that are excluded from bottum up */	 	   	
+	
+	pmax  = (rows(z)-sumc(keep))/k;	
+	
+	
+	ck    = inv(Rl'z*z'Rl)*Rl'z*yi;		/* estimate the model 				   */	
+	s2    = (yi-z'Rl*ck)'(yi-z'Rl*ck)/t;
+	crit1 = ln(s2) + c_T/t*cols(Rl);
+	
+	/* add regressors */
+	keepl = keep;
+	    j = sumc(keep);	    
+	    i = 1;
+	mkeep = keepl;
+	    
+	    e = 1;
+	mkeep = keep;
+	
+	do while e<=k;
+	    j = sumc(keep);	    
+	    i = 1;
+	    crit1=minc(crit1);
+	    do while i<= pmax;	  
+	      keepl[j+e] = 1;		
+	           j+e;
+		   cl    =  delif(c,keepl.==0);
+		   Rl    =  submat(R,0,cl);		   
+                   ck    = inv(Rl'z*z'Rl)*Rl'z*yi;		/* estimate the model 				   */	
+  	           s2    = (yi-z'Rl*ck)'(yi-z'Rl*ck)/t;
+	           crit1 = crit1 | ln(s2) + c_T/t*cols(Rl);		   	           	       
+	           mkeep = mkeep~keepl;	           
+		  j = j + k; 
+		  i = i +1;	  
+		endo;		  
+	keepl = mkeep[.,minindc(crit1)];	           	           	
+	e = e + 1;		
+	endo; /* endo variables */			
+	keep;
+	
+
+retp(b,tv,se,sel);
+endp;
+
+/*
+** Format: 
+**
+**  {b_egls,se_egls,tv_egls,u,S,b,se,Restrictions,RestrictionsII} 
+**                               = DoBottumUp_subset(y,z,crit,Restrictions); 
+**
+**   Input: 	y:		(K x T) matrix, dep variables                       
+**
+**		z:		(# of regressors x T) Regressor matrix  
+**
+**
+**	     crit:		scalar indicating the information criteria:
+**
+**				1 = AIC
+**				2 = HQ
+**				3 = SC
+**
+**   Restrictions:	       -has same dimension as coefficient matrix
+**				
+**				0 = exclude variable from the beginning
+**				1 = include variable in search
+**				2 = exclude variable from search
+**
+** Output: 
+**		b_egls:		EGLS estimates of subset model
+**		
+**		se_egls:	standard errors of subset model
+**		
+**		tv_egls:	t-values of subset model
+**
+**		u:		K x T  matrix of residuals
+**
+**		S: 		the covariance matrix of the subset model
+**
+**		b:		the restricted LS estimates
+**
+**		se:		standard errors of restricted LS estimates
+**
+**	Restrictions:		Restrictions matrix, same dimensions as UserRestrictions
+**				1 = variable included
+**				0 = variable exclcuded
+**
+**    RestrictionsII:		Restriction matrix as in Lütkepohl, Chapter 5	
+**		
+**
+**
+*/
+proc(9)=DoBottomUp_subset(y,z,crit,Restrictions);
+local k,b,tv,se,sel,i,b_egls,se_egls,tv_egls,u,S,RestrictionsII;				      
+  
+      y = y';		      /* transpose for single equation strategies */      
+   
+      k = cols(y);		  /* initialize some variables */	    		        
+      b = zeros(cols(z),k);      /* to save subset parameters       */       
+     tv = zeros(cols(z),k);	    /* to save subset t-values         */  
+     se = zeros(cols(z),k);      /* to save subset standard errors  */			            
+    sel = zeros(cols(z),k);      /* restriction matrix 1=in,0=out   */
+
+    local tmp1,tmp2,tmp3,tmp4;
+
+   i = 1;
+    do while i<=k;   	
+      {tmp1,tmp2,tmp3,tmp4} = BottomUp_subset(y[.,i],z,crit,Restrictions[i,.],k);
+      b[.,i]   = tmp1;
+      tv[.,i]  = tmp2;
+      se[.,i]  = tmp3;
+      sel[.,i] = tmp4;
+      i = i+1;
+    endo;
+    
+    /* estimate with EGLS */ 
+    {b_egls,se_egls,tv_egls,u,S,Restrictions,RestrictionsII} = Estimate_subset(y',z',3, sel', 1);             
+     b = b'; se = se';                   
+retp(b_egls,se_egls,tv_egls,u,S,b,se,Restrictions,RestrictionsII);    
+endp;
+*/
+
+/*
+** Format: 
+**
+**  {b_egls,se_egls,tv_egls,u,S,b,se,Restrictions,R} 
+**                               = DoSystemTP_subset(y,z,crit,Restrictions,thres); 
+**
+** Input: 	y:		(K x T) matrix, dep variables                       
+**
+**		z:		(# of regressors x T) Regressor matrix  
+**
+**   Restrictions:	       -has same dimension as coefficient matrix
+**				
+**				0 = exclude variable from the beginning
+**				1 = include variable in search
+**				2 = exclude variable from search
+**
+**
+**	    thres:		positive scalar, gives threshold value for 
+**				Testing Procedure
+**
+** Output: 
+**		b_egls:		EGLS estimates of subset model
+**		
+**		se_egls:	standard errors of subset model
+**		
+**		tv_egls:	t-values of subset model
+**
+**		u:		K x T  matrix of residuals
+**
+**		S: 		the covariance matrix of the subset model
+**
+**		b:		the restricted LS estimates
+**
+**		se:		standard errors of restricted LS estimates
+**
+**	Restrictions:		Restrictions matrix, same dimensions as UserRestrictions
+**				1 = variable included
+**				0 = variable exclcuded
+**
+**	           R:		Restriction matrix as in Lütkepohl, Chapter 5	
+**		
+**
+**
+*/
+proc(9)=DoSystemTP_subset(y,z,crit,Restrictions,thres);
+local k,t,sel,keep,c,R,Rl,LowT,cl,b,se,tv,u,S,tmp,sell,
+  b_egls,se_egls,tv_egls,tmp1,tmp2,tmp3,tmp4;
+
+     k = rows(y);
+     t = cols(y); 	
+
+   sel =  dummydn(vec(Restrictions),.5,1);  
+  keep =  dummydn(vec(Restrictions),1.5,2);	/* 0 = keep, 1 include in search */
+ 
+    c  = seqa(1,1,rows(sel)); 
+    c  = delif(c,sel.==0);
+    R  = eye(k*rows(z));  		    /* for the full model 		  */        		    
+    Rl = submat(R,0,c);                     /* delete variables specified by user */  				    					
+ 
+ 
+  LowT = thres -.00001;		    /* init LowT			  */		
+  cl   = c;			    /* init cl				  */	
+  
+        do while (abs(LowT) <= thres) and (ismiss(Rl)==0);	                    	           
+	   {b,se,tv,u,S,Rl} = EstimateEGLS_subset(y,z,Rl,1);	
+		        tmp = keep .and sumc(Rl');	                      
+	       	       LowT = minc(selif(vec(abs(tv)),tmp)); 		       	       
+	       	       if abs(LowT) <=thres;
+	       	       	sel[indexcat(vec(abs(tv)),LowT)] = 0;	/* delete regressor 		    */       	       	
+	       	        sell = submat(sel,c,0);	       	        /* trim user defined restrictions   */
+	       	       	  cl = delif(c,sell.==0);	      	       	      
+	       	       	  Rl = submat(R,0,cl); 	   	       	/* trim Rl according to restriction */       		       	       		       	       		       	       	  
+	       	       endif;
+	endo;
+	
+       if ismiss(Rl) == 0; 					/* estimate the final model, if there is one */
+       	 			             R = Rl;					        			    
+       		{b_egls,se_egls,tv_egls,u,S,R} = EstimateEGLS_subset(y,z,R,1); 
+                                  Restrictions = reshape(sumc(R'),cols(b),k)';
+                {b,se,tmp,tmp1,tmp2,tmp3,tmp4} = Estimate_subset(Y,Z,2,Restrictions,1); /* restricted LS */
+       
+       else;
+       		 b_egls = zeros(k,rows(z));			/* assign zeros to coefficients etc. */
+       		se_egls = b_egls;
+       		tv_egls = b_egls;
+ 		     b  = b_egls;
+ 		     se = b_egls; 		      		      
+ 		      s = y*y'/t;
+           Restrictions = b_egls; 
+	endif;           	
+retp(b_egls,se_egls,tv_egls,u,S,b,se,Restrictions,R);
+endp;
+
+
+/*
+** estimate.src
+**
+**  has the following procedures:
+**
+**	- EstimateVAR_subset
+**	- EstimateEGLS_subset
+**	- Estimate_subset
+**
+** 	modified:
+**	Feb 18, 2001:	 description added to procedures (RB) 
+**
+*/ 
+
+proc(11) = EstimateVAR_subset(data,vnames,dstatus,deternames,maxLag, StartDate, EndDate);
+local Y_Var, Z_Var, Y, Z ,EstSample, EstSampleSize, B, se, tv, u, S, Restrictions, r;
+	 
+ 	 Y_Var = vnames;
+	 Z_Var = NameLag_subset(data, vnames, maxLag);	 	 
+	 	  
+	 if deternames $/="0";
+	    Z_Var = deternames~Z_Var;
+	 endif;    	 		
+ 	 
+ 	                   {Y, Z} = SelectVariables_subset(Y_Var,Z_Var,data);
+{Y, Z, EstSample, EstSampleSize}  = SelectSample_subset(data,Y,Z,StartDate, EndDate, maxLag, dstatus);		 	  
+
+
+    {B,se,tv,u,S,Restrictions,r}  = Estimate_subset(y,z,1,0,1);
+retp(B,se,tv,u,S,Y,Z,Y_Var,Z_Var,EstSample,EstSampleSize);
+endp;
+
+
+proc(6)= EstimateEGLS_subset(y,z,R,EGLS_Option);
+local   k,b,t,u,s,se,tv,noofpar,j,v,ga,vecy,vecse,tmp;
+	t = cols(y);			
+	k = rows(y);	
+
+
+		if EGLS_Option == 1;   /* use unrestricted OLS to compute S */ 
+		  trap 1;
+		  tmp = inv(z*z');
+		  if scalerr(tmp);
+		    errorlog("Z matrix could not be inverted. Subset search failed.");
+		    retp(-10,-10,-10,-10,-10,-10);
+		  endif;
+		  trap 0;
+			b  = y*z'*tmp;
+			u  = y-b*z;
+		elseif EGLS_Option == 2; /* use restricted LS to compute S */
+			vecy  = vec(y);     
+			b  = inv(r'(Z*Z'.*.eye(k))*r)*r'(Z.*.eye(k))*vecy;
+			b  = reshape(r*b, rows(z), k)';
+			u  = y-b*z;			
+		endif;					
+		  s  = u*u'/(t-rows(z));
+		vecy = vec(y);
+		  ga = inv(r'(Z*Z'.*.inv(s))*r)*r'(Z.*.inv(s))*vecy;
+		  b  = reshape(r*ga, rows(z), k)';
+		  u  = y-b*z;
+		  s  = u*u'/t;
+		  se = sqrt((reshape(diag(r*inv( r'*((z*z').*.inv(s))*r )*r'),cols(b),rows(y)))');		  		  
+		  vecse = selif (vec(se),abs(vec(se)));
+		     tv = reshape(r*(ga./vecse), rows(z),k)';		
+	
+retp(b,se,tv,u,S,r);
+endp;
+
+
+/* procedure: Estimate 
+**
+** Format: 
+**
+**	{b,se,tv,u,S,Restrictions,r} 
+**        = Estimate_subset(y,z,EstimationMethod, Restrictions, EGLS_Option);
+**
+**
+** Input: 	y:	(K x T) matrix                       
+**
+**		z:	Regressor Matrix            
+**
+**		EstimationMethod: 
+**			1 = unrestricted OLS
+**			2 = restricted LS
+**			3 = EGLS 
+**	
+**		Restrictions: 
+**			- matrix of restrictions:
+**			- has same dimension as parameter matrices
+**			1 : included
+**			0 : excluded
+**				
+**		EGLS_Option:
+**			1: use unrestricted LS to compute covariance S
+**			2: use restricted LS to compute covariance S
+**
+** Output: 	b: 	matrix of coefficient estimates 
+** 		
+**		se: 	matrix of standard errors of b
+**		
+**		tv: 	matrix of t-values
+**		
+**		u:      (K x T) matrix of residuals
+**
+**		S: 	(K x K) covariance matrix computed as
+**			S = u*u'/T;
+**
+**   Restrictions:	see above
+**
+**		r: 	rewritten restrictions as in Luetkepohl (1991), Ch. 5
+*/
+proc(7)= Estimate_subset(y,z,EstimationMethod, Restrictions, EGLS_Option);
+local   k,b,t,u,s,se,tv,noofpar,r,j,v,ga,vecy,vecse,tmp;
+	t = cols(y);			
+	k = rows(y);	
+	/* rewrite restrictions      */		
+	if (EstimationMethod ==2) or (EstimationMethod ==3);
+	  noofpar = rows(vec(Restrictions))- counts(vec(Restrictions),0);
+	  
+		r = zeros(rows(vec(Restrictions)),noofpar);
+		j = 1;
+		v=indexcat(vec(Restrictions),1);	
+		do while j<=noofpar;
+			   r[v[j],j]= 1;
+			   j=j+1;	
+		endo;
+	else;
+	r =eye(rows(z)*k);
+      endif;	
+
+	if EstimationMethod == 1;		/* unrestricted LS */		
+		b  = y*z'*inv(z*z');
+		u  = y-b*z;
+		s  = u*u'/(t-rows(z)); 
+		se =sqrt((reshape(diag(inv(z*z').*.s),cols(b),rows(y)))');
+		tv = b./se;
+	elseif EstimationMethod == 2;		/* restricted LS  */
+		vecy  = vec(y);     
+		b  = inv(r'(Z*Z'.*.eye(k))*r)*r'(Z.*.eye(k))*vecy;
+		b  = reshape(r*b, rows(z), k)';
+		u  = y-b*z;
+		s  = u*u'/t; 
+		se = sqrt((reshape(diag(inv(z*z').*.s),cols(b),rows(y)))');
+		tv = b./se;
+	elseif EstimationMethod == 3;  		/* system estimation by EGLS */														
+		if EGLS_Option == 1;   /* use unrestricted OLS to compute S */ 
+		  trap 1;
+		  tmp = inv(z*z');
+		  if scalerr(tmp);
+		    errorlog("Z matrix could not be inverted. Subset search failed.");
+		    retp(-10,-10,-10,-10,-10,-10,-10);
+		  endif;
+		  trap 0;
+
+			b  = y*z'*tmp;
+			u  = y-b*z;
+		elseif EGLS_Option == 2; /* use restricted LS to compute S */
+			vecy  = vec(y);     
+			b  = inv(r'(Z*Z'.*.eye(k))*r)*r'(Z.*.eye(k))*vecy;
+			b  = reshape(r*b, rows(z), k)';
+			u  = y-b*z;			
+		endif;					
+		  s  = u*u'/(t-rows(z));
+		vecy = vec(y);
+		  ga = inv(r'(Z*Z'.*.inv(s))*r)*r'(Z.*.inv(s))*vecy;
+		  b  = reshape(r*ga, rows(z), k)';
+		  u  = y-b*z;
+		  s  = u*u'/t;
+		  se = sqrt((reshape(diag(r*inv( r'*((z*z').*.inv(s))*r )*r'),cols(b),rows(y)))');		  		  
+		  vecse = selif (vec(se),abs(vec(se)));
+		     tv = reshape(r*(ga./vecse), rows(z),k)';	
+	endif; 		
+	
+retp(b,se,tv,u,S,Restrictions,r);
+endp;
+proc(2)=SelectVariables_subset(Y_Var,Z_Var,data);    
+local i, tmp,Y,Z;
+    i = 1;
+    tmp = zeros(rows(vread(data,Y_Var[1])),1);
+    do while i<=cols(Y_Var);
+    	tmp = tmp~vread(data, Y_Var[i]);
+    	i = i + 1;
+    endo;	
+    Y = tmp[.,2:cols(tmp)];	
+    
+    i = 1;
+    tmp = zeros(rows(vread(data,Z_Var[1])),1);
+    do while i<=cols(Z_Var);
+       	tmp = tmp~vread(data, Z_Var[i]);
+       	i = i + 1;
+    endo;	
+    Z = tmp[.,2:cols(tmp)];	        
+retp(Y,Z);
+endp;
+
+proc(4) = SelectSample_subset(data,Y,Z,StartDate,EndDate,maxLag,dstatus);  		
+local k,indStartDate,indEndDate,EstSample,EstSampleSize;		
+	k = vread(data, "date");
+    indStartDate = indexcat(k, StartDate);    
+      indEndDate = indexcat(k, EndDate);            
+      if indStartDate <= maxLag+dstatus;
+          	Y = Y[indStartDate+maxLag+dstatus:indEndDate,.]';
+	  	Z = Z[indStartDate+maxLag+dstatus:indEndDate,.]'; 
+  	EstSample = k[indStartDate+dstatus+maxLag]|k[indEndDate];	  
+      elseif indStartDate >= maxLag+dstatus;
+          	Y = Y[indStartDate:indEndDate,.]';
+	  	Z = Z[indStartDate:indEndDate,.]';  
+  	EstSample = StartDate|EndDate;
+     endif;     	                           
+    EstSampleSize = cols(Y);
+    
+retp(Y,Z,EstSample,EstSampleSize);
+endp;
+
+proc(1) = NameLag_subset(data, vnames, maxLag);
+local i,j,x,str,lname,n;
+lname = zeros(1,maxLag*cols(vnames));   
+  j = 1;
+  n = 1;
+  do while j <= maxLag;
+        i = 1;
+ 	do while i<= cols(vnames);     	 
+    	str  = vnames[i]$+ "_" $+ ftocv(j,1,0);
+    lname[n] = str;
+ 	 i   = i + 1;   	
+ 	 n   = n + 1;
+      endo;	
+ j = j+1;
+ endo;
+retp(lname);
+endp;

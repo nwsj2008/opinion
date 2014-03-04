@@ -1,0 +1,59 @@
+/*
+ This file is part of the econometric software package JMulTi.
+ Copyright (C) 2000-2005  Alexander Benkwitz
+
+ This program is free software; you can redistribute it and/or
+ modify it under the terms of the GNU General Public License
+ as published by the Free Software Foundation; either version 2
+ of the License, or (at your option) any later version.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, write to the Free Software
+ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ */
+
+/*
+** SYNTAX
+** varSR = vec_SubsetRestrictions_VEC(var, 
+**	        S_G0, S_G, S_alpha, S_beta, S_beta_d, S_B, S_C_VEC, S_F_VEC); 
+** PURPOSE
+**
+**
+** INPUT
+**
+** OUTPUT
+*/
+proc(1)=vec_SubsetRestrictions_VEC(var, 
+	        S_G0, S_G, S_alpha, S_beta, S_beta_d, S_B, S_C_VEC, S_F_VEC); 
+	local keyList,x;
+	if rows(S_G0);
+		S_G0 = diagrv(S_G0,zeros(rows(S_G0),1));
+	endif;
+
+   	let keyList={"S_G0", "S_G", "S_alpha", "S_beta", "S_beta_d", "S_B", "S_C_VEC", "S_F_VEC"};
+   	for i(1,rows(keyList),1);
+		x = vargetl(keyList[i]);
+		if rows(x);
+			var = vml_SetRestrictions(var, x, keyList[i]);
+		endif;
+   	endfor;
+
+	retp(var);
+endp;
+
+
+
+
+
+
+
+
+
+
+
+

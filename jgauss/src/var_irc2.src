@@ -1,0 +1,211 @@
+/*
+ This file is part of the econometric software package JMulTi.
+ Copyright (C) 2000-2005  Alexander Benkwitz, Markus Kraetzig
+
+ This program is free software; you can redistribute it and/or
+ modify it under the terms of the GNU General Public License
+ as published by the Free Software Foundation; either version 2
+ of the License, or (at your option) any later version.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, write to the Free Software
+ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ */
+#ifos2win 
+/* to be used by library creation, windows only */
+#include var.dec
+#endif
+/*
+**
+** PURPOSE  Computes studentized bootstrap confidence intervals
+**          for impulse responses of a given VAR-model.
+**
+** SYNTAX  {irf_ferr_hat,ferr_st_lower,ferr_st_upper,
+**	        irf_orth_hat,orth_st_lower,orth_st_upper, seed, seed_sd} =
+**		  var__IRA_CI_ST(var,nob,nob_sd,seed,seed_sd,ir_max,coverage);
+**
+** INPUT    var    / (N,1) / matrix / data buffer with model information
+**          nob    / (1,1) / matrix / number of bootstrap replications
+**          nob_sd / (1,1) / matrix / number of bootstrap replications for estimating
+**                                    the standard deviation
+**          seed   / (1,1) / matrix / seed for drawing residuals 
+**                                    (seed=0 for using no seed)
+**          seed_sd / (1,1) / matrix / seed for drawing residuals when computing standard
+**                                    deviation
+**                                    (seed=0 for using no seed)
+**          ir_max / (1,1) / matrix / maximum number impulse responses to compute
+**          coverage / (1,1) / matrix / coverage of confidence intervals, in (0,1)
+**
+** OUTPUT   irf_ferr_hat  / (1+ir_max,K*K*2) / matrix / point estimates forecast
+**                                                    error impulse responses~point estimates forecast accumulated ferir
+**          ferr_st_lower / (1+ir_max,K*K*2) / matrix /normal~accumulated  
+**          ferr_st_upper / (1+ir_max,K*K*2) / matrix /normal~accumulated   
+**          irf_orth_hat  / (1+ir_max,K*K*2) / matrix /  point estimates orthogonal
+**                                                    error impulse responses~point estimates forecast accumulated orir
+**          orth_st_lower / (1+ir_max,K*K*2) / matrix /normal~accumulated   
+**          orth_st_upper / (1+ir_max,K*K*2) / matrix /normal~accumulated   
+**          newSeed       / (1,1)          / matrix / updated seed
+**          newSeed_sd    / (1,1)          / matrix / updated seed
+**          rtnFERR		  / (bootrep, (K*horizon+1)) / all bootstrapped FE IAs
+**          rtnOR		  / (bootrep, (K*horizon+1)) / all bootstrapped ORTH IAs
+**
+** REMARK   
+**
+** GLOBAL
+** __var_Note_StartTime
+**
+*/
+proc(12)=var__IRA_CI_ST(var, nob, nob_sd, seed, seed_sd, ir_max, coverage);
+	local irfe_st_lo,irfe_st_up,iror_st_lo,iror_st_up,
+	      irfe_hat,iror_hat,irfe_star,iror_star,irfe_star_sd,iror_star_sd,
+	      irfe_hat_sd,iror_hat_sd,t1,t2;
+	local irfe_st_lo_ac,irfe_st_up_ac,iror_st_lo_ac,iror_st_up_ac,
+	      irfe_hat_ac,iror_hat_ac,irfe_star_ac,iror_star_ac,irfe_star_sd_ac,iror_star_sd_ac,
+	      irfe_hat_sd_ac,iror_hat_sd_ac,rtnFERR,rtnOR,rtnFERR_std,rtnOR_std;
+
+	iror_hat = {}; irfe_hat = {}; irfe_star = {}; iror_star = {}; irfe_st_lo = {};     
+	irfe_st_up = {}; iror_st_lo = {}; iror_st_up = {};
+	
+	iror_hat_ac = {}; irfe_hat_ac = {}; irfe_star_ac = {}; iror_star_ac = {}; irfe_st_lo_ac = {};     
+	irfe_st_up_ac = {}; iror_st_lo_ac = {}; iror_st_up_ac = {};
+
+	if vml__bootstrapIRCheckInputs("proc:var__IRA_CI_ST()", coverage, nob, ir_max);
+	  retp(-10,-10,-10,-10,-10,-10,-10,-10,-10,-10,-10,-10);
+	endif;
+
+	{irfe_hat, irfe_star, irfe_star_sd,irfe_hat_ac, irfe_star_ac, irfe_star_sd_ac,  
+	iror_hat, iror_star, iror_star_sd, iror_hat_ac, iror_star_ac, iror_star_sd_ac, 
+	seed, seed_sd} = vml__bootstrapIR(var, nob, seed, nob_sd, seed_sd, 1, ir_max);
+
+    rtnFERR =   irfe_star;
+	rtnFERR_std = irfe_star_sd;
+	rtnOR =   iror_star;
+	rtnOR_std = iror_star_sd;
+
+	
+   	@ check for numeric data processor exception @
+   		if ndpchk(31);
+			call vml_print_ndpchk("proc:var__IRA_CI_ST()");
+   		endif;
+
+	@ compute standard deviation @
+		if nob_sd<=nob;
+		        if rows(irfe_hat) and rows(irfe_hat_ac);
+			  irfe_hat_sd = stdc(irfe_star[1:nob_sd,.])';
+			  @ accumulated @
+			  irfe_hat_sd_ac = stdc(irfe_star_ac[1:nob_sd,.])';
+			endif;
+			if rows(iror_hat) and rows(iror_hat_ac);
+			  iror_hat_sd = stdc(iror_star[1:nob_sd,.])';
+			  @ accumulated @
+			  iror_hat_sd_ac = stdc(iror_star_ac[1:nob_sd,.])';
+	   		endif;
+		else;
+			""; errorlog("NIY");
+			retp(-10,-10,-10,-10,-10,-10,-10,-10);
+		endif;
+
+   	@ compute studentized statistic @
+        	if rows(irfe_hat) and rows(irfe_hat_ac); 
+		  irfe_star = (irfe_star - irfe_hat)./irfe_star_sd;
+		  @ accumulated @
+		  irfe_star_ac = (irfe_star_ac - irfe_hat_ac)./irfe_star_sd_ac;
+	        endif;
+		if rows(iror_hat) and rows(iror_hat_ac);
+		  iror_star = (iror_star - iror_hat)./iror_star_sd;
+		  @ accumulated @
+		  iror_star_ac = (iror_star_ac - iror_hat_ac)./iror_star_sd_ac;
+   		endif;
+		ndpclex;
+		
+	@ replace all NaN s by 0 @
+        	if rows(irfe_hat) and rows(irfe_hat_ac);  
+		  irfe_star = vml_infrv(irfe_star,0);
+		  irfe_star = missrv(irfe_star,0);
+		  @ accumulated @
+		  irfe_star_ac = vml_infrv(irfe_star_ac,0);
+		  irfe_star_ac = missrv(irfe_star_ac,0);
+		endif;
+		if rows(iror_hat) and rows(iror_hat_ac);
+		  iror_star = vml_infrv(iror_star,0);
+		  iror_star = missrv(iror_star,0);
+		  @ accumulated @
+		  iror_star_ac = vml_infrv(iror_star_ac,0);
+		  iror_star_ac = missrv(iror_star_ac,0);
+		endif;
+
+	@ compute studentized confidence intervals @
+   	        if rows(irfe_hat) and rows(irfe_hat_ac);  
+		        {t1,t2}    = vml__quantiles(irfe_star,coverage);
+			irfe_st_lo = irfe_hat-t2.*irfe_hat_sd;
+			irfe_st_up = irfe_hat-t1.*irfe_hat_sd;
+			irfe_hat   = vml_regroup(irfe_hat  , ir_max+1);
+			irfe_st_lo = vml_regroup(irfe_st_lo, ir_max+1);
+			irfe_st_up = vml_regroup(irfe_st_up, ir_max+1);
+			@ accumulated @
+		        {t1,t2}    = vml__quantiles(irfe_star_ac,coverage);
+			irfe_st_lo_ac = irfe_hat_ac-t2.*irfe_hat_sd_ac;
+			irfe_st_up_ac = irfe_hat_ac-t1.*irfe_hat_sd_ac;
+			irfe_hat_ac   = vml_regroup(irfe_hat_ac  , ir_max+1);
+			irfe_st_lo_ac = vml_regroup(irfe_st_lo_ac, ir_max+1);
+			irfe_st_up_ac = vml_regroup(irfe_st_up_ac, ir_max+1);
+	        else;
+		  irfe_st_lo = {};
+		  irfe_st_up = {};
+		  irfe_st_lo_ac = {};
+		  irfe_st_up_ac = {};
+		endif;
+		
+		if  rows(iror_hat) and  rows(iror_hat_ac);
+	   		{t1,t2}    = vml__quantiles(iror_star,coverage);
+			iror_st_lo = iror_hat-t2.*iror_hat_sd;
+			iror_st_up = iror_hat-t1.*iror_hat_sd;
+	   		iror_hat   = vml_regroup(iror_hat  , ir_max+1);
+	   		iror_st_lo = vml_regroup(iror_st_lo, ir_max+1);
+			iror_st_up = vml_regroup(iror_st_up, ir_max+1);
+			@ accumulated @
+			{t1,t2}    = vml__quantiles(iror_star_ac,coverage);
+			iror_st_lo_ac = iror_hat_ac-t2.*iror_hat_sd_ac;
+			iror_st_up_ac = iror_hat_ac-t1.*iror_hat_sd_ac;
+	   		iror_hat_ac   = vml_regroup(iror_hat_ac  , ir_max+1);
+	   		iror_st_lo_ac = vml_regroup(iror_st_lo_ac, ir_max+1);
+			iror_st_up_ac = vml_regroup(iror_st_up_ac, ir_max+1);
+
+		else;
+		  iror_st_lo = {};
+		  iror_st_up = {};
+		  iror_st_lo_ac = {};
+		  iror_st_up_ac = {};
+		endif;
+
+	@ finish @
+
+	retp(irfe_hat~irfe_hat_ac, 
+	irfe_st_lo~irfe_st_lo_ac, 
+	irfe_st_up~irfe_st_up_ac, 
+	iror_hat~iror_hat_ac, 
+	iror_st_lo~iror_st_lo_ac, 
+	iror_st_up~iror_st_up_ac, 
+	seed, 
+	seed_sd,rtnFERR,rtnFERR_std,rtnOR,rtnOR_std);
+endp;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

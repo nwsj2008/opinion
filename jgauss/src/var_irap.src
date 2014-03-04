@@ -1,0 +1,638 @@
+/*
+ This file is part of the econometric software package JMulTi.
+ Copyright (C) 2000-2005  Alexander Benkwitz
+
+ This program is free software; you can redistribute it and/or
+ modify it under the terms of the GNU General Public License
+ as published by the Free Software Foundation; either version 2
+ of the License, or (at your option) any later version.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, write to the Free Software
+ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ */
+#ifos2win 
+/* to be used by library creation, windows only */
+#include var.dec
+#endif
+
+
+/**
+** SYNTAX
+** var_plotIR4CI4(irf1,irf2,irf3,irf4,
+**                ci1_l,ci1_u, ci2_l,ci2_u, ci3_l,ci3_u, ci4_l,ci4_u,
+**	              mainTitle,irNames,ciNames,impulseNames,responseNames,row_sel,col_sel);
+**
+** PURPOSE
+** Makes plot of irfs.
+**
+** INPUT   irf1     / (R,K*K*2) / impulse response series 1 (point~accumulated)
+**         irf2     / (R,K*K*2) / impulse response series 2 (point~accumulated)
+**               or / (0,0)   / =\{\} for none.
+**         irf3     / (R,K*K*2) / impulse response series 3 (point~accumulated)
+**               or / (0,0)   / =\{\} for none.
+**         irf4     / (R,K*K*2) / impulse response series 4 (point~accumulated)
+**               or / (0,0)   / =\{\} for none.
+**         ci1_l    / (R,K*K*2) / lower bound for impulse response series 1 (point~accumulated)
+**               or / (0,0)   / =\{\} for none.
+**         ci1_u    / (R,K*K*2) / upper bound for impulse response series 1 (point~accumulated)
+**               or / (0,0)   / =\{\} for none.
+**         ci2_l    / (R,K*K*2) / lower bound for impulse response series 2 (point~accumulated)
+**               or / (0,0)   / =\{\} for none.
+**         ci2_u    / (R,K*K*2) / upper bound for impulse response series 2 (point~accumulated)
+**               or / (0,0)   / =\{\} for none.
+**         ci3_l    / (R,K*K*2) / lower bound for impulse response series 3 (point~accumulated)
+**               or / (0,0)   / =\{\} for none.
+**         ci3_u    / (R,K*K*2) / upper bound for impulse response series 3 (point~accumulated)
+**               or / (0,0)   / =\{\} for none.
+**         ci4_l    / (R,K*K*2) / lower bound for impulse response series 4 (point~accumulated)
+**               or / (0,0)   / =\{\} for none.
+**         ci4_u    / (R,K*K*2) / upper bound for impulse response series 4 (point~accumulated)
+**               or / (0,0)   / =\{\} for none.
+**         mainTitle/ (1,1)	  / String / main title ("" for none) 
+**		   row_sel	/ (N,1)   / indices for rows to plot (N<=K(!))
+**               or / (1,1)   / 0 for plotting all rows
+**		   col_sel	/ (M,1)   / indices for columns to plot (M<=K(!))
+**               or / (1,1)   / 0 for plotting all columns
+** OUTPUT  graphic display, optionally eps-file
+**
+** REMARK 
+**         Sune Karlsson procedures are used to display the main title.
+**         testPlot.prg is a program that tests this function.
+*/
+proc(0)=var_plotIR4CI4(irf1,irf2,irf3,irf4, ci1_l,ci1_u, ci2_l,ci2_u, ci3_l,ci3_u, ci4_l,ci4_u,
+	                   mainTitle,impulseNames,responseNames,row_sel,col_sel);
+	local K,x,z,seriesArray,r,c,temp,series_i,select_series,idx_series,ySeries,tshift,nameLabel,
+		  nr,nc,tosort;
+
+	nr = 0; nc = 0;
+	if rows(irf1);      nr = rows(irf1);  nc = cols(irf1);
+	elseif rows(irf2);  nr = rows(irf2);  nc = cols(irf1);
+	elseif rows(irf3);  nr = rows(irf3);  nc = cols(irf1);
+	elseif rows(irf4);  nr = rows(irf4);  nc = cols(irf1);
+	elseif rows(ci1_l); nr = rows(ci1_l); nc = cols(irf1);
+	elseif rows(ci2_l); nr = rows(ci2_l); nc = cols(irf1);
+	elseif rows(ci3_l); nr = rows(ci3_l); nc = cols(irf1);
+	elseif rows(ci4_l); nr = rows(ci4_l); nc = cols(irf1);  endif;
+
+	if nr == 0;
+		errorlog("Nothing to plot");
+		retp();
+	endif;
+
+	K =	round(sqrt(nc/2));
+	x =	SEQA(0,1,nr);
+	x = rev(x)|-1|x;
+	z =	zeros(nr,1)|miss(0,0)|zeros(nr,1);
+
+	@ store all input series in an array @
+
+		if rows(irf1);
+			irf1=(miss(0,0)*zeros(nr+1,nc))|irf1;
+		endif;
+		if rows(irf2);
+			irf2=(miss(0,0)*zeros(nr+1,nc))|irf2;
+		endif;
+		if rows(irf3);
+			irf3=(miss(0,0)*zeros(nr+1,nc))|irf3;
+		endif;
+		if rows(irf4);
+			irf4=(miss(0,0)*zeros(nr+1,nc))|irf4;
+		endif;
+
+		if rows(ci1_l) and rows(ci1_u);
+			ci1_l=rev(ci1_l)|zeros(1,nc)|ci1_u;
+		elseif rows(ci1_l) and not rows(ci1_u);
+			ci1_l=rev(ci1_l)|(miss(0,0)*zeros(nr+1,nc));
+		elseif not rows(ci1_l) and rows(ci1_u);
+			ci1_l=(miss(0,0)*zeros(nr+1,nc))|ci1_u;
+		endif;
+		if rows(ci2_l) and rows(ci2_u);
+			ci2_l=rev(ci2_l)|zeros(1,nc)|ci2_u;
+		elseif rows(ci2_l) and not rows(ci2_u);
+			ci2_l=rev(ci2_l)|(miss(0,0)*zeros(nr+1,nc));
+		elseif not rows(ci2_l) and rows(ci2_u);
+			ci2_l=(miss(0,0)*zeros(nr+1,nc))|ci2_u;
+		endif;
+		if rows(ci3_l) and rows(ci3_u);
+			ci3_l=rev(ci3_l)|zeros(1,nc)|ci3_u;
+		elseif rows(ci3_l) and not rows(ci3_u);
+			ci3_l=rev(ci3_l)|(miss(0,0)*zeros(nr+1,nc));
+		elseif not rows(ci3_l) and rows(ci3_u);
+			ci3_l=(miss(0,0)*zeros(nr+1,nc))|ci3_u;
+		endif;
+		if rows(ci4_l) and rows(ci4_u);
+			ci4_l=rev(ci4_l)|zeros(1,nc)|ci4_u;
+		elseif rows(ci4_l) and not rows(ci4_u);
+			ci4_l=rev(ci4_l)|(miss(0,0)*zeros(nr+1,nc));
+		elseif not rows(ci4_l) and rows(ci4_u);
+			ci4_l=(miss(0,0)*zeros(nr+1,nc))|ci4_u;
+		endif;
+
+	seriesArray = {"irf1","irf2","irf3","irf4",
+	               "ci1_l","ci2_l","ci3_l","ci4_l"};
+
+	@ all combinations of impulse-response @
+		nameLabel = ""$+zeros(K*2,K);
+		for i (1, rows(impulseNames), 1);
+			for j (1, K, 1);
+				nameLabel[i,j]= impulseNames[j]$+" -> "$+responseNames[i];
+			endfor;
+			for j (1, K, 1);
+				nameLabel[i+K,j]= "accumulated "$+impulseNames[j]$+" -> "$+responseNames[i];
+			endfor;
+		endfor;
+		nameLabel=vecr(nameLabel);
+
+	@ r=number of picture rows @
+	if row_sel==0;
+		row_sel=seqa(1,1,K);
+	endif;
+	r=rows(row_sel);
+	
+   	@ c=number of picture columns @						
+	if col_sel==0;
+		col_sel=seqa(1,1,K);
+	endif;
+	c=rows(col_sel);
+
+	@ check whether there are too many subplots @
+	@ GAUSS 3.2.29 crashed when r*c > 40 (approx) @
+		if r*c>40;
+			errorlog("You try to create too many subplots.");
+			errorlog("Please reduce your selection.");
+			retp();
+		endif;
+
+
+	@ get subsets for well defined plot quantities @
+	temp=vecr(((row_sel-1)*K)+col_sel')';   	@ selection grid @
+	
+	@ sort temp index to attain correct odering of labels between point irs and accumulated irs@
+	tosort = (temp')~((temp'-1)%(K*K));
+	tosort=sortc(tosort,2); @ sort according to second column @
+	temp = tosort[.,1]';
+
+	for i (1,rows(seriesArray),1);
+	  series_i = vargetl(seriesArray[i]);
+	  if rows(series_i)>0;
+	    call varputl(series_i[.,temp],seriesArray[i]);
+	  endif;
+	endfor;
+
+	
+	if rows(nameLabel)>0;
+	  nameLabel=nameLabel[temp];
+	endif;
+	
+	@ 'select_series' holds a 1 if the corresponding element in 'seriesArray' is not 0 @
+	select_series = ones(rows(seriesArray),1);
+	for i (1,rows(seriesArray),1);
+		if not(rows(vargetl(seriesArray[i]))>0);
+			select_series[i]=0;
+		endif;
+	endfor;
+	idx_series = selif(seqa(1,1,rows(select_series)),select_series);
+
+	@ reserving memory for the series to plot @
+	ySeries=zeros(rows(z),sumc(select_series));
+	
+	@ start to plot the single plots @
+
+	graphset;
+	begwind;
+	
+	setGlobalPlot_plot();
+	
+	@ header (thanks to Sune Karlsson!) @
+		if not __jm_show_main_title;
+			mainTitle = "";
+		endif;
+		if __jm_show_date;
+		   	_pdate = "\201JMulTi   ";
+		else;
+			_pdate = "";
+		endif;
+		tshift = var__MakeHeadAndWindows(r, c, mainTitle);
+		_pdate="";
+		
+	if not((rows(row_sel)==1) and (rows(col_sel)==1) and (tshift==0));
+		setwind(tshift+1);
+	endif;
+
+	@ set plot colors, line types, ... @
+		@ legend @
+			_plegstr = "Zero Line";
+			  for i(1,rows(__jm_legend_strings),1);
+			    _plegstr=_plegstr$+"\000"$+__jm_legend_strings[i];
+			  endfor;
+			  
+		_paxht   = __jm_height_axis;
+		_pnumht  = __jm_height_numbers;
+		_ptitlht = __jm_height_plot_title;
+
+		@ line type @
+			_pltype = 6|__jm_line_type; @ for the zero line @
+			if rows(__jm_line_type) < cols(ySeries);
+			  _pltype = 6;
+			endif;
+
+		@ plot color @
+			_pcolor = 8|__jm_line_color;@ for the zero line @
+			if rows(__jm_line_color) < cols(ySeries);
+			  _pcolor = 0;
+			endif;
+
+		@ plot line width @
+			_plwidth = 7|__jm_line_width;@ for the zero line @
+			if rows(__jm_line_width) < cols(ySeries);
+			  _plwidth = 0;
+			endif;
+
+
+		_pnum = {2};                    /* numbers on axis will be            */
+	                                    /* horizontal displayed               */
+		_pmcolor = {15,              /* axes                               */
+            15,                      /* axes numbers                       */
+            15,                      /* x axis label                       */
+            15,                      /* y axis label                       */
+            15,                      /* z axis label                       */
+            15,                      /* title                              */
+            15,                      /* box                                */
+            15,                      /* date                               */
+             0};                     /* background                         */
+
+
+	/*	_pypmax = 2;   not used anymore:  maximum number of places to the right of the dec.point */
+	/* if more than 2 zeros appear after the decimal point, then scientific notation is used instead */
+   	_pysci  = 1;	
+	_pframe  ={1, 1};                   /* #1 frame #2 ticks 0=off            */
+	axmargin(1.3,.1,.5,.855);
+
+		
+	
+	for i(1,r*c,1);
+		@ legend at some subplot @
+			if i==r*c and __jm_show_legend;
+				_plegctl    = {2 2 0.1 0.1};
+				_plegctl[2] = __jm_height_legend;
+				_plegctl[3] = __jm_legend_x;
+				_plegctl[4] = __jm_legend_y;
+			else;
+				_plegctl = 0;
+			endif;
+
+		@ extracting plot series from the 'seriesArray' and collect them in 'ySeries' @
+			for j (1,cols(ySeries),1);
+				series_i = vargetl(seriesArray[idx_series[j]]);
+				ySeries[.,j]=series_i[.,i];
+			endfor;
+		
+		@ label for name of impulse response @
+			if __jm_show_plot_title;
+				title(nameLabel[i]);
+			endif;
+			
+		scale(0|nr-1,ySeries);
+
+		@ the plot @
+
+	    	xy(x,z~ySeries);
+		
+		if not((rows(row_sel)==1) and (rows(col_sel)==1) and (tshift==0));
+			nextwind;
+		endif;	    
+	endfor;
+
+	endwind;
+
+	if __XLM_LOADED;
+		dllcall showLastGraphic;
+	endif;
+
+endp;
+/**
+** SYNTAX
+**
+** PURPOSE
+** Makes plot of irfs.
+**
+** OUTPUT  graphic display, optionally eps-file
+**
+** REMARK 
+**         Sune Karlsson procedures are used to display the main title.
+**         testPlot.prg is a program that tests this function.
+*/
+proc(0)=var_plotIR4CI4NoSelection(irf1,irf2,irf3,irf4,
+                       ci1_l,ci1_u, ci2_l,ci2_u, ci3_l,ci3_u, ci4_l,ci4_u,
+                       impulseNames, responseNames,
+  	                   mainTitle);
+
+	local row_sel, col_sel;
+	row_sel=0;
+	col_sel=0;
+	var_plotIR4CI4(irf1,irf2,irf3,irf4, ci1_l,ci1_u, ci2_l,ci2_u, ci3_l,ci3_u, ci4_l,ci4_u,
+               mainTitle,impulseNames,responseNames,row_sel,col_sel);
+
+endp;
+
+/**
+** SYNTAX  var_plotIR(irf1);
+**
+** PURPOSE Plots one impulse response series.
+** 
+** INPUT   irf1     / (R,K*K) / impulse response series 
+**
+** OUTPUT  graphic display
+**
+** REMARK  Requires library pgraph; loaded.
+**
+** SEE 
+** var_plotIR4CI4
+*/
+proc(0)=var_plotIR(irf);
+	local n;
+	n={};
+	call var_plotIRCI(irf,n,n);
+endp;
+
+/**
+** 
+** SYNTAX  var_plotIRCI(irf1,ci1_l,ci1_u);
+**
+** PURPOSE
+** Plots impulse response series with confidence intervals.
+**
+** INPUT   irf1     / (R,K*K) / impulse response series 1
+**         ci1_l    / (R,K*K) / lower bound for impulse response series 1
+**                  / (1,1)   / 0 for none.
+**         ci1_u    / (R,K*K) / upper bound for impulse response series 1
+**                  / (1,1)   / 0 for none.
+**
+** OUTPUT  graphic display
+**
+** REMARK  Requires library pgraph; loaded.
+**
+** SEE 
+** var_plotIR4CI4
+**
+*/
+proc(0)=var_plotIRCI(irf1,ci1_l,ci1_u);
+	var_plotIRCI_Title(irf1,ci1_l,ci1_u,"");
+endp;
+
+/**
+** 
+** SYNTAX  var_plotIRCI_Title(irf1,ci1_l,ci1_u,titleString);
+**
+** PURPOSE
+** Plots impulse response series with confidence intervals and main title.
+**
+** INPUT   irf1     / (R,K*K) / impulse response series 1
+**         ci1_l    / (R,K*K) / lower bound for impulse response series 1
+**                  / (1,1)   / 0 for none.
+**         ci1_u    / (R,K*K) / upper bound for impulse response series 1
+**                  / (1,1)   / 0 for none.
+**
+** OUTPUT  graphic display
+**
+** REMARK  Requires library pgraph; loaded.
+**
+** SEE 
+** var_plotIR4CI4
+**
+*/
+proc(0)=var_plotIRCI_Title(irf1,ci1_l,ci1_u,titleString);
+	local n,row_sel, col_sel;
+	n       = {};
+	row_sel = 0;
+	col_sel = 0;
+
+	var_plotIR4CI4(irf1,n,n,n, ci1_l,ci1_u, n,n, n,n, n,n,
+	               titleString,"","",row_sel,col_sel);
+endp;
+/*
+** PURPOSE
+** Modified smwintit().
+**
+** REMARK
+** This procedure observes _pdate
+*/
+proc (1) = var__MakeHeadAndWindows( nrows, ncols, tit);
+	local axold, skip;
+
+   	if ( type(tit)==13 and tit$/="" ) or ( _pdate $/= "" );
+		axold = _paxes;
+	  	_paxes = 0;
+		makewind( 9, 6.855, 0, 0, 0 );
+		setwind(1);
+		ylabel("");
+		xlabel("");
+		_ptitlht=__jm_height_main_title;
+		title(tit);
+		draw;
+		title("");
+		_paxes = axold;
+		skip = .1;
+		if ( type(tit)==13 and tit$/="" );
+			skip = skip + .4;
+			if ( _ptitlht == 0 );
+    			skip = skip + 0.13;
+			else;
+    			skip = skip + _ptitlht;
+			endif;
+		endif;
+  		if ( _pdate $/= "" );
+    		skip = skip+0.3;
+		endif;
+	  	smakewin( nrows, ncols, skip, 1 );
+		retp( 1 );
+
+	else;
+		smakewin( nrows, ncols, 0, 1 );
+		retp( 0 );
+
+	endif;
+endp;
+/*
+** PURPOSE
+** Resets global graphics controls to default values.
+**
+**
+*/
+proc(0)=var__resetPlotControls();
+
+	__jm_show_legend     = 1; /* Show legend      (show=1, hide=0)  */
+	__jm_show_main_title = 1; /* Show main title  (show=1, hide=0)  */
+	__jm_show_plot_title      = 1; /* Show title       (show=1, hide=0)  */
+	__jm_show_date       = 1; /* Show date        (show=1, hide=0)  */
+
+
+	/* -> _plegctl[2] {1,...,9}, default 5   */
+	__jm_height_legend = 5;  
+
+	/* -> _paxht {size in inches}, default 0 */
+	__jm_height_axis       = 0;    
+	/* -> _pnumht {size in inches}, default 0 (~ .13inches) */
+	__jm_height_numbers    = 0; 
+	/* -> _ptitlht {size in inches}, default 0 (~ .13inches) */
+	__jm_height_plot_title = 0; 
+	/*  _ptitlht{size in inches},default 0(~.13inches)*/
+	__jm_height_main_title = 0; 
+
+
+	__jm_line_type  = 0; /*  _pltype    */
+	__jm_line_color = 0; /*  _pcolor    */
+	__jm_line_width = 0; /*  _plwidth    */
+
+	__jm_legend_x = 0.1; /*  _plegctl[3]    */
+	__jm_legend_y = 0.1; /*  _plegctl[4]    */
+	__jm_legend_strings = ""; /*     */
+
+endp;
+
+
+
+
+
+
+
+
+
+
+
+/*
+The following procedures were developed by 
+Sune Karlsson
+*/
+/*
+** PURPOSE
+** Configures plot window such that a main title appears.
+** SYNTAX
+** titwin = SMWINTIT( ROWS, COLS, TITLE, TYPE );
+**
+** REMARK
+** Procedure developed by Sune Karlsson.
+*/
+@ author: Sune Karlsson @
+/**************************************************************************
+ special version of WINDOW
+
+ titwin = SMWINTIT( ROWS, COLS, TITLE, TYPE )
+
+ ROWS, COLS and TYPE as in WINDOW
+
+ TITLE reduces the x-dimension and prints TITLE on top.
+ titwin = 1 if title is printed, zero otherwise.
+ 
+ smwintit( rows, cols, "", type ) = window( rows, cols, type )
+
+***************************************************************************/
+
+proc (1) = smwintit( nrows, ncols, tit, wtype );
+
+local axold, skip;
+
+if type(tit)==13 and tit$/="";
+
+  axold = _paxes;
+  _paxes = 0;
+  makewind( 9, 6.855, 0, 0, 0 );
+  setwind(1);
+  ylabel("");
+  xlabel("");
+  title( tit );
+  draw;
+  title( "" );
+  _paxes = axold;
+
+  if ( _ptitlht == 0 );
+    skip = 0.5;
+  else;
+    skip = _ptitlht;
+  endif;
+  if ( _pdate $/= "" );
+    skip = skip+0.3;
+  endif;
+  smakewin( nrows, ncols, skip, wtype );
+
+  retp( 1 );
+  
+else;
+
+  smakewin( nrows, ncols, 0, wtype );
+
+  retp( 0 );
+  
+endif;
+
+
+endp;
+
+
+/*
+** PURPOSE
+** Configures plot window such that a main title appears.
+** SYNTAX 
+** smakewin( numrows, numcols, shift, wintype );
+**
+** REMARK
+** Procedure developed by Sune Karlsson.
+*/
+@ author: Sune Karlsson @
+/**************************************************************************
+ special version of WINDOW
+
+ SMAKEWIN( ROWS, COLS, SHIFT, TYPE )
+
+ ROWS, COLS and TYPE as in WINDOW
+
+ SHIFT reduces the y-dimension and leaves an empty area on top.
+ smakewin( rows, cols, 0, type ) = window( rows, cols, type )
+
+***************************************************************************/
+
+proc (0) = smakewin( numrows, numcols, shift, wintype );
+
+local xsize, ysize, i, j;
+
+if numrows < 1;
+  print "SMAKEWIN: rows must be positive";
+  retp;
+endif;
+if numcols < 1;
+  print "SMAKEWIN: columns must be positive";
+  retp;
+endif;
+if shift < 0;
+  print "SMAKEWIN: shift can not be negative";
+  retp;
+endif;
+xsize = 9/numcols;
+ysize = (6.855-shift)/numrows;
+
+i = 1;
+do while i <= numrows;
+
+  j = 1;
+  do while j <= numcols;
+
+    makewind( xsize, ysize, (j-1)*xsize, (numrows-i)*ysize, wintype);
+
+    j = j + 1;
+  endo;
+
+  i = i + 1;
+endo;
+
+retp;
+
+endp;
+
+
+

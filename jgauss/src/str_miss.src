@@ -1,0 +1,651 @@
+/*
+ This file is part of the econometric software package JMulTi.
+ Copyright (C) 2000-2005  Stefan Lundbergh, Markus Kraetzig
+
+ This program is free software; you can redistribute it and/or
+ modify it under the terms of the GNU General Public License
+ as published by the Free Software Foundation; either version 2
+ of the License, or (at your option) any later version.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, write to the Free Software
+ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ */
+/* procedures by Stefan Lundbergh, with some changes by Markus Kraetzig
+   nov 2001
+   
+   
+   reference:
+   
+   Handbook of Applied Economic Statistics,
+   Aman Ullah, David E. A. Giles, 1998 (Marcel Dekker, Inc),
+   chapter 15, Timo Teräsvirta, Modeling Economic Relationships with STR
+   
+*/
+
+
+/* --------------------------------------------------------------------
+   A test of the functional form that has power against remaining
+   serial dependence in the conditional mean. This alternative has
+   an Additive structure.
+   
+   reference: Teraesvirta, "Handbook of applied economic statistics",
+   ch. III B, section 1
+   
+   input:
+   resid	Residuals from the model to evaluate
+   Z		Gradient of the model to evaluate
+   delay	Order of serial dependence
+   output:
+   out          Lag~F-value~nom-df~den-df~p-value,   
+                is a delay x 5 matrix
+*/
+
+
+proc(1)=serind_strtests(resid,Z,delay);
+
+LOCAL i,j,F,Fval,M,temp,STAR,e,u,AR,prod,betaL,betaN,betaD,SSR0,SSR1;
+LOCAL ZST,ARtemp,ZSTtemp,c,g,nuobs,out,k,mask,fmt,b,pval,tmp;
+
+/*
+Print	" ";
+Print	" A test of the functional form that has power against remaining";
+Print	" serial dependence in the conditional mean. This alternative has";
+Print	" an Additive structure.";
+Print	" ";
+*/
+
+nuobs=rows(Z);
+out=miss(ones(delay,4),1);
+out = seqa(1,1,delay)~out;
+
+/* To avoid numerical problem during regression we should standardise
+   all vectors (and matrix), i.e. mean=0 and standard deviation=1 */
+
+ZST={};					/* Standardise the gradient */
+j=1;
+do until j > cols(Z);
+    IF meanc(Z[.,j])==1;
+	ZST=ZST~Z[.,j];
+    ELSE;
+	ZST=ZST~((Z[.,j]-meanc(Z[.,j]))/stdc(Z[.,j]));
+    ENDIF;
+    j=j+1;
+endo;
+
+resid=(resid-meanc(resid))/stdc(resid);	/* Standardise the residuals */
+
+
+
+/* Step (i) according to: Working paper No 56, 1995. Eitrhem, Ter„svirta */
+/* Orthogonalize residuals to the gradient matrix */
+
+trap 1;
+tmp = invpd(ZST'ZST);
+trap 0;
+if scalmiss(tmp) == 0;
+  e=resid-ZST*tmp*ZST'resid;
+else;
+  retp(out);
+endif;
+
+i=1;
+
+DO UNTIL i > delay;
+
+	/* Step (ii) */
+	u=resid[i+1:nuobs];			/* The alternative in this test is that the */
+						/* residuals follow an AR(q) process. */
+
+	AR={};
+	j=1;
+	do until j > i;
+		ARtemp=resid[i+1-j:nuobs-j]-meanc(resid[i+1-j:nuobs-j]);
+		AR=AR~(ARtemp/stdc(resid[i+1-j:nuobs-j]));
+		j=j+1;
+	endo;
+
+	/* This standardisation is probably not necessary but is done anyway */
+	ZST={};
+	j=1;
+	do until j > cols(Z);
+		IF meanc(Z[i+1:nuobs,j])==1;
+			ZST=ZST~Z[i+1:nuobs,j];
+		ELSE;
+			ZSTtemp=Z[i+1:nuobs,j]-meanc(Z[i+1:nuobs,j]);
+			ZST=ZST~(ZSTtemp/stdc(Z[i+1:nuobs,j]));
+		ENDIF;
+		j=j+1;
+	endo;
+
+	/* We must orthogonalize u and the remaining gradient vector */
+	u=u-ZST*invpd(ZST'ZST)*ZST'u;		/* Orthogonalize */
+	u=(u-meanc(u))/stdc(u);			/* Standardise   */
+
+	M=AR~ZST;
+	SSR0=u'u;
+	
+	trap 1;
+	b = invpd(M'M);
+	trap 0;
+	if scalmiss(b)==0;
+	  SSR1=u'u-u'M*b*M'u;
+	else;
+	  retp(out);
+	endif;
+
+	/* Step (iii) */        /* Calculate the F-statistic of the test. */
+	Fval=((SSR0-SSR1)/i)/(SSR1/(rows(M)-cols(M)));
+
+	out[i,1]=i;
+	out[i,2]=Fval;
+	out[i,3]=i;
+	out[i,4]=(rows(M)-cols(M));
+	pval = cdffc(Fval,i,rows(M)-cols(M));
+	if pval > 0;
+	  out[i,5]=pval;
+	endif;
+
+	i=i+1;
+
+ENDO;
+/*
+print "      Lag      F-value      nom-df  den-df     p-value";
+mask=ones(1,5);
+let fmt[5,3] =
+           "*.*lf " 8 0
+           "*.*lf " 14 6 
+           "*.*lf " 8 0
+           "*.*lf " 8 0
+           "*.*lf " 14 8;
+k=printfm(out,mask,fmt);
+print " ";
+*/
+retp(out);
+endp; 
+
+/*------------------ end of proc serind ----------------------*/
+
+/*--------------------------------------------------------------------
+   A test of the functional form that has power against remaining
+   nonlinearity in the conditional mean. This alternative has
+   an Additive structure.
+
+   reference: Teraesvirta, "Handbook of applied economic statistics",
+   ch. III B, section 2
+
+   input:
+   d           contains the deterministics without the constant 
+               (it will be appended automatically),if rows(d) < rows(y),
+               then only a const will be appended
+   x           contains all lags of y and exogenous variables, also
+               all possible transition variables must be included here
+               then endogenous lags, then exogenous, then trend
+   res         is a col(x) x 1 vector of restrictions (0 or 1) on x
+               if you want include a trend as a transition variable, then 
+               append it to X, but exclude it from the AR term with the 
+               "res" vector, because it is not allowed to have a trend 
+               in the AR part, but it is possible to have a trend as 
+               transition variable (0-exclude, 1-include)
+   trans       is a col(x) x 1 vector that determines 
+               the possible transition variable(s)(0 or 1) in x
+   nonlin      is a sumc(res)+col(d) x 1 vector that has possibly
+               restrictions on the nonlinear part of the STR model
+               it may be, that variables included in X (res[i] is 1)
+               can be held constant by excluding them from the nonlinear
+               part; if 1 then hold constant, if 0 then do not hold constant
+   phires      rows(nonlin) + 1 x 1, restriction only on phi, the variable disappears, when
+               F==0 (1=restrict, 0=not restricted)
+   resid       Residuals from the model to evaluate
+   Z	       Gradient of the model to evaluate
+
+   output:
+   result      F-value~nom-df~den-df~p-value,   
+               is a sumc(trans) x 4 matrix   
+*/
+
+
+proc(1)=remnonlin_strtests(d,x,res,trans,nonlin,phires,resid,z);
+LOCAL i,j,F,e,u,ar,Xnonlinear,X1,X2,X3,l,Xres,invertphires,pval,tmp;
+LOCAL SSR0,SSR1,SSR2,SSR3,result,ZST,k,XNL,XL,invertres,dfnom0,dfnom234;
+
+d=d';
+x=x';
+res=res';
+
+/*just to make sure that there are only 0 and 1*/
+res = (res .gt 0);
+trans = (trans .gt 0);
+nonlin = (nonlin .gt 0);
+phires = (phires .gt 0);
+
+if rows(d) < rows(x);
+  d={};
+endif;
+if sumc(trans) == 0 or sumc(res) == 0;
+  retp(zeros(1,5));
+endif;
+
+/*impose the restrictions on X*/
+invertres = (res .== 0);
+
+
+Xres = delif(X',invertres)';
+/*initialize result matrix*/
+result = miss(ones(sumc(trans),4), 1);
+
+
+/*append the other deterministics to the nonlinear AR part and take care of restrictions*/
+/*take care of constant variables*/
+if sumc(nonlin) == rows(nonlin);
+  retp(result);
+else;
+  XNL = delif((D~Xres)',nonlin)';
+endif;
+
+
+/*XNL is the new nonlinear part, the transition variable(s) to test are
+included in the X matrix*/ 
+
+/*XL is the linear part, that was not estimated in the estimation,
+we make sure, that the new transition variable r_t is always included
+in X, so we always omit the constant in XNL*/
+
+invertphires = (phires .== 0);
+XL = delif((ones(rows(Xres),1)~D~Xres)',invertphires)';
+
+
+/* To avoid numerical problem during regression we should standardise
+all vectors (and matrix), i.e. mean=0 and standard deviation=1 */
+ZST=Z;
+j=1;				/* Standardise Z */
+do until j > cols(Z);
+  IF meanc(ZST[.,j])==1;
+    ZST[.,j]=ZST[.,j];
+  ELSE;
+    ZST[.,j]=(ZST[.,j]-meanc(ZST[.,j]))/stdc(ZST[.,j]);
+  ENDIF;
+  j=j+1;
+endo;
+
+resid=(resid-meanc(resid))/stdc(resid);	 /* Standardise residuals */
+
+/* Step (i) according to: Working paper No 56, 1995. Eitrheim, Ter„svirta
+   Orthogonalize residuals to the gradient matrix */
+   trap 1;
+   tmp= invpd(ZST'ZST);
+   trap 0;
+   if scalmiss(tmp) == 0;
+     e=resid-ZST*tmp*ZST'resid;
+   else;
+     retp(result);
+   endif;
+
+
+/* Step (ii) */
+
+
+i=1;
+j=1;
+do while i <= rows(trans);
+  /*test whether variable is selected*/
+  if (trans[i] > 0);
+    /*insert in linear and nonlinear part of auxiliary regression, so that transition
+    variable is always in X*/
+    if res[i] == 0;
+      if scalmiss(XL)==0;
+	X1 = X[.,i]~XL~(X[.,i]~XNL).*X[.,i];
+      else;
+	X1 = X[.,i]~(X[.,i]~XNL).*X[.,i];
+      endif;
+      X2 = X1~XNL.*X[.,i]^2;
+      X3 = X2~XNL.*X[.,i]^3;
+    else;
+      if scalmiss(XL)==0;
+	X1 = XL~XNL.*X[.,i];
+      else;
+	X1 = XNL.*X[.,i];
+      endif;
+      X2 = X1~XNL.*X[.,i]^2;
+      X3 = X2~XNL.*X[.,i]^3;
+    endif;
+
+    l=1;                         /* Standardise X1 */
+    do until l > cols(X1);
+      if stdc(X1[.,l]) > 0;
+	X1[.,l]=(X1[.,l]-meanc(X1[.,l]))/stdc(X1[.,l]);
+      endif;
+      l=l+1;
+    endo;
+    
+    l=1;                         /* Standardise X2 */
+    do until l > cols(X2);
+      if stdc(X2[.,l]) > 0;
+	X2[.,l]=(X2[.,l]-meanc(X2[.,l]))/stdc(X2[.,l]);
+      endif;
+      l=l+1;
+    endo;
+    
+    l=1;                         /* Standardise X3 */
+    do until l > cols(X3);
+      if stdc(X3[.,l]) > 0;
+	X3[.,l]=(X3[.,l]-meanc(X3[.,l]))/stdc(X3[.,l]);
+      endif;
+      l=l+1;
+    endo;
+
+    dfnom0 = cols(X3);
+    dfnom234 = cols(X3) - cols(X2);
+
+    X1=X1~ZST;
+    X2=X2~ZST;
+    X3=X3~ZST;
+    SSR0=e'e;
+
+    SSR1=e'e-e'X1*invpd(X1'X1)*X1'e;  
+    SSR2=e'e-e'X2*invpd(X2'X2)*X2'e;  
+    SSR3=e'e-e'X3*invpd(X3'X3)*X3'e;  
+    
+    
+    /*compute all the tests, save them to the result vector*/
+    /*the degrees of freedom depend on whether the trans variable
+    is in X or not*/
+    
+    /*b1=b2=b3=0*/
+  
+    f = ((SSR0-SSR3)/dfnom0)/(SSR3/(rows(X3)-cols(X3)));
+    pval = cdffc(f,dfnom0,rows(X3)-cols(X3));
+    if pval > 0;
+      result[j,1] = pval;
+    endif;
+    
+    
+    /*b3=0*/
+    f = ((SSR2-SSR3)/dfnom234)/(SSR3/(rows(X3)-cols(X3)));
+    pval = cdffc(f,dfnom234,rows(X3)-cols(X3));
+    if pval > 0;
+      result[j,2] = pval;
+    endif;
+
+    
+    /*b2=0*/
+    f = ((SSR1-SSR2)/dfnom234)/(SSR2/(rows(X2)-cols(X2)));
+    pval = cdffc(f,dfnom234,rows(X2)-cols(X2));
+    if pval > 0;
+      result[j,3] = pval;
+    endif;
+
+    
+    /*b1=0*/
+    f = ((SSR0-SSR1)/dfnom234)/(SSR1/(rows(X1)-cols(X1)));
+    pval = cdffc(f,dfnom234,rows(X1)-cols(X1));
+    if pval > 0;
+      result[j,4] = pval;
+    endif;
+    
+    j=j+1;
+  endif;
+  i=i+1;
+endo;
+
+retp(result);
+endp; 
+
+/***************** end of proc remnolin **********************/
+
+/*--------------------------------------------------------------------
+   A test of the functional form that has power against nonconstant
+   parameter in the conditional mean. This alternative has
+   an Additive structure.
+   
+   It computes the tests for functions H1,H2,H3 (37,38,39).
+   It is possible to exclude variables from the H0, which means,
+   that they are also assumed constant under H1. This makes it 
+   possible to find the nonconstant variables.
+   
+   reference: Teraesvirta, "Handbook of applied economic statistics",
+   ch. III B, section 3
+   
+   
+   input: (this should be the same as it was in the estimation)
+  
+   d           contains the deterministics without the constant 
+               (it will be appended automatically),if rows(d) < rows(y),
+               then only a const will be appended
+   x           contains all lags of y and exogenous variables, also
+               all possible transition variables must be included here
+               then endogenous lags, then exogenous, then trend
+   res         is a col(x) x 1 vector of restrictions (0 or 1) on x
+               if you want include a trend as a transition variable, then 
+               append it to X, but exclude it from the AR term with the 
+               "res" vector, because it is not allowed to have a trend 
+               in the AR part, but it is possible to have a trend as 
+               transition variable (0-exclude, 1-include)
+   nonlin      is a sumc(res)+col(d) x 1 vector that has possibly
+               restrictions on the nonlinear part of the STR model
+               it may be, that variables included in X (res[i] is 1)
+               can be held constant by excluding them from the nonlinear
+               part; if 1 then hold constant, if 0 then do not hold constant
+   phires      rows(nonlin) + 1 x 1, restriction only on phi, 
+               the variable disappears, when F==0 (1=restrict, 0=not restricted)
+   resid       Residuals from the model to evaluate
+   Z	       Gradient of the model to evaluate
+   transfkt    the estimated transition function
+   paraconsres exclude certain variables from the test in a way that they are
+               constant both under H0 and under H1
+
+   output:
+   result      F-value~nom-df~den-df~p-value,   
+               is a 3 x 4 matrix   
+*/
+
+proc(1)=paracons_strtests(d,x,res,nonlin,phires,resid,z,transfkt,paraconsres);
+
+LOCAL invertres,Xres,result,XNL,XL,invertphires,ZST,j,e,XLsub,XNLsub;
+LOCAL Tvec, X1,X2,X3,l,SSR0,SSR1,SSR2,SSR3,dfnom0,dfnom1,f,tmp,b;
+Local phirespara, nonlinpara,pval;
+
+d=d';
+x=x';
+res=res';
+
+
+if rows(paraconsres) /= rows(nonlin);
+  paraconsres = zeros(rows(nonlin),1);
+endif;
+/* To avoid numerical problem during regression we should standardise
+all vectors (and matrix), i.e. mean=0 and standard deviation=1 */
+
+/*just to make sure that there are only 0 and 1*/
+res = (res .gt 0);
+nonlin = (nonlin .gt 0);
+phires = (phires .gt 0);
+paraconsres = (paraconsres .gt 0);
+phirespara = phires + paraconsres;
+phirespara = (phirespara .gt 0);
+nonlinpara = nonlin + paraconsres;
+nonlinpara = (nonlinpara .gt 0);
+
+if rows(d) < rows(x);
+  d={};
+endif;
+if  sumc(res) == 0;
+  retp(zeros(1,5));
+endif;
+
+/*impose the restrictions on X*/
+invertres = (res .== 0);
+
+/*initialize result matrix*/
+
+result= miss(ones(3,4), 1);
+Xres = delif(X',invertres)';
+/*append deterministics to the linear part*/
+XL = ones(rows(Xres),1)~D~Xres;
+tmp = XL;
+/* take care of the restricions on XL*/
+XL = delif(tmp',phires)'; 
+
+
+/* take care of the restricions AND paracons restrictions on XL*/
+if sumc(phirespara) == rows(phirespara);
+  retp(result);
+endif;
+
+XLsub = delif(tmp',phirespara)'; 
+
+/*append the other deterministics to the nonlinear AR part and take care of restrictions*/
+/*take care of constant variables*/
+
+if sumc(nonlin) == rows(nonlin);
+  retp(result);
+endif;
+
+XNL = delif((ones(rows(Xres),1)~D~Xres)',nonlin)';
+
+
+/* take care of the restricions AND paracons restrictions on XNL*/
+if sumc(nonlinpara) == rows(nonlinpara);
+  retp(result);
+endif;
+XNLsub = delif((ones(rows(Xres),1)~D~Xres)',nonlinpara)'; 
+
+/* We only need the derivative of c and gamma, therefore only
+parts of Z */
+
+ZST=Z[.,cols(Z)-1:cols(Z)];
+j=1;				/* Standardise Z */
+do until j > cols(ZST);
+  IF meanc(ZST[.,j])==1;
+    ZST[.,j]=ZST[.,j];
+  ELSE;
+    ZST[.,j]=(ZST[.,j]-meanc(ZST[.,j]))/stdc(ZST[.,j]);
+  ENDIF;
+  j=j+1;
+endo;
+
+resid=(resid-meanc(resid))/stdc(resid);	 /* Standardise residuals */
+
+/* Step (i) according to: Working paper No 56, 1995. Eitrhem, Ter„svirta
+   Orthogonalize residuals to the gradient matrix */
+
+trap 1;
+tmp = invpd(ZST'ZST);
+trap 0;
+if scalmiss(tmp) == 0;
+  e=resid-ZST*tmp*ZST'resid;
+else;
+  retp(result);
+endif;
+
+
+Tvec=seqa(1,1,rows(XL));		/* Create a time vector */
+Tvec=(Tvec-meanc(Tvec))/stdc(Tvec);     /* and standardize it. */
+
+
+/* here we contruct the matrix of the regressors for the 3 different
+  functions that model the inconstancy*/
+
+X1 = XL~XNL.*transfkt~ZST~XLsub.*Tvec~XNLsub.*Tvec.*transfkt;
+X2 = X1~XLsub.*Tvec^2~XNLsub.*(Tvec^2).*transfkt;
+X3 = X2~XLsub.*Tvec^3~XNLsub.*(Tvec^3).*transfkt;
+
+
+l=1;                         /* Standardise X1 */
+do until l > cols(X1);
+  if stdc(X1[.,l]) > 0;
+    X1[.,l]=(X1[.,l]-meanc(X1[.,l]))/stdc(X1[.,l]);
+  endif;
+  l=l+1;
+endo;
+
+l=1;                         /* Standardise X2 */
+do until l > cols(X2);
+  if stdc(X2[.,l]) > 0;
+    X2[.,l]=(X2[.,l]-meanc(X2[.,l]))/stdc(X2[.,l]);
+  endif;
+  l=l+1;
+endo;
+
+l=1;                         /* Standardise X3 */
+do until l > cols(X3);
+  if stdc(X3[.,l]) > 0;
+    X3[.,l]=(X3[.,l]-meanc(X3[.,l]))/stdc(X3[.,l]);
+  endif;
+  l=l+1;
+endo;
+
+SSR0=e'e;
+
+/* compute all the SSRs and check always positive definiteness */
+trap 1;
+b=invpd(X1'X1);
+if scalmiss(b)==0;
+  SSR1=e'e-e'X1*invpd(X1'X1)*X1'e;  
+else;
+  SSR1=-1;
+endif;
+b=invpd(X2'X2);
+if scalmiss(b)==0;
+  SSR2=e'e-e'X2*invpd(X2'X2)*X2'e;  
+else;
+  SSR2=-1;
+endif;
+b=invpd(X3'X3);
+if scalmiss(b)==0;
+  SSR3=e'e-e'X3*invpd(X3'X3)*X3'e;  
+else;
+  SSR3=-1;
+endif;
+
+trap 0;
+/*compute all the tests, save them to the result vector*/
+
+dfnom0 = cols(X1) - cols(ZST) - cols(XL) - cols(XNL);
+dfnom1 = rows(X1) - cols(X1) - cols(ZST);
+if SSR1 > 0;
+  f = ((SSR0-SSR1)/dfnom0/(SSR1/dfnom1));
+  result[1,1] = f;
+  result[1,2] = dfnom0;
+  result[1,3] = dfnom1;
+  pval = cdffc(f,dfnom0,dfnom1);
+  if pval > 0;
+    result[1,4] = pval;
+  endif;
+endif;
+
+dfnom0 = cols(X2) - cols(ZST) - cols(XL) - cols(XNL);
+dfnom1 = rows(X2) - cols(X2) - cols(ZST);
+if SSR2 > 0;
+  f = ((SSR0-SSR2)/dfnom0/(SSR2/dfnom1));
+  result[2,1] = f;
+  result[2,2] = dfnom0;
+  result[2,3] = dfnom1;
+  pval = cdffc(f,dfnom0,dfnom1);
+  if pval > 0;
+    result[2,4] = pval;
+  endif;
+endif;
+
+dfnom0 = cols(X3) - cols(ZST) - cols(XL) - cols(XNL);
+dfnom1 = rows(X3) - cols(X3) - cols(ZST);
+if SSR3 > 0;
+  f = ((SSR0-SSR3)/dfnom0/(SSR3/dfnom1));
+  result[3,1] = f;
+  result[3,2] = dfnom0;
+  result[3,3] = dfnom1;
+  pval = cdffc(f,dfnom0,dfnom1);
+  if pval > 0;
+    result[3,4] = pval;
+  endif;
+endif;
+
+retp(result);
+endp; 
+/****************** end of proc paracons **********************/
+

@@ -1,0 +1,2250 @@
+/*
+ This file is part of the econometric software package JMulTi.
+ Copyright (C) 2000-2005  Lijian Yang, Rolf Tschernig, Markus Kraetzig
+
+ This program is free software; you can redistribute it and/or
+ modify it under the terms of the GNU General Public License
+ as published by the Free Software Foundation; either version 2
+ of the License, or (at your option) any later version.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, write to the Free Software
+ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ */
+
+#ifos2win 
+/* to be used by library creation, windows only */
+#include extern.dec
+#endif
+
+/*  RT, November, 2000, adjusted for JMULTI September 2001, February 2003, June 2003
+**
+**  --------------------------------------------------------------------------
+**                            CAFP_EST.SRC 
+**
+**                            depends on:
+**                            CAFP.DEC
+**                            CAFP_PRC.SRC
+**                            CAFP_PAR.SRC
+**                            library pgraph;
+**  the C++ library: cafpe is needed
+**  --------------------------------------------------------------------------
+**  RT and LY, May 2000, adjusted for JMULTI September 2001
+**  Contact: Rolf Tschernig,
+**              University of Maastricht
+**              email: R.Tschernig@KE.unimaas.nl
+
+**  GAUSS program to local linearly estimate a selected model,
+**  compute and analyse residuals
+**  and plot function if possible for seasonal and nonseasonal models
+**
+**  The program prepares the call of the subroutine FPE_NPSL_Nonparam
+**
+**
+**  xraw:    Tx1 timeseries
+**  xresid:  Tx1 of residuals of timeseries
+**  outpath: path to output files  
+**  (all other inputs described in following sections)
+**
+**
+**  Watch out that you use the same parameter setting as for lag selection
+**
+**  The output is written in several files:
+**      <noutputf> + .gr    ascii file with results of lag section
+**                          for chosen lag vector (contains also
+**                          the seasonal dummies or seasonal shift
+**                          parameters)
+**                          <noutputf> is specified in CAFPEJM.PAR
+**
+**  Disclaimer:
+**  This program is a beta version. Using this program is at your own risk.
+**  There is no warranty for using this program.
+**  Note that running this program on UNIX workstations and
+**  PC's can produce different results due to the different machine
+**  precisions.
+*/
+
+
+/*lags_grid   = 1|5|6;
+vector of lags of the model.
+*/
+
+/*grid_var = 1|6;      
+vector, select 2 lags of lags_grid for which to plot
+surface of function, has no meaning if only one lag
+is chosen in lags_grid */
+    
+/*xconstfac = 0.1;  (d-2 [-1]) vector which contains values at which to
+condition surface plot if more than 2 [1] lags are
+involved. Depends on comp_ci, because the Confidence intervals can only 
+be plotted in an xy plot, therefore in this case d-1 values required.
+NOTE that those lags are fixed that are not in grid_var
+but in lags_grid */
+
+/*per_gr      = 0;     
+scalar, 0<= per_gr < 1, percentage of observations
+with lowest density that are removed from
+computation even if gridpoint is inside the data region */
+
+/*xnum        = 30;     
+Number of grid points used in surface plot in each direction */
+
+/*xconstall
+where to evaluate function, rows(lags_grid)
+*/
+
+/*
+comp_ci, show Confidence Intervals (0 or 1) 
+*/
+
+/*
+0 < ci_level < 1, eg 0.95
+*/
+
+/*
+show_graph, show Grahics (0 or 1)
+*/
+
+/*
+bonf (0 or 1)
+*/
+
+/*
+bw_factor (0,+inf) to multiply optimal bandwidh with
+*/
+
+proc(6)=cafpe_est_nonparam(xraw,xresid,outputfip,mod_meth,searchmethod,selcrit,
+                            startstrat,printlog,xdata_stand,seas_sta,lags_grid,
+                            grid_var,xconstfac,per_gr,xnum,xconstall,comp_ci,ci_level,
+                            show_graph,bonf,bw_factor,_viewro);
+
+local noutputf,lag_max,tmp,d_max,estimator,print_in_file;
+local xexog,dexog,xexog_com,x_2SLS,E_Exog,KSQ_INT,STD_XDATA,SIG2_HAT,n;
+local CRIT_O,RESVAR,SIG2WN_HAT,HA,HB,HC,CRIT_GRID, H_GRID,X_S_J_ADJ,Y_ADJ,X_T_J_ADJ;
+local BB,RESID,MEANSEAS ;
+local seas_cha,kernel, robden, per_A, per_B, meth_hB, partial_cub, hcd_fac;
+local hC_Silv_fac,__output,h_start, h_c_min, h_c_max, seas, method_dum;
+local meth_hB_d,seas_dum, volat;
+local grid_var_ind,xgridmax,xgridmin,xgridstep,LAGS_GRID_H ,xgrid,xgrid2,xconst,plotaxis;
+local ll,kk,ii,G_HAT,DENA,garb,w_gr,G_HATPLOT,xgridplot,G_HATPLOTMIN,misval,G_HATPLOT2;
+local seas_c,yorig_seas,cond_var,g_hatplot_datrange;
+local g_hat_xconstall,denA_xconstall,ci_g_hat_xconstall;
+local ci_g_hatplot,ci_g_hatplot2;
+local bias_ci_hatplot,bias_ci_hat_xconstall;
+local sigma2_x_hatplot,sigma2_x_hat_xconstall;
+local var_ci_hatplot,var_ci_hat_xconstall,xgridplot2,garb2    ;
+local crit_o_sig2,resvar_sig2,sig2wn_hat_sig2,hA_sig2,hB_sig2,hC_sig2,crit_grid_sig2; 
+                                                                            /* Feb2003 */
+local h_grid_sig2,X_s_j_adj_sig2,y_adj_sig2,X_t_j_adj_sig2,resid_sig2,meanseas_sig2;
+local volat_here;                                                           /*Feb2003 */
+local var_ci_hatplot_homosk,var_ci_hat_xconstall_homosk;
+local ci_g_hat_homosk,ci_g_hat_xconstall_homosk;
+local ci_g_hatplot_homosk,ci_g_hatplot2_homosk;
+local h_user;
+
+local g_hat_ts,xresid_orig,residxi,garb3,residxi2;
+local sig2_rep;
+local resid_ci; /* 040213 */
+
+
+/* xconstfac contains all-1 values when comp_ci == 1 */
+/* xconstall contains always rows(lags_grid) values */
+xconstall   = xconstall';   /* 020415 */
+g_hat_xconstall={};
+ci_g_hat_xconstall={};
+ci_g_hatplot={};
+
+if comp_ci; /* if confidence intervals have to be computed */
+    if (rows(lags_grid)>1) and (rows(xconstfac) > rows(lags_grid)-1);
+        xconstfac   = xconstfac[1:rows(lags_grid)-1];
+    endif;        
+else;
+    if (rows(lags_grid)>2) and (rows(xconstfac) > rows(lags_grid)-2);
+        xconstfac   = xconstfac[1:rows(lags_grid)-2];
+    endif;        
+endif;
+
+
+lags_grid = delif(lags_grid,lags_grid.==0);
+lag_max=maxc(lags_grid);
+d_max = rows(lags_grid);
+grid_var = sortc(grid_var,1);
+
+n=rows(xraw); 
+
+/*
+printlog = 4; /* to control output: (REMOVE COMMENT SIGN for MAINTAINANCE)
+                 0= only final output,
+                 1= intermediary, unformatted output during all stages
+                 2= more detailed intermed., unform. output
+                 3= all intermediary unformatted output */
+*/                
+print_in_file  = 1;  /* 0 = no output is written to file, 1 = output is written
+                            to file */
+
+
+std_xdata = stdc(xraw);
+if xdata_stand $== "yes";
+    xraw    = xraw ./ stdc(xraw);
+    if rows(xresid) > 1;
+        xresid  = xresid ./ stdc(xresid);
+    endif;
+endif;
+
+xresid_orig = xresid;   /* save residuals to correct them later for heteroskecasticity
+                            030605 */
+
+/* here we set our model defaults from cafp_par.src */
+{xexog_com, xexog, xresid, seas_cha, kernel, robden, per_A, per_B, meth_hB, partial_cub, 
+    hcd_fac, hC_Silv_fac,__output,h_start, h_c_min, h_c_max, seas, method_dum, meth_hB_d,
+    seas_dum, volat}
+    =getModelDefaults_nonparam(mod_meth,xresid);
+
+
+if not((selcrit $== "arfpe") or (selcrit $== "araic")
+        or (selcrit $=="arhq") or (selcrit $== "arsc")
+        or (selcrit $=="lqafpe") or (selcrit $== "lqcafpe"));
+    if _print_cafpejm;
+        "gr_cafpe: choose available selection criterion;";
+        print "       the current choice is selcrit: " selcrit;
+    endif;
+    end;
+endif;
+
+if not((searchmethod $== "full") or (searchmethod $== "directed"));
+    if _print_cafpejm;
+        "gr_cafpe: choose available search method for lags;";
+        print "       the current choice is searchmethod: " searchmethod;
+    endif;
+    end;
+endif;
+
+
+if maxc(lags_grid) > lag_max;
+    if _print_cafpejm;
+        print "gr_cafpe: Select lags which are not larger than lag_max. lag_max is " lag_max;
+    endif;
+    end;
+endif;
+
+
+if (seas_cha $== "periodic") or (seas_cha $== "seasD"); 
+                                /* get seasonal index for dependent variable */
+    {garb,garb,yorig_seas,garb} = xorig_ex_nonparam(xraw,Xresid,0,
+                                    lags_grid,lag_max,xexog_com,seas,seas_sta,
+                                    seas_cha,volat);
+
+endif;                        
+
+
+/* ----------set selection estimator ------------------------ */
+if strsect(selcrit,1,2) $== "ar";
+    estimator = "ar";       /*   linear (autoregressive) estimator */
+elseif strsect(selcrit,1,2) $== "ng";
+    estimator = "nw";       /*   Nadaraya-Watson estimator          */
+elseif strsect(selcrit,1,1) $== "l";
+    estimator = "loclin";   /*   local linear estimator             */
+endif;
+
+@ ------------------ Determine names of output files  -------------- @
+
+output file = ^outputfip reset;           /* open output file */
+
+
+
+@ ------------ Print results ----------------------------------------- @
+
+if _print_cafpejm;
+        if estimator $== "ar";
+            "ESTIMATION OF LINEAR MODEL";
+            "";
+            "Please estimate the linear AR and SDAR models with the modul -> Model -> VAR";
+            "by counting all estimated parameters.";
+            "";
+            "-------------------------------------";
+            "";
+            if mod_meth $== "NAR";
+            print "Selected model:                  AR";
+             "";
+             "Please see the lag selection estimation output for paramater estimates";
+             "For further analysis of linear AR models please use the modul -> Model -> VAR";
+            elseif mod_meth $== "SNAR";
+             print "Selected model:                  PAR";                 
+             "Please see the lag selection estimation output for paramater estimates";
+             elseif mod_meth $== "SDNAR";
+            print "Selected model:                  SDAR";                                 
+             "";
+             "Please see the lag selection estimation output for paramater estimates";
+             "For further analysis of linear AR models please use the modul -> Model -> VAR";
+             "using seasonal dummies";;                
+            elseif mod_meth $== "SHNAR";
+             print "Selected model:                  SHAR";                                 
+             "Please see the lag selection estimation output for paramater estimates";
+            endif;                
+             "";
+             "One-step forecasts can be obtained using this module.";            
+                
+            retp(0~0,0,0,0,0,0);
+            end;
+       
+        elseif (estimator $== "loclin") or (estimator $== "nw");
+            "NONPARAMETRIC ESTIMATION OF CONDITIONAL MEAN FUNCTION";
+            "    USING A SCALAR PLUG-IN BANDWIDTH";
+            if seas == 1;
+           "Reference: Tschernig & Yang (2000, Journal of Time Series Analysis, 21, 457-487)";
+            else;
+           "Reference: Yang & Tschernig (2002, Econometric Theory, 18, 1408-1448)";
+           "           Note that in contrast to the paper, seasons are numbered s=1,2,..S";
+            endif;                
+            "";
+            "Model and model estimation parameters:";
+            "-------------------------------------";
+            "";
+            print /lz "Selected model:                  " mod_meth;
+            format /mat /on /mb1 /ros 2,0;
+            print /lz "Lags:                           " lags_grid';
+            format /mat /on /mb1 /ros 16,8;    
+            print /lz "Number of observations          ";                        
+            print /lz "   in time series:              " n;
+            if (seas_cha $== "periodic") or (seas_cha $== "seasD"); 
+                print /lz "   for estimation:              " rows(yorig_seas);
+            else;                
+                print /lz "   for estimation:              " (n-lag_max);
+            endif;                
+            if printlog > 1;
+                print /lz "Model used:                      " seas_cha;
+            endif;                
+            if seas > 1;
+                print /lz "Number of seasonal periods:     " seas;
+                print /lz "Seasonal index of first obs.:   " seas_sta;
+            endif;                
+            if printlog > 1;
+                print /lz "Treatment of seasonal dum.:      " seas_dum;
+                print /lz "Comment on xexog usedfor ms:     " xexog_com;
+            endif;                
+            if volat $/= "no";                                                                    
+                print /lz "Dependent var. for vol. est.    " volat;
+            endif;
+        
+            print /lz "Number of maximal lags:         " d_max;
+
+            
+            /* --- Parameters for criterion estimation-- */
+
+            print /lz "Multiplication fac. of opt. bandw." bw_factor;            
+            print /lz "Robustification of density est.: " robden;
+            if printlog > 1;
+                print /lz "Kernel used:                     " kernel;
+                print /lz "Local estimator used:            " estimator;
+            endif;
+            if estimator $== "loclin";
+                print /lz "Estimator:                       local linear"; 
+            else;                
+                print /lz "Estimator:                       local constant"; 
+            endif;
+            if seas_cha $== "seasD";    /* SDNAR model */
+                if method_dum $== "dummies";
+                    "Estimator of seasonal dummies:   full dummy estimator";
+                elseif method_dum $== "f_0_f_s";
+                    "Estimator of seasonal dummies:   two estimators method";
+                else;
+                     print /lz "method_dum " method_dum;                    
+                endif;                    
+                if meth_hB_d $== "sd_rem";
+                    "                                 with bandwidth used for B";
+                elseif meth_hB_d $== "sd_rem_loo";
+                    "                                 with bandwidth used for B";
+                    "                                 and leave-one-out method";
+                endif;                
+            endif;
+            "Fraction of obs. screened off";
+            print /lz "    for estimating A:           " per_A;
+            print /lz "    for estimating B and C:     " per_B;
+           
+            "Estimation of rule-of-thumb bandwidths:";            
+            if seas_cha $== "standard"; /* NAR model */                    
+                if meth_hB $== "Silv";
+                    format /mat /on /mb1 /ros 1,0;
+                    print /lz "    for B and C:                " 
+                                hC_Silv_fac "times h_S, see Section 5 in TY";
+                    format /mat /on /mb1 /ros 16,8;
+                elseif meth_hB $== "ROT";
+                    print /lz "    for B and C as described in YT-JRSSB";
+                    print /lz "    with partial fourth order Taylor expansion";
+                    print /lz "    for estimating C " partial_cub;
+                    print /lz "    and factor" hcd_fac;
+                    print /lz "    to be multiplied with h_{C_{mu,lambda}(f),opt}";
+                else;
+                    print /lz "meth_hB" meth_hB;
+                endif;                
+            elseif seas_cha $/= "standard"; /* all seasonal models */
+                if meth_hB $== "Silv";
+                    format /mat /on /mb1 /ros 1,0;
+                    print /lz "    for (seasonal) B and C:     " 
+                                hC_Silv_fac "times hat sigma_s in h_{C,s},";
+                              "                                 see Section 5 in YT";
+                    format /mat /on /mb1 /ros 16,8;
+                elseif meth_hB $== "ROT";
+                    print /lz "    for (seasonal) B and C:        as described in YT-JRSSB";
+                else;
+                    print /lz "meth_hB" meth_hB;
+                endif;                
+            endif;
+            if seas_cha $== "seasD";
+              if meth_hB_d $== "sd_rem_loo";
+               "    for density estimation:      Silverman's rule of thumb";
+               "                                 with the geometric mean of the variance";
+               "                                 for all lags.";
+               "                                 The same bandwidth is used for all seasons.";
+              endif;
+            elseif seas_cha $== "periodic"; /* SNAR model */
+              if method_dum $== "perio_one_h";
+                  "                                 The same bandwidth is used ";
+                  "                                 for estimating B and C in each season";
+              elseif method_dum $== "perio_dif_h";
+                  "                                 A different bandwidth is used ";
+                  "                                 for estimating (C)AFPE in each season";
+              else;
+                  if printlog > 1;
+                      print /lz "method_dum           " method_dum;                    
+                  endif;
+              endif;
+
+              if meth_hB_d $== "sd_rem_loo";
+               "   for density estimation:       Silverman's rule of thumb";
+               "                                 with the geometric mean of the variance ";
+               "                                 for all lags.";
+               "                                 The same bandwidth is used for all seasons.";
+              endif;
+            endif;                
+    endif; 
+endif;
+
+xconstfac   = vec(xconstfac);
+if comp_ci;
+    if rows(lags_grid) >= 2;
+        grid_var_ind = indexcat(lags_grid,grid_var[1]);
+                                    /*  index of lag in lags_grid that will
+                                        be varied in plot for confidence intervals */
+        if ismiss(grid_var_ind);
+            if _print_cafpejm;
+                print "gr_cafpe: selected lag in grid_var is not included in lags_grid";
+                print "          grid_var  = " grid_var;
+                print "          lags_grid = " lags_grid;
+                print "          Program terminated ";
+            endif;
+            end;
+        endif;
+    else;
+        grid_var_ind    = 1;
+    endif;
+
+    if (rows(lags_grid) > 1) and (rows(lags_grid)-1 /= rows(xconstfac));
+        if _print_cafpejm;
+            "gr_cafpe: The number of constants does not correspond to the number of lags";
+            "          which are kept fixed ";
+            print "lags_grid  is    " lags_grid;
+            print "xconstfac  is " xconstfac;
+        endif;
+        end;
+    endif;
+
+else;
+    if rows(lags_grid) >= 2;
+        grid_var_ind = indexcat(lags_grid,grid_var[1])|indexcat(lags_grid,grid_var[2]);
+                                    /*  index of lags in lags_grid that will
+                                        be varying in surface plot */
+        if ismiss(grid_var_ind);
+            if _print_cafpejm;
+                print "gr_cafpe: selected lags in grid_var are not included in lags_grid";
+                print "          grid_var  = " grid_var;
+                print "          lags_grid = " lags_grid;
+                print "          Program terminated ";
+            endif;
+            end;
+        endif;
+    else;
+        grid_var_ind    = 1;
+    endif;
+
+    if (rows(lags_grid) > 2) and (rows(lags_grid)-2 /= rows(xconstfac));
+        if _print_cafpejm;
+            "gr_cafpe: The number of constants does not correspond to the number of lags";
+            "          which are kept fixed ";
+            print "lags_grid  is    " lags_grid;
+            print "xconstfac  is " xconstfac;
+        endif;
+        end;
+    endif;
+endif;
+
+
+if seas_cha $== "seasD";    /*  add seasonal dummy variables for SDNAR model */
+    lags_grid = lags_grid|seqa(lag_max+1,1,seas-1);
+endif;
+
+lags_grid_h = selif(lags_grid,lags_grid .<= lag_max);
+                    /* get lags without indices for seasonal dummy variables */
+
+
+
+
+
+@ ------------- determine number of dexog/exog variables ?? ------------ @
+
+if xexog_com $== "none";
+    if rows(xexog_com) == seas-1;       /* Feb 21, 2000 */
+     xexog       = xexog_se_nonparam(n, seas,1,seas_sta);
+    else;
+         xexog       = 0;
+    endif;
+    dexog   = 0;
+else;
+    dexog   = rows(xexog_com);
+endif;
+
+@ ------------- determine number of dexog/exog variables ?? ------------ @
+
+if ((rows(xexog_com) == seas-1 ) and (xexog_com[1] $== "SD")) or seas_cha $== "shift";
+    xexog       = xexog_se_nonparam(n, seas,1,seas_sta);
+    x_2SLS      = 0;
+else;
+    xexog       = 0;
+    x_2SLS      = 0;
+endif;
+
+@ -------------- compute kernel constant ----------------------- @
+
+if kernel $== "gaussian";
+    Ksq_int = 1 / (2*sqrt(pi));
+endif;
+
+
+
+sig2_hat = stdc(xraw)^2;
+
+
+@ ---------- Begin of computation --------------------------------- @
+
+"";
+"Estimation:";
+"-----------------------------------------------------------------------";
+"";
+if printlog;
+    "Results obtained with fpe_npsl_nonparam:";
+endif;
+
+                                /* nonparametric estimation of plug-in bandwidth and 
+                                                                residuals*/
+{crit_o,resvar,sig2wn_hat,hA,hB,hC,crit_grid,
+ h_grid,X_s_j_adj,y_adj,X_t_j_adj,resid,meanseas } =
+        fpe_npsl_nonparam(Xraw,Xresid,xexog,x_2SLS,lags_grid,lag_max,xexog_com,dexog,seas,
+                seas_sta,seas_cha,volat,startstrat,robden,
+                estimator,kernel,method_dum,selcrit,per_A,per_B,Ksq_int,
+                h_c_min,h_c_max,
+                meth_hB,meth_hB_d,partial_cub,hCd_fac,printlog,hC_Silv_fac,bw_factor);
+               
+if crit_o ==    1e20;    /* inversion when computing residuals failed, added 040205 */
+    if _print_cafpejm;
+        "";
+        "ERROR: Inversion in computing local linear estimator failed.";
+        "         This is probably due to a too small user-specified bandwidth.";
+        "         The currently user-specified bandwidth is: " hA;
+        "         It is obtained from the plug-in bandwidth";
+        "         by multiplying it with: " bw_factor;
+        "";
+        "         THEREFORE THE COMPUTATIONS ARE TERMINATED.";
+        "         Increase bandwidth and retry.";
+    endif;
+    output off;
+    retp(0,0,0,0,0,0);
+    end;  
+endif; 
+h_user  = bw_factor * hA;      
+if seas_cha $== "periodic"; 
+    resid   = 0;    /* throw away residuals because they are not computed for all
+                        x_s_j_adj, April 18, 2002 */
+        garb = meanc(X_s_j_adj)';   /* routine used to compute correct residuals, 040213 */
+        { garb,garb,garb,garb,garb,garb,resid_ci } =      
+                ci_f_hat_nonparam(X_s_j_adj,Y_adj,h_user,-1,X_s_j_adj[1,.],kernel,kernel,
+                                seas,seas_cha,yorig_seas,estimator,method_dum,meth_hB,
+                                printlog,zeros(1,seas)/*g_hat*/,ci_level,bonf,resid,n,0,sig2wn_hat);
+    resid   = resid_ci;                         
+    
+endif;
+@ --------------- Print results ----------------------- @
+if _print_cafpejm;
+    
+    if seas_cha $== "standard";
+        print /lz "Variance of dependent variable:        " (stdc(y_adj))^2;
+    elseif seas_cha $== "periodic";
+        print /lz "Variance of dependent variable:        " (stdc(y_adj))^2;        
+    elseif seas_cha $== "seasD";
+        print "Variance of adjusted dependent variable"; 
+        print /lz "    after subtracting seas. dummies:   " (stdc(y_adj))^2;
+    elseif seas_cha $== "shift";        
+        print "Variance of dependent variable"; 
+        print /lz "    after subtracting seasonal means:  " (stdc(y_adj))^2;
+        if xdata_stand $== "yes";
+            print "Mean of each season after taking back standardization:"; 
+            if rows(meanseas) > 1;
+                print /lz "    Season   1 (by definition)         " 0;
+                garb = printfm( ((ones(rows(meanseas),1).*.("    "))
+                                ~(ones(rows(meanseas),1).*.("Season"))
+                                ~seqa(2,1,rows(meanseas))~(meanseas* std_xdata))
+                                ,(0~0~1~1),((("- *.*s")~4~4)|(("- *.*s")~8~8)
+                                |(("- *.*lG")~22~ 0)|(("*.*lf")~16~8)));
+            else;
+                print /lz "Estimated seasonal dummies:           " ;
+                print /lz "    Season   1 (by definition)         " 0;
+                print /lz "    Season 2                          " meanseas* std_xdata;
+            endif;
+        endif;
+    endif;    
+    "";
+endif;
+if print_in_file;
+    output off;
+endif;
+
+
+@ --------------------- plot conditional mean function when possible --------- @
+
+if show_graph;
+  if _in_jmulti;
+    graphset; /*setGlobalPlot_plot(); does not work here */           /* 040602 */
+    if __jm_graphics_file$/=""; 
+      _ptek = __jm_graphics_file;
+    endif;
+  endif;
+/*  
+  _pnumht     = 0.21;         /* size of numbering */
+  _paxht      = 0.31;         /* size of labelling axes */
+  _ptitlht    = 0.31;         /* size of title */
+  _pdate      = 0;            /* no date on plot */
+  _pltype     = 6;            /* type of line */
+  _pcolor     = 15;           /* color in plot */
+  _plwidth    = (2) * 2;      /* thickness of line */
+*/
+
+  
+endif;
+
+
+xgridmax        = maxc(maxc(x_s_j_adj));      /* prepare grid surface plot */
+xgridmin        = minc(minc(x_s_j_adj));
+xgridstep       = (xgridmax-xgridmin)/(xnum-1);
+
+if comp_ci;
+    if  rows(lags_grid_h) == 1;
+        xgrid       = seqa(xgridmin,xgridstep,xnum);
+        xgrid2      = xgrid;
+    else;
+        xgrid       = seqa(xgridmin,xgridstep,xnum);
+    
+        if cols(xconstfac ) > 1;
+            if _print_cafpejm;
+                "gr_cafpe: xconst_fac is row vector; must be column vector ";
+            endif;
+            end;
+        endif;
+        xconst      = xconstfac' .*ones(rows(xgrid),1);
+                        /* make grid matrix with all constant values */
+
+
+                        /*  compose matrix of grid values that also includes those
+                            lags which are kept constant */
+        cond_var    = zeros(rows(xconstfac),1); /* stores conditioning lags */
+        if grid_var_ind == 1;
+            xgrid2  = xgrid[.,1];
+            ll      = 2;
+            kk      = 1;
+        else;
+            xgrid2  = xconst[.,1];
+            cond_var[1] = lags_grid[1];
+            ll      = 1;
+            kk      = 2;
+        endif;
+
+        ii  = 2;
+        do while ii <= rows(lags_grid_h);
+            if (ll==1) and (ii == grid_var_ind);
+                xgrid2 = xgrid2~xgrid[.,ll];
+                if ll == 1;
+                    ll  = ll + 1;
+                endif;
+            else;
+                xgrid2 = xgrid2~xconst[.,kk];
+                cond_var[kk] = lags_grid[ii];
+                kk      = kk + 1;
+            endif;
+            ii      = ii + 1;
+        endo;
+    endif;
+else;
+    if  rows(grid_var_ind) == 1;
+        xgrid       = seqa(xgridmin,xgridstep,xnum);
+        xgrid2      = xgrid;
+    else;
+        Xgrid       = makegrid_nonparam(xgridmin,xgridstep,xnum);    /* make 2-dim grid */
+    
+        if cols(xconstfac ) > 1;
+            if _print_cafpejm;
+                "gr_cafpe: xconst_fac is row vector; must be column vector ";
+            endif;
+            end;
+        endif;
+        xconst      = xconstfac' .*ones(rows(xgrid),1);
+                        /* make grid matrix with all constant values */
+
+
+                        /*  compose matrix of grid values that also includs those
+                            lags which are kept constant */
+        cond_var    = zeros(rows(xconstfac),1); /* stores conditioning lags */
+        if grid_var_ind[1] == 1;
+            xgrid2  = xgrid[.,1];
+            ll      = 2;
+            kk      = 1;
+        else;
+            xgrid2  = xconst[.,1];
+            cond_var[1] = lags_grid[1];
+            ll      = 1;
+            kk      = 2;
+        endif;
+
+        ii  = 2;
+        do while ii <= rows(lags_grid_h);
+            if ii == grid_var_ind[ll];
+                xgrid2 = xgrid2~xgrid[.,ll];
+                if ll == 1;
+                    ll  = ll + 1;
+                endif;
+            else;
+                xgrid2 = xgrid2~xconst[.,kk];
+                cond_var[kk] = lags_grid[ii];
+                kk      = kk + 1;
+            endif;
+            ii      = ii + 1;
+        endo;
+    endif;
+endif;
+
+if printlog > 3;
+    "before fgr_fsv_nonparam";
+    print "x_s_j_adj" x_s_j_adj[1:minc(5|rows(x_s_j_adj)),.];
+    print "y_adj" y_adj[1:minc(5|rows(y_adj)),.];
+    print "h_user" h_user;
+endif;
+
+if seas_cha $== "periodic";
+    { g_hat,denA }  =  fgr_fsv_nonparam(X_s_j_adj,Y_adj,h_user,Xgrid2,kernel,
+                    seas,seas_cha,yorig_seas,0, estimator,"",printlog);
+                    /* nonparametric estimation of seasonal functions on grid */
+    if denA == 1e20;
+        output file = ^outputfip on;    
+        if _print_cafpejm;
+            "ERROR: Inversion in computing local linear estimator failed";
+            "         This is probably due to a too small bandwidth";
+            "         Therefore no graph plotted";
+            "         Increase bandwidth and try again";
+        endif;
+        output off;
+        retp(0,0,0,0,0,0);
+        end;
+    endif;
+
+    { g_hat_xconstall,denA_xconstall }  =  
+                        fgr_fsv_nonparam(X_s_j_adj,Y_adj,h_user,Xconstall,kernel,
+                    seas,seas_cha,yorig_seas,0, estimator,"",printlog);
+                    /* nonparametric estimation of seasonal functions at xconstall */
+
+else;
+    { g_hat,denA }  =  fgr_fsv_nonparam(X_s_j_adj,Y_adj,h_user,Xgrid2,kernel,
+                    seas,"standard",1,0, estimator,"",printlog);
+                    /* nonparametric estimation of function on grid */
+    if denA == 1e20;
+        output file = ^outputfip on;
+        if _print_cafpejm;
+            "ERROR: Inversion in computing local linear estimator failed";
+            "         This is probably due to a too small bandwidth";
+            "         Therefore no graph plotted";
+            "         Increase bandwidth and try again";
+        endif;            
+        output off;
+        retp(0,0,0,0,0,0);
+        end;
+    endif;
+
+    { g_hat_xconstall,denA_xconstall }  =  
+                        fgr_fsv_nonparam(X_s_j_adj,Y_adj,h_user,xconstall,kernel,
+                    seas,"standard",1,0, estimator,"",printlog);
+                    /* nonparametric estimation of function on xconstall */
+
+
+    if volat $== "resid";
+        garb=sqrt(g_hat);
+        { garb2,g_hat,garb2,garb2,sig2_rep }
+            = sig22llc_nonparam(X_s_j_adj,Y_adj,h_user,h_user,h_user,Xgrid2,kernel,1,0,sqrt(y_adj),
+                    printlog,0,0,"");
+        g_hat   = sqrt(g_hat);  /* consider always standard deviation */
+        output file = ^outputfip on; 
+        if _print_cafpejm;
+            if sig2_rep[1] > 0;
+                print /lz "Inversion of (Z_k W_k Z_k) for sigma^2 estimation on grid failed ";
+                print /lz "with user-specified bandwidth";
+                print /lz "The actually used bandwidth is: " sig2_rep;
+            elseif sig2_rep[1] < 0;
+                print /lz "The local linear estimates for sigma^2 on the grid are negative.";
+                print /lz "Therefore the Nadaraya-Watson estimator was used";
+                print /lz "with bandwidth: " (-sig2_rep);
+            endif;
+        endif;                       
+        output off;
+        
+        { garb2,g_hat_xconstall,garb2,garb2,sig2_rep }
+            = sig22llc_nonparam(X_s_j_adj,Y_adj,h_user,h_user,h_user,Xconstall,kernel,1,0,sqrt(y_adj),
+                    printlog,0,0,"");                            
+        g_hat_xconstall = sqrt(g_hat_xconstall);   
+                   
+        output file = ^outputfip on; 
+        if _print_cafpejm;
+            if sig2_rep[1] > 0;
+                print /lz "Inversion of (Z_k W_k Z_k) for sigma^2 estimation";
+                print /lz "for user-supplied x failed with user-specified bandwidth";
+                print /lz "The actually used bandwidth is: " sig2_rep;
+            elseif sig2_rep[1] < 0;
+                print /lz "The local linear estimates for sigma^2 at user-specified x are negative.";
+                print /lz "Therefore the Nadaraya-Watson estimator was used";
+                print /lz "with bandwidth: " (-sig2_rep);
+            endif;
+        endif;
+        output off;
+    endif;
+
+endif;                    
+
+if (not(comp_ci) and (rows(lags_grid_h) > 1));
+    if seas_cha $== "periodic";
+        w_gr    = zeros(rows(xgrid),seas);
+        seas_c = 1;
+        do while seas_c <= seas;
+            w_gr[.,seas_c] = gridsel_nonparam(xgrid,denA[.,seas_c],
+                                            x_s_j_adj[.,grid_var_ind],xgridstep,per_gr);
+                        /* returns for i-th grid point 1 if grid point is within
+                           range of data and its density is larger than per_gr quantile
+                           and 0 otherwise */
+            seas_c = seas_c + 1;
+        endo;
+                           
+        
+    else;
+        w_gr            = gridsel_nonparam(xgrid,denA,x_s_j_adj[.,grid_var_ind],
+                                            xgridstep,per_gr);
+                        /* returns for i-th grid point 1 if grid point is within
+                           range of data and its density is larger than per_gr quantile
+                           and 0 otherwise */
+    endif;   
+else;
+    if seas_cha $== "periodic";
+        if comp_ci;
+        
+            hA_sig2 = -1; /* Feb2003: computation of plug-in bandwidth not implemented 
+                            for periodic models */
+            output file = ^outputfip on; 
+        
+            { ci_g_hatplot,ci_g_hatplot_homosk,bias_ci_hatplot,
+            var_ci_hatplot,var_ci_hatplot_homosk,sigma2_x_hatplot,resid_ci } =      
+                ci_f_hat_nonparam(X_s_j_adj,Y_adj,h_user,hA_sig2,Xgrid2,kernel,kernel,
+                                seas,seas_cha,yorig_seas,estimator,method_dum,meth_hB,
+                                printlog,g_hat,ci_level,bonf,resid,n,0,sig2wn_hat);
+                                     
+            { ci_g_hat_xconstall,ci_g_hat_xconstall_homosk,bias_ci_hat_xconstall,
+            var_ci_hat_xconstall,var_ci_hat_xconstall_homosk,sigma2_x_hat_xconstall,garb } =      
+                ci_f_hat_nonparam(X_s_j_adj,Y_adj,h_user,hA_sig2,Xconstall,kernel,kernel,
+                                seas,seas_cha,yorig_seas,estimator,method_dum,meth_hB,
+                                printlog,g_hat_xconstall,ci_level,bonf,resid,n,0,sig2wn_hat);
+            output off;
+        endif;
+        w_gr    = zeros(rows(xgrid),seas);
+        seas_c = 1;
+        do while seas_c <= seas;
+            garb            = sortc(denA[.,seas_c],1);
+            w_gr[.,seas_c] = ones(rows(xgrid),1) .* 
+                            (denA[.,seas_c] .>= garb[floor(per_gr*rows(denA[.,seas_c]))+1]);
+            seas_c = seas_c + 1;
+        endo;
+    else;
+        garb            = sortc(denA,1);
+        w_gr            = ones(rows(xgrid),1) .* (denA .>= garb[floor(per_gr*rows(denA))+1]);
+        if comp_ci;
+
+
+            if seas_cha $== "standard";        
+                /* get plug-in bandwidth for cond. volatility estimate, Feb2003 */
+        
+                volat_here = "resid";
+            
+        
+            
+                {crit_o_sig2,resvar_sig2,sig2wn_hat_sig2,hA_sig2,hB_sig2,hC_sig2,
+                crit_grid_sig2,h_grid_sig2,X_s_j_adj_sig2,y_adj_sig2,X_t_j_adj_sig2,
+                resid_sig2,meanseas_sig2 } 
+                    = fpe_npsl_nonparam(Xraw,resid,xexog,x_2SLS,lags_grid,lag_max,
+                                    xexog_com,dexog,seas,seas_sta,seas_cha,volat_here,
+                                    startstrat,robden,estimator,kernel,method_dum,selcrit,
+                                    per_A,per_B,Ksq_int,h_c_min,h_c_max,meth_hB,meth_hB_d,
+                                    partial_cub,hCd_fac,printlog,hC_Silv_fac,1);
+            else;
+
+                hA_sig2 = -1; /* Feb2003: computation of plug-in bandwidth not implemented 
+                            for SDNAR or SHNAR models */
+            endif;                                    
+            if seas_cha $== "periodic"; 
+                
+                resid   = 0;    /* throw away residuals because they are not computed for all
+                        x_s_j_adj, April 18, 2002 */
+           
+            endif;
+
+            ci_g_hat_xconstall  = ones(rows(g_hat_xconstall),2);
+            output file = ^outputfip on; 
+
+            { ci_g_hatplot,ci_g_hatplot_homosk,bias_ci_hatplot,
+            var_ci_hatplot,var_ci_hatplot_homosk,sigma2_x_hatplot,resid_ci } =      
+                        ci_f_hat_nonparam(X_s_j_adj,Y_adj,h_user,hA_sig2,Xgrid2,kernel,kernel,
+                                        seas,"standard",1,estimator,method_dum,meth_hB,
+                                        printlog,g_hat,ci_level,bonf,resid,n,0,sig2wn_hat);            
+
+            { ci_g_hat_xconstall,ci_g_hat_xconstall_homosk,bias_ci_hat_xconstall,
+            var_ci_hat_xconstall,var_ci_hat_xconstall_homosk,sigma2_x_hat_xconstall,garb } =      
+                        ci_f_hat_nonparam(X_s_j_adj,Y_adj,h_user,hA_sig2,Xconstall,kernel,kernel,
+                                        seas,"standard",1,estimator,method_dum,meth_hB,
+                                        printlog,g_hat_xconstall,ci_level,bonf,resid,n,
+                                        0,sig2wn_hat);            
+            output off;            
+           
+        endif;
+    endif;        
+endif;
+
+if seas_cha $== "periodic"; 
+                
+    resid   = resid_ci;    /* 040213 */
+           
+endif; 
+
+/*_psurf  = 1|5;*/
+_pzpmax = 1;
+
+/*
+if xdata_stand $== "yes";   /* reparameterize results if data
+                                were standardized */
+    g_hatplot   = g_hat .* std_xdata;
+    xgridplot   = xgrid .* std_xdata;
+else;
+*/
+    g_hatplot   = g_hat;
+    xgridplot   = xgrid;
+/*    
+endif;
+*/
+g_hatplotmin    = minc(g_hatplot);
+misval          = {.};
+
+if seas_cha $== "periodic";
+    g_hatplot_datrange  = zeros(rows(g_hatplot),cols(g_hatplot));
+    seas_c = 1;
+    do while seas_c <= seas;
+    
+        g_hatplot_datrange[.,seas_c]
+            = substute(g_hatplot[.,seas_c],w_gr[.,seas_c] .== 0,-1e100);
+                    /* set all function estimates to missing value (misval)
+                                           if w_gr = 0 is used for saving results */
+        g_hatplot_datrange[.,seas_c] = miss(g_hatplot_datrange[.,seas_c],-1e100);                               
+        garb                        = minc(g_hatplot_datrange[.,seas_c]);
+        
+        g_hatplot2                  
+            = substute(missrv(g_hatplot_datrange[.,seas_c],-1e100),w_gr[.,seas_c] .== 0,garb);
+                                        /* set all functions if w_gr = 0 to minimum of
+                                           function on relevant range of function to allow
+                                           plotting */
+
+        if comp_ci;
+            print "ci_g_hatplot" ci_g_hatplot;
+            _pltype     = 6|1|1|2|2;            /* type of line */                        
+            _plegctl    = 0;                     /* 040602 */
+            _pcolor     = 10|12|12|11|11;            /* color of line, 040602 */
+
+            g_hatplot2                  = selif(g_hatplot2,w_gr[.,seas_c] .== 1);
+                            /* select all grid values for which function was estimated */
+            
+            ci_g_hatplot2               
+                = selif(ci_g_hatplot[.,2*seas_c-1:2*seas_c],w_gr[.,seas_c] .==1);
+                                        /* set all functions if w_gr = 0 to minimum of
+                                           function on relevant range of function to allow
+                                           plotting */
+            ci_g_hatplot2_homosk        
+                = selif(ci_g_hatplot_homosk[.,2*seas_c-1:2*seas_c],w_gr[.,seas_c] .==1);                                           
+            xgridplot2                  = selif(xgridplot,w_gr[.,seas_c] .== 1);
+            if show_graph;
+ 
+                title("Conditional Mean of Season" $+ ftos(seas_c, "%*.*lf",2,0));
+                xlabel("Lag " $+ ftos(grid_var, "%*.*lf",2,0));        
+                ylabel("Estimated Function, CI");
+                    /* plot function and confidence intervals */
+                xy(xgridplot2,g_hatplot2~ci_g_hatplot2~ci_g_hatplot2_homosk);
+                    if _in_jmulti;
+                      dllcall showLastGraphic;
+                    endif; 
+
+            endif;
+            
+        else;
+            if show_graph;
+            
+                if volat $== "resid";
+                    if rows(lags_grid_h) >1;
+                        plotgrid_nonparam(xgridplot,g_hatplot2,
+                        "Conditional Stand. Dev. of Season" $+ 
+                                ftos(seas_c, "%*.*lf",2,0),grid_var,_viewro);
+                    else;
+                        title("Conditional Stand. Dev. of Season" $+ 
+                                ftos(seas_c, "%*.*lf",2,0));
+                        xlabel("Lag " $+ ftos(lags_grid, "%*.*lf",2,0));        
+                        ylabel("Estimated Function");
+                        xy(xgridplot,g_hatplot2);
+                        /* plot function */
+                        if _in_jmulti;
+                          dllcall showLastGraphic;
+                        endif; 
+
+                    endif;
+
+                else;        
+                    if rows(lags_grid_h) >1;
+                        plotgrid_nonparam(xgridplot,g_hatplot2,
+                        "Conditional Mean of Season" $+ ftos(seas_c, "%*.*lf",2,0),grid_var,_viewro);
+                    else;
+                        title("Conditional Mean of Season" $+ ftos(seas_c, "%*.*lf",2,0));
+                        xlabel("Lag " $+ ftos(lags_grid, "%*.*lf",2,0));        
+                        ylabel("Estimated Function");
+                        xy(xgridplot,g_hatplot2);
+                        /* plot function */
+                        if _in_jmulti;
+                          dllcall showLastGraphic;
+                        endif; 
+
+                    endif;
+                endif;                    
+           endif;
+        endif;            
+        seas_c = seas_c + 1;
+    endo;
+else;                        
+    g_hatplot_datrange  = substute(g_hatplot,w_gr .== 0,-1e100);
+                                /*  set all function estimates to missing value (misval)
+                                    if w_gr = 0 is used for saving results */
+                        
+    g_hatplot_datrange  = miss(g_hatplot_datrange,-1e100);
+    garb = minc(g_hatplot_datrange);    
+
+    g_hatplot2          = substute(missrv(g_hatplot_datrange,-1e100),w_gr .== 0,garb);
+                                /*  set all functions if w_gr = 0 to minimum of
+                                    function on relevant range of function to allow
+                                    plotting */
+    if comp_ci;                                    
+        g_hatplot2          = selif(g_hatplot2,w_gr .== 1);
+                                /*  select all function values for which w_gr = 1 */    
+        ci_g_hatplot2       = selif(ci_g_hatplot,w_gr .== 1);
+                                /*  select all function values for which w_gr = 1 */
+        ci_g_hatplot2_homosk = selif(ci_g_hatplot_homosk,w_gr .== 1);                                
+        xgridplot2          = selif(xgridplot,w_gr .== 1);                                
+        if printlog > 3;
+            print "g_hatplot2" g_hatplot2;
+            print "ci_g_hatplot2" ci_g_hatplot2;            
+            print "ci_g_hatplot2_homosk" ci_g_hatplot2_homosk;            
+        endif;            
+        _pltype     = 6|1|1|2|2;            /* type of line */  
+        _plegctl    = 0;                     /* 040602 */
+        _pcolor     = 10|12|12|11|11;            /* color of line, 040602 */
+        if show_graph;
+            title("Conditional Mean");
+            xlabel("Lag " $+ ftos(grid_var, "%*.*lf",2,0));        
+            ylabel("Estimated Function, CI");
+
+            xy(xgridplot2,g_hatplot2~ci_g_hatplot2~ci_g_hatplot2_homosk);
+                if _in_jmulti;
+                  dllcall showLastGraphic;
+                endif; 
+
+                    /* plot function */
+        endif;
+    else;
+        if show_graph;
+            if rows(lags_grid_h) >1;
+                if volat $== "resid";
+                    plotgrid_nonparam(xgridplot,g_hatplot2,
+                                        "Conditional Stand. Dev.",grid_var,_viewro);
+                else;
+                    plotgrid_nonparam(xgridplot,g_hatplot2,"Conditional Mean",grid_var,_viewro);                                    
+                endif;                    
+            else;
+                g_hatplot2          = selif(g_hatplot2,w_gr .== 1);
+                                /*  select all function values for which w_gr = 1 */    
+                xgridplot2          = selif(xgridplot,w_gr .== 1);                                            
+                if volat $== "resid";
+                    title("Conditional Stand. Dev.");
+                else;
+                    title("Conditional Mean");                    
+                endif;                    
+                xlabel("Lag " $+ ftos(lags_grid_h, "%*.*lf",2,0));        
+                ylabel("Estimated Function");
+                xy(xgridplot2,g_hatplot2);
+                    /* plot function */
+                if _in_jmulti;
+                  dllcall showLastGraphic;
+                endif; 
+
+
+            endif;
+        endif;
+    endif;        
+endif;    
+
+if (volat $== "resid"); /* 030605 compute xi_t's for observations of
+                                  heteroskedastic NAR process */
+    { garb2,g_hat_ts,garb2,garb2,sig2_rep }
+            = sig22llc_nonparam(X_s_j_adj,Y_adj,h_user,h_user,h_user,X_t_j_adj,kernel,1,0,sqrt(y_adj),
+                    printlog,0,0,"");
+    g_hat_ts= sqrt(g_hat_ts);  /* consider always standard deviation */
+    output file = ^outputfip on; 
+    if _print_cafpejm;
+        if sig2_rep[1] > 0;
+            print /lz "Inversion of (Z_k W_k Z_k) for sigma^2 estimation ";
+            print /lz "for time series observations failed with user-specified bandwidth";
+            print /lz "The actually used bandwidth is: " sig2_rep;
+        elseif sig2_rep[1] < 0;
+            print /lz "The local linear estimates for sigma^2 at the time series observations";
+            print /lz "are negative.";
+            print /lz "Therefore the Nadaraya-Watson estimator was used";
+            print /lz "with bandwidth: " (-sig2_rep);
+        endif;
+    endif;                       
+    output off;
+
+    residxi = xresid_orig[rows(xresid_orig)-rows(g_hat_ts)+1:rows(xresid_orig)] ./ g_hat_ts; 
+    resid   = residxi;
+endif;
+
+@ ------------ print some information ---------------------------   @
+output file = ^outputfip on;
+if _print_cafpejm;
+    "";    
+    print /lz "Plot settings:";
+    format /mat /on /mb1 /ros 2,0;
+    print /ld "Range of grid for plotted lags         " grid_var' ":";
+    format /mat /on /mb1 /ros 16,8;        
+    print /lz "    Minimum:                           " xgridmin;
+    print /lz "    Maximum:                           " xgridmax;
+    if rows(lags_grid_h) > 2;
+        print /lz "Values of conditioning lags: "; 
+        garb = printfm( ((ones(rows(xconstfac),1).*.("    "))
+                        ~(ones(rows(xconstfac),1).*.("Lag"))~cond_var~xconstfac)
+                        ,(0~0~1~1),((("- *.*s")~4~4)|(("- *.*s")~8~8)
+                        |(("- *.*lG")~22~ 0)|(("*.*lf")~16~8)));"";    
+    endif;        
+    if seas_cha $== "periodic";
+        print /lz "Estimated function values on grid:";
+        print /lz "                                      Minimum         Maximum";
+        garb = printfm( ((ones(cols(g_hatplot),1).*.("    "))
+                    ~(ones(cols(g_hatplot),1).*.("Season"))~seqa(1,1,seas)
+                    ~g_hatplotmin~maxc(g_hatplot))
+                    ,(0~0~1~1~1),((("- *.*s")~4~4)|(("- *.*s")~8~8)
+                    |(("- *.*lG")~22~ 0)|(("*.*lf")~16~8)|(("*.*lf")~16~8)));    
+        print /lz "Estimated function values within data range:";        
+        garb = printfm( ((ones(cols(g_hatplot_datrange),1).*.("    "))
+                    ~(ones(cols(g_hatplot_datrange),1).*.("Season"))~seqa(1,1,seas)
+                    ~minc(g_hatplot_datrange)~maxc(g_hatplot_datrange))
+                    ,(0~0~1~1~1),((("- *.*s")~4~4)|(("- *.*s")~8~8)
+                    |(("- *.*lG")~22~ 0)|(("*.*lf")~16~8)|(("*.*lf")~16~8)));    
+        if printlog;
+            seas_c = 1;
+            do while seas_c <= seas;
+                print /lz "Largest estimated density              " maxc(denA[.,seas_c]);
+                print /lz "    in season                          " seas_c;
+                print /lz "    estimated at grid value:           " 
+                                                    (xgrid[maxindc(denA[.,seas_c]),.]);
+                seas_c = seas_c + 1;
+            endo;                
+        endif;
+    else;
+        print /lz "Estimated function values on grid:";
+        print /lz "    Minimum:                           " g_hatplotmin;
+        print /lz "    Maximum:                           " maxc(g_hatplot);
+        print /lz "Estimated function values within data range:";
+        print /lz "    Minimum:                           " minc(g_hatplot_datrange);
+        print /lz "    Maximum:                           " maxc(g_hatplot_datrange);
+        if printlog;
+            print /lz "Largest estimated density              " maxc(denA);
+            print /lz "    estimated at grid value:           " (xgrid[maxindc(denA),.]);        
+        endif;
+
+    endif; 
+    "";
+    ""; 
+    if not(volat $== "resid");   /* added, 040205 */
+        print /lz "Function estimates at user-given value:";
+        print /lz "User-given values of lags: "; 
+        garb = printfm( ((ones(cols(xconstall),1).*.("    "))
+                    ~(ones(cols(xconstall),1).*.("Lag"))~lags_grid_h~xconstall')
+                    ,(0~0~1~1),((("- *.*s")~4~4)|(("- *.*s")~8~8)|(("- *.*lf")~22~ 0)
+                    |(("*.*lf")~16~8)));"";    
+    
+        if seas_cha $== "periodic";
+            if comp_ci;
+                print /lz 
+                "                                      Estimated function   Confidence interval";
+                garb = printfm( ((ones(cols(g_hat_xconstall),1).*.("    "))
+                                ~(ones(cols(g_hat_xconstall),1).*.("Season"))~seqa(1,1,seas)
+                                ~g_hat_xconstall'~(ones(cols(g_hat_xconstall),1).*.("   ["))
+                                ~ci_g_hat_xconstall[seqa(1,2,seas)]'
+                                ~(ones(cols(g_hat_xconstall),1).*.(","))
+                                ~ci_g_hat_xconstall[seqa(2,2,seas)]'
+                                ~(ones(cols(g_hat_xconstall),1).*.("]")))
+                                ,(0~0~1~1~0~1~0~1~0),((("- *.*s")~4~4)|(("- *.*s")~8~8)
+                                |(("- *.*lG")~22~ 0)|(("*.*lf")~16~8)|(("- *.*s")~5~5)
+                                |(("*.*lf")~10~5)|(("- *.*s")~2~2)|(("*.*lf")~10~5)
+                                |(("- *.*s")~2~2)));            
+                "";
+                print /lz "                                      Estimated conditional error variance";
+                garb = printfm( ((ones(cols(g_hat_xconstall),1).*.("    "))
+                                ~(ones(cols(g_hat_xconstall),1).*.("Season"))~seqa(1,1,seas)
+                                ~sigma2_x_hat_xconstall')
+                                ,(0~0~1~1),(("- *.*s")~4~4)|(("- *.*s")~8~8)|(("- *.*lG")~22~ 0)
+                                |(("*.*lf")~16~8));
+                "";
+                print /lz "                                      Estimated variance of function estimate";
+                garb = printfm( ((ones(cols(g_hat_xconstall),1).*.("    "))
+                                ~(ones(cols(g_hat_xconstall),1).*.("Season"))~seqa(1,1,seas)
+                                ~var_ci_hat_xconstall')
+                                ,(0~0~1~1),(("- *.*s")~4~4)|(("- *.*s")~8~8)|(("- *.*lG")~22~ 0)
+                                |(("*.*lf")~16~8));
+                                /* added 040602 */                
+            else;
+        
+                print /lz "                                      Estimated function            ";
+                garb = printfm( ((ones(cols(g_hat_xconstall),1).*.("    "))
+                                ~(ones(cols(g_hat_xconstall),1).*.("Season"))~seqa(1,1,seas)
+                                ~g_hat_xconstall')
+                                ,(0~0~1~1),((("- *.*s")~4~4)|(("- *.*s")~8~8)|(("- *.*lG")~22~ 0)
+                                |(("*.*lf")~16~8)));           
+            endif;            
+        else;
+            if comp_ci;
+                print /lz 
+                    "                              Estimated function   Confidence interval";
+                garb = printfm( (("        ")~("        ")~("        ")~g_hat_xconstall
+                                ~(ones(cols(g_hat_xconstall),1).*.("   ["))
+                                ~ci_g_hat_xconstall[1]'~(ones(cols(g_hat_xconstall),1).*.(","))
+                                ~ci_g_hat_xconstall[2]'~(ones(cols(g_hat_xconstall),1).*.("]")))
+                                ,(0~0~0~1~0~1~0~1~0),((("- *.*s")~8~8)|(("- *.*s")~8~8)
+                                |(("- *.*s")~8~8)|(("*.*lf")~16~8)|(("- *.*s")~5~5)
+                                |(("*.*lf")~10~5)|(("- *.*s")~2~2)|(("*.*lf")~10~5)
+                                |(("- *.*s")~2~2)));
+                "";
+                print /lz "                              Estimated conditional error variance";
+                garb = printfm( (("        ")~("        ")~("        ")
+                                ~sigma2_x_hat_xconstall)
+                                ,(0~0~0~1),(("- *.*s")~8~8)|(("- *.*s")~8~8)
+                                |(("- *.*s")~8~8)|(("*.*lf")~16~8));
+                "";                
+                print /lz "                              Estimated variance of function estimate";
+                garb = printfm( (("        ")~("        ")~("        ")
+                                ~var_ci_hat_xconstall)
+                                ,(0~0~0~1),(("- *.*s")~8~8)|(("- *.*s")~8~8)
+                                |(("- *.*s")~8~8)|(("*.*lf")~16~8));
+                                /* added 040602 */
+
+            else;
+                print /lz "Estimated function value:              " g_hat_xconstall;                
+            endif;
+        endif;        
+    endif;
+    "";"";
+    if not(volat $== "resid");
+        if seas_cha $== "standard";
+            print "For your information:";    
+                                    /* OLS estimation of linear model */
+            bb  = inv((ones(rows(x_s_j_adj),1)~x_s_j_adj)'(ones(rows(x_s_j_adj),1)~x_s_j_adj))
+                    *(ones(rows(x_s_j_adj),1)~x_s_j_adj)'y_adj;
+        
+            print "Estimated parameters of linear AR model";
+            print "    with the same lag vector:";
+            garb = printfm( ((ones(rows(bb),1).*.("    "))
+                        ~("cons"|(0 $+ "ar" $+ ftocv(lags_grid_h,1,0)))~bb)
+                        ,(0~0~1),((("- *.*s")~4~4)|(("- *.*s")~30~30)|(("*.*lf")~16~8)));
+        elseif seas_cha $== "periodic";
+            /*
+            print "For your information:";        
+            print "Estimated parameters of linear PAR model";    
+            {garb,garb,garb,garb,garb,garb,garb}= par_nonparam(xraw,lags_grid_h,seas);
+            */
+        elseif seas_cha $== "seasD";
+            print "For your information:";    
+                                    /* OLS estimation of linear model */
+            bb  = inv((ones(rows(x_s_j_adj),1)~x_s_j_adj)'(ones(rows(x_s_j_adj),1)~x_s_j_adj))
+                        *(ones(rows(x_s_j_adj),1)~x_s_j_adj)'y_adj;
+        
+            print "Estimated parameters of linear AR model";
+            print "    for adjusted data with the same lag vector:";
+            garb = printfm( ((ones(rows(bb),1).*.("    "))
+                        ~("cons"|(0 $+ "ar" $+ ftocv(lags_grid_h,1,0)))~bb)
+                        ,(0~0~1),((("- *.*s")~4~4)|(("- *.*s")~30~30)|(("*.*lf")~16~8)));
+        elseif seas_cha $== "shift";        
+            print "For your information:";    
+                                    /* OLS estimation of linear model */
+            bb  = inv((ones(rows(x_s_j_adj),1)~x_s_j_adj)'(ones(rows(x_s_j_adj),1)~x_s_j_adj))
+                        *(ones(rows(x_s_j_adj),1)~x_s_j_adj)'y_adj;
+    
+            print "Estimated parameters of linear AR model";
+            print "    for seasonally adjusted data with the same lag vector:";
+            garb = printfm( ((ones(rows(bb),1).*.("    "))
+                        ~("cons"|(0 $+ "ar" $+ ftocv(lags_grid_h,1,0)))~bb)
+                        ,(0~0~1),((("- *.*s")~4~4)|(("- *.*s")~30~30)|(("*.*lf")~16~8)));
+        endif;    
+        "";
+    endif;        
+endif;
+output off;
+@ ------------ save grid and estimated function values ------------- @ 
+
+
+
+
+retp(xgridplot~g_hatplot,resid,X_s_j_adj,g_hat_xconstall,ci_g_hat_xconstall,ci_g_hatplot);
+endp;
+
+
+
+
+
+/* RT, November 2000
+**
+**  ----------------------------------------------------------------
+**                      FGR_FSV_nonparam
+**  ----------------------------------------------------------------
+**
+**  Subroutine for local linear estimation of multivariate mean function
+**  on a grid
+**
+**  Protocol:   April 11, 2002  seas_cha periodic now computed on a grid
+**                              where the function is computed for each
+**                              season
+*/
+
+proc (2) = fgr_fsv_nonparam(X_s_j,Yorig,hA,X_t_j,kernel,
+                    seas,seas_cha,yorig_seas,ddummies,
+                    estimator,method_dum,printlog);
+
+local seasden_sta,sig_K,d_w,lorq,fandg,loo,g_hat,mA,g_sqA,beta_hat,eps_hat,
+      denA,err,afpe,cafpe,wnsig2_hatc,res2,n,wA,A_hat,hAs0,
+      seas_c,ind_seas,yorig_pe,X_t_j_pe,X_s_j_pe,mA_pe,
+      g_sqA_pe,denA_pe,wA_pe,res2_pe,A_hat_pe,i_MS,w_beta,betaplus,
+      d_ols,i_MS_n,garb;
+
+
+@ -------------------- initialize ------------------------------- @
+
+
+    seasden_sta     = yorig_seas[1];
+    sig_K           = 1;
+    d_w             = cols(X_t_j) - ddummies;
+
+ @ ----------------- estimate mean functions  -------------------- @
+
+    loo     = 0;    /* no leave-one out */
+    fandg   = 0;    /* only cond. mean  */
+
+    if estimator $== "nw";
+        lorq    = 0;    /* local constant */
+    elseif estimator $== "loclin";
+        lorq    = 1;    /* local linear     */
+    endif;
+
+    if seas_cha $== "periodic";
+            g_hat       = zeros(rows(X_t_j),seas); /* April 11, 2002 */
+            denA        = zeros(rows(X_t_j),seas);
+            seas_c      = 1;
+            do while seas_c <= seas;
+                ind_seas    = indexcat(yorig_seas,seas_c);
+                X_t_j_pe    = X_t_j;    /* April 11, 2002 */
+                X_s_j_pe    = X_s_j[ind_seas,.];
+                yorig_pe    = yorig[ind_seas,.];
+
+                { mA_pe,g_sqA_pe,denA_pe,err } =
+                        f_v_llc_NONPARAM(X_s_j_pe,yorig_pe,
+                                hA,X_t_j_pe,kernel,
+                                lorq,fandg,loo,
+                                seas,seasden_sta,ddummies);
+                if err == 1;
+                    goto toobad;
+                endif;
+                g_hat[.,seas_c]     = mA_pe[.,1]; /* April 11, 2002 */
+                denA[.,seas_c]      = denA_pe;
+                seas_c           = seas_c + 1;
+            endo;
+
+
+    elseif seas_cha $== "seasD" and estimator $== "loclin"
+        and ddummies > 0;
+        betaplus    = 1;
+        w_beta      = 0;
+        if method_dum $== "f_0_f_s";
+
+            { g_hat,mA,g_sqA,beta_hat,garb,eps_hat,denA,err } =
+                fsv_lcr_nonparam(X_s_j,Yorig,hA,X_t_j,estimator,
+                kernel,lorq,fandg,loo,seas,yorig_seas,ddummies,
+                w_beta,betaplus,printlog);
+
+        elseif method_dum $== "dummies";
+
+            d_ols   = 0;
+            { g_hat,mA,g_sqA,beta_hat,garb,eps_hat,denA,err } =
+                fsv_lc_nonparam(X_s_j,Yorig,hA,X_t_j,estimator,
+                kernel,lorq,fandg,loo,seas,seasden_sta,ddummies,
+                w_beta,betaplus,d_ols,printlog);
+
+
+        else; if _print_cafpejm; "fgr_fsv: choose a valid method_dum"; endif;
+        endif;
+
+    elseif seas_cha $== "standard" and estimator $== "nw"
+        and ddummies == 0;
+
+    elseif seas_cha $== "standard" and estimator $== "loclin"
+        and ddummies == 0;
+
+        { mA,g_sqA,denA,err } = f_v_llc_NONPARAM(X_s_j,Yorig,hA,
+                            X_t_j,kernel,lorq,fandg,loo,
+                            seas,seasden_sta,ddummies);
+
+        g_hat       = mA[.,1];
+        beta_hat    = 0;
+
+    else;
+        if _print_cafpejm;
+            "fgr_fsv: choose a valid and available combination";
+            "         of seas_cha, estimator and seasonal dummies";
+            "         it was chosen:";
+            print "seas_cha " seas_cha;
+            print "seasonal dummies " ddummies;
+            print "estimator " estimator;
+        endif;
+        end;
+    endif;
+    toobad:
+    if err == 1;
+        if _print_cafpejm;
+            print   "fgr_fsv: function estimation has missing values at hA= " hA;
+                    "         1e20 returned for AFPE, CAFPE";
+        endif;
+        afpe    = 1e20; cafpe = 1e20; wnsig2_hatc = 1e20; A_hat = 1e20;
+        denA    = 1e20;
+        retp(g_hat,denA);
+    endif;
+
+retp(g_hat,denA);
+endp;
+
+/* ==================================================================== */
+
+/* RT, November 2000
+**
+**  ----------------------------------------------------------------
+**                      GRIDSEL_nonparam
+**  ----------------------------------------------------------------
+**
+**  Subroutine to compute logical vector in order to include
+**  grid value in surface plot or not. There are two influences:
+**  -   the grid point is outside the data region => exclude
+**  -   the grid point has density which is smaller than per_grid
+**      percent => exclude
+*/
+
+proc (1) = gridsel_nonparam(xgrid,denAgrid,x,xgridstep,per_grid);
+local e,i,elarg,eless,denAgrid_ind,xnum,xnum_c,e_xnum,e_xnum_ind;
+    xnum    = sqrt(rows(xgrid));
+    e       = zeros(rows(xgrid),1);
+    i       = 1;
+    do while i <= rows(x);
+
+        elarg       = zeros(rows(xgrid),2);
+        eless       = zeros(rows(xgrid),2);
+        elarg[.,1]  =   xgrid[.,1] .<   x[i,1];
+        eless[.,1]  =   (xgrid[.,1]+xgridstep*ones(rows(xgrid),1)) .> x[i,1];
+        elarg[.,2]  =   xgrid[.,2] .<   x[i,2];
+        eless[.,2]  =   (xgrid[.,2]+xgridstep*ones(rows(xgrid),1)) .> x[i,2];
+
+        e           =   e + prodc((elarg.*eless)');
+        i           = i + 1;
+    endo;
+
+    denAgrid_ind    = indexcat(e,0|maxc(e));
+
+
+    e[denAgrid_ind] = wei_nonparam(denAgrid[denAgrid_ind],per_grid,1);
+/*print "gridsel_nonparam: xgrid~e" xgrid~e;*/
+    xnum_c  = 1;
+    do while xnum_c <= xnum;
+
+        e_xnum      = e[indcom_nonparam(xnum,xnum_c)];
+        e_xnum_ind  = indexcat(e_xnum,0|(maxc(e)));
+        if not(scalerr(e_xnum_ind));
+            e_xnum[minc(e_xnum_ind):maxc(e_xnum_ind)]
+                = ones(maxc(e_xnum_ind)-minc(e_xnum_ind)+1,1);
+            e[indcom_nonparam(xnum,xnum_c)] = e_xnum;
+        endif;
+        xnum_c      = xnum_c + 1;
+    endo;
+
+    xnum_c  = 1;
+    do while xnum_c <= xnum;
+
+        e_xnum      = e[seqa(xnum_c,xnum,xnum)];
+        e_xnum_ind  = indexcat(e_xnum,0|(maxc(e)));
+        if not(scalerr(e_xnum_ind));
+            e_xnum[minc(e_xnum_ind):maxc(e_xnum_ind)]
+                = ones(maxc(e_xnum_ind)-minc(e_xnum_ind)+1,1);
+            e[seqa(xnum_c,xnum,xnum)] = e_xnum;
+        endif;
+        xnum_c      = xnum_c + 1;
+    endo;
+
+
+retp(e);
+endp;
+
+/* ==================================================================== */
+
+/* RT, November 2000
+**
+**  ----------------------------------------------------------------
+**                      MAKEGRID_nonparam
+**  ----------------------------------------------------------------
+**
+**  Subroutine to create twodimensional grid
+*/
+
+proc (1) = makegrid_nonparam(xanf,xstep,xnum);
+local x1,xgrid,i,j;
+
+x1  = seqa(xanf,xstep,xnum);
+i = 1;
+j = 1;
+xgrid   = zeros(xnum^2,2);
+do while i <= xnum^2;
+
+    xgrid[i:i+xnum-1,.] = (x1[j] * ones(xnum,1))~x1;
+    i = i + xnum;
+    j = j + 1;
+endo;
+
+retp(xgrid);
+endp;
+
+
+/* ==================================================================== */
+
+
+/* RT, February 1998
+**
+** ---------------------------------------------------------------
+**                     PLOTGRID_nonparam
+** ---------------------------------------------------------------
+**
+** Subroutine to plot function on two dimensional grid
+**
+** Inputs:  xgrid       (xnum^2 x 2) matrix with x and y data
+**          f_x_grid    (xnum^2 x 2) matrix with corresponding
+**                                   function data
+**          tit         character with title name
+**          labels      (3 x 1) character vector with axes labels
+**                      with x-label first, y-label second, z-label
+**                      last
+**
+** Protocol: f_xgrid transposed Sept 22, 1998!!!!
+*/
+
+proc(0) = plotgrid_nonparam(xgrid,f_xgrid,tit,labels,_viewro);
+local xnum;
+
+    title(tit);
+    xlabel("Lag" $+ ftocv(labels[1],0,0));
+    ylabel("Lag" $+ ftocv(labels[2],0,0));
+    zlabel("Estimated Function");
+    xnum    = sqrt(rows(xgrid));
+    f_xgrid = reshape(f_xgrid,xnum,xnum)';
+    volume(1,1,1);
+    if _viewro == 0;
+        view(-4,-3,3);
+    elseif _viewro == 90;
+        view(4,-4,3);
+    elseif _viewro == 180;
+        view(4,3,3);
+    elseif _viewro == 270;
+        view(-4,3,3);
+    endif;
+    surface(xgrid[1:xnum,2]',xgrid[1:xnum,2],f_xgrid);
+    "_pvolume" _pvolume;
+    "_pview" _pview;
+    if _in_jmulti;
+      dllcall showLastGraphic;
+    endif; 
+
+
+endp;
+
+/* ==================================================================== */
+/*  RT, April 2002 
+**  -----------------------------------------------------------------------
+**                      CI_F_HAT_NONPARAM.G
+**  -----------------------------------------------------------------------
+*/
+
+
+
+proc (7) = ci_f_hat_nonparam(X_s_j,Yorig,h_opt,h_opt_sig2,X_t_j,kern_reg,kern_den,
+                            seas,seas_cha,yorig_seas,estimator,method_dum,meth_hB,
+                            printlog,g_hat,ci_level,bonf,eps_hat,n_total,predinterval,
+                            sig2_homosk);
+
+local d_w,Ksq_int,crit_val_phi,loo_den;
+local p,sig2_x,seas_c,ind_seas,Xgarb,n_S,h_p;
+local hB_pe,hB,loo,f_yes,per_m34,sig2_hat_meth,lorq;
+local sigma2_x_hat,bias_ci_hat,var_ci_hat,ci_g_hat;
+local X_t_j_pe,X_s_j_pe,yorig_pe,eps_hat_pe,sigma2_x_hat_pe;
+local garb;
+local var_ci_hat_homosk,ci_g_hat_homosk; /* Feb2003 */     
+local sig2_rep;
+local eps_hat_new,eps_hat_pe_new;         
+
+    eps_hat_new = zeros(rows(yorig),1);  /* to store estimated residuals, added 040213 */
+    
+    d_w = cols(x_t_j);
+    if kern_reg $== "gaussian";
+        Ksq_int = 1 / (2*sqrt(pi));
+    else;
+        "ci_f_hat_nonparam: only programmed for Gaussian kernel";        
+    endif;
+    if bonf;
+    ci_level = 1 - (1-ci_level)/rows(x_t_j);
+    endif;
+    crit_val_phi    = -cdfni((1-ci_level)/2); 
+                        /* get critical value at size = a_size for normal dist.
+                           June 3, 2002 */
+
+/* get auxiliary bandwidth for density estimation and do density estimation */
+
+    if meth_hB $== "Silv";
+
+        loo_den = 1;
+
+        if (seas_cha $== "periodic" );
+            p           = zeros(rows(x_t_j),seas);
+            sig2_x      = zeros(seas,1);
+            seas_c      = 1;
+            do while seas_c <= seas;
+                ind_seas    = indexcat(yorig_seas,seas_c);
+                Xgarb       = X_s_j[ind_seas,1:d_w];
+                n_S         = rows(Xgarb);
+                sig2_x[seas_c]  = (prodc( (stdc(Xgarb))^2 ))^(1/d_w);
+                h_p         = h_silv_nonparam(sqrt(sig2_x[seas_c]),
+                                    d_w,n_S,kern_den)*ones(d_w,1);
+
+                p[.,seas_c] = den_c_p_nonparam(Xgarb,h_p,X_t_j,loo_den,kern_den);
+                seas_c      = seas_c + 1;
+            endo;
+
+        else;
+
+            sig2_x  = (prodc( (stdc(X_s_j[.,1:d_w]))^2 ))^(1/d_w);
+            h_p     = h_silv_nonparam(sqrt(sig2_x),d_w,rows(X_s_j),kern_den)*ones(d_w,1);
+            p       = den_c_p_nonparam(X_s_j[.,1:d_w],h_p,X_t_j[.,1:d_w],loo_den,kern_den);
+
+        endif;
+ 
+    else;
+        "ci_f_hat_nonparam: choose meth_hB=Silv for density estimation";
+    endif;
+
+/* get auxiliary bandwidth for volatility estimation */
+
+    if (meth_hB $== "Silv") and (h_opt_sig2 < 0);
+
+            if seas_cha $== "periodic";
+                hB_pe       = zeros(seas,1);
+                if rows(sig2_x) == 1; 
+                    sig2_x      = ones(seas,1) * sig2_x; 
+                endif;
+                if rows(sig2_homosk)==1; /* added 040205 */
+                    sig2_homosk = ones(seas,1) * sig2_homosk;
+                endif;
+                seas_c   = 1;
+                do while seas_c <= seas;
+                    hB_pe[seas_c]  = h_silv_nonparam(sqrt(sig2_x[seas_c]),d_w,n_S,kern_reg);
+                    seas_c      = seas_c + 1;
+                endo;
+                if method_dum $== "perio_one_h";
+                    hB          = meanc(hB_pe) * ones(seas,1);
+                else;
+                    hB          = hB_pe;
+                endif;
+            
+
+            else;
+
+                hB      = h_silv_nonparam(sqrt(sig2_x),d_w,n_total,kern_reg);
+
+            endif;
+    else;
+    
+        if (seas_cha $== "periodic"); /* added 040205 */
+        
+            if rows(h_opt_sig2)== 1;
+                hB      = h_opt_sig2 * ones(seas,1);                    
+            endif;
+            if rows(sig2_x) == 1; 
+                sig2_x  = ones(seas,1) * sig2_x; 
+            endif;
+            if rows(sig2_homosk)== 1;
+                sig2_homosk = ones(seas,1) * sig2_homosk;
+            endif;
+
+        else;
+            hB  = h_opt_sig2;
+        endif;
+        
+    endif;
+
+
+/* use efficient volatility estimator sigma(x) given by (21) in Tschernig/Yang (2000) */
+
+    loo             = 0;    /* no leave-one out */
+    f_yes           = 0;    /* no estimation of f */
+    per_m34         = 0;    /* percentage to throw away for computing m34
+                                (used for GIR estimation, not here) */
+    sig2_hat_meth   = 0; /* no use */                            
+
+    if estimator $== "nw";
+        lorq        = 0;    /* local constant */
+    elseif estimator $== "loclin";
+        lorq        = 1;    /* local linear     */
+    endif;
+    
+    if seas_cha $== "periodic";
+            sigma2_x_hat    = zeros(rows(X_t_j),seas); 
+            bias_ci_hat     = zeros(rows(X_t_j),seas); 
+            var_ci_hat      = zeros(rows(X_t_j),seas); 
+            ci_g_hat        = zeros(rows(X_t_j),2*seas);
+            var_ci_hat_homosk = zeros(rows(X_t_j),seas); 
+            ci_g_hat_homosk = zeros(rows(X_t_j),2*seas);
+            
+            seas_c      = 1;
+            do while seas_c <= seas;
+                ind_seas    = indexcat(yorig_seas,seas_c);
+                X_t_j_pe    = X_t_j;    /* April 11, 2002 */
+                X_s_j_pe    = X_s_j[ind_seas,.];
+                yorig_pe    = yorig[ind_seas,.];
+                if rows(eps_hat)==1;
+                    eps_hat_pe  = 1;
+                else;
+                    eps_hat_pe  = eps_hat[ind_seas];
+                endif;
+                { garb,sigma2_x_hat_pe,eps_hat_pe_new,garb,sig2_rep } = 
+                        sig22llc_nonparam(X_s_j_pe,Yorig_pe,
+                                hB[seas_c],hB[seas_c],hB[seas_c],X_t_j_pe,kern_reg,
+                                lorq,loo,eps_hat_pe,
+                                printlog,f_yes,per_m34,sig2_hat_meth); 
+                eps_hat_new[ind_seas] = eps_hat_pe_new;
+                if _print_cafpejm;
+                    if sig2_rep[1] > 0;
+                        print /lz "Inversion of (Z_k W_k Z_k) for sigma^2 estimation";
+                        print /lz "for computing confidence intervals failed";
+                        print /lz " with user-specified bandwidth";
+                        print /lz "The actually used bandwidth is: " sig2_rep;
+                    elseif sig2_rep[1] < 0;
+                        print /lz "The local linear estimates for sigma^2 for computing ";
+                        print /lz "confidence intervals are negative.";
+                        print /lz "Therefore the Nadaraya-Watson estimator was used";
+                        print /lz "with bandwidth: " (-sig2_rep);
+                    endif;
+                endif;                       
+
+                sigma2_x_hat[.,seas_c]  = sigma2_x_hat_pe;
+                bias_ci_hat[.,seas_c]   = zeros(rows(x_t_j),1);
+
+                var_ci_hat[.,seas_c]    =  Ksq_int^d_w * sigma2_x_hat[.,seas_c] 
+                                                    ./ (p[.,seas_c] .* n_S * h_opt^d_w) ;
+
+                var_ci_hat_homosk[.,seas_c]=  Ksq_int^d_w * sig2_homosk[seas_c] 
+                                                    ./ (p[.,seas_c] .* n_S * h_opt^d_w) ;
+                                                    
+                if predinterval; /* for prediction interval here slightly inefficient
+                                    computation since confidence interval is computed
+                                    for all seasons based on the same g_hat which is
+                                    for the correct season; selection done in cafp_for.src,
+                                    added 040205 */
+                    var_ci_hat[.,seas_c]  = var_ci_hat[.,seas_c] + sigma2_x_hat[.,seas_c];
+                    var_ci_hat_homosk[.,seas_c]  = var_ci_hat_homosk[.,seas_c]
+                                                 + sig2_homosk[seas_c]
+                                                 *ones(rows(var_ci_hat_homosk),1);
+                    ci_g_hat[.,2*seas_c-1:2*seas_c]
+                                        = ((g_hat - bias_ci_hat[.,seas_c])
+                                             -sqrt(var_ci_hat[.,seas_c])*crit_val_phi)~
+                                          ((g_hat - bias_ci_hat[.,seas_c])
+                                              +sqrt(var_ci_hat[.,seas_c])*crit_val_phi);
+                    ci_g_hat_homosk[.,2*seas_c-1:2*seas_c]
+                                        = ((g_hat - bias_ci_hat[.,seas_c])
+                                            -sqrt(var_ci_hat_homosk[.,seas_c])*crit_val_phi)~
+                                          ((g_hat - bias_ci_hat[.,seas_c])
+                                            +sqrt(var_ci_hat_homosk[.,seas_c])*crit_val_phi);
+
+                else;
+                    ci_g_hat[.,2*seas_c-1:2*seas_c]
+                                        = ((g_hat[.,seas_c] - bias_ci_hat[.,seas_c])
+                                             -sqrt(var_ci_hat[.,seas_c])*crit_val_phi)~
+                                          ((g_hat[.,seas_c] - bias_ci_hat[.,seas_c])
+                                              +sqrt(var_ci_hat[.,seas_c])*crit_val_phi);
+                    ci_g_hat_homosk[.,2*seas_c-1:2*seas_c]
+                                        = ((g_hat[.,seas_c] - bias_ci_hat[.,seas_c])
+                                            -sqrt(var_ci_hat_homosk[.,seas_c])*crit_val_phi)~
+                                          ((g_hat[.,seas_c] - bias_ci_hat[.,seas_c])
+                                            +sqrt(var_ci_hat_homosk[.,seas_c])*crit_val_phi);
+                
+                endif;                                
+
+                
+                seas_c           = seas_c + 1;
+            endo;
+
+    else;
+        /* Feb2003: compute plug-in bandwidth for sigma2_x_hat */
+        
+        
+        { garb,sigma2_x_hat,eps_hat_new,garb,sig2_rep } =   /* eps_hat_new, 040322 */
+                    sig22llc_nonparam(X_s_j,Yorig,
+                            hB,hB,hB,X_t_j,kern_reg,   /* ?? CHANGE hB */
+                            lorq,loo,eps_hat,
+                            printlog,f_yes,per_m34,sig2_hat_meth);
+        if _print_cafpejm;
+            if sig2_rep[1] > 0;
+                print /lz "Inversion of (Z_k W_k Z_k) for sigma^2 estimation";
+                print /lz "for computing confidence intervals failed";
+                print /lz " with user-specified bandwidth";
+                print /lz "The actually used bandwidth is: " sig2_rep;
+            elseif sig2_rep[1] < 0;
+                print /lz "The local linear estimates for sigma^2 for computing ";
+                print /lz "confidence intervals are negative.";
+                print /lz "Therefore the Nadaraya-Watson estimator was used";
+                print /lz "with bandwidth: " (-sig2_rep);
+            endif;
+        endif;                       
+                            
+
+        bias_ci_hat     = zeros(rows(x_t_j),1);
+
+        var_ci_hat      =  Ksq_int^d_w * sigma2_x_hat 
+                                ./ (p .*rows(yorig) * h_opt^d_w) ;
+
+        var_ci_hat_homosk=  Ksq_int^d_w * sig2_homosk 
+                                ./ (p .*rows(yorig) * h_opt^d_w) ;
+
+        if predinterval;
+            var_ci_hat  = var_ci_hat + sigma2_x_hat;
+            var_ci_hat_homosk  = var_ci_hat + sig2_homosk;            
+        endif;    
+        ci_g_hat        =   ((g_hat - bias_ci_hat)-sqrt(var_ci_hat)*crit_val_phi)~
+                            ((g_hat - bias_ci_hat)+sqrt(var_ci_hat)*crit_val_phi);
+
+        ci_g_hat_homosk =   ((g_hat - bias_ci_hat)-sqrt(var_ci_hat_homosk)*crit_val_phi)~
+                            ((g_hat - bias_ci_hat)+sqrt(var_ci_hat_homosk)*crit_val_phi);
+
+    endif;
+    if printlog > 3;
+        print "ci_f_hat_nonparam";
+        print "sigma2_x_hat,p,var_ci_hat,var_ci_hat_homosk" (sigma2_x_hat
+                                                            ~p~var_ci_hat~var_ci_hat_homosk);
+        print "ci_g_hat,ci_g_hat_homosk" ci_g_hat~ci_g_hat_homosk;
+    endif;                    
+
+retp(ci_g_hat,ci_g_hat_homosk,bias_ci_hat,var_ci_hat,var_ci_hat_homosk,sigma2_x_hat,eps_hat_new);
+endp;
+
+/* ==================================================================== */
+
+/*  RT, February 2000     
+**  ---------------------------------------------------------------------
+**                              SIG2LLC_NONPARAM.G
+**  ---------------------------------------------------------------------
+**
+**  COPIED FROM THE GIR PROGRAM SIG2LLC.G 
+**
+**  Log: Feb 24, 2000   for computation of eps_hat bandwidth is
+**              multiplied with 1.05 if inversion failed
+**       Jun 15, 2003   sig2_hat = missing added in case of err=1
+*/           
+
+proc (5) = sig22llc_nonparam(X,Yorig,hf,heps,hs,X_t_j,kern_reg,lorq,loo,eps_hat,
+                    printlog,f_yes,per_m34,sig2_hat_meth);
+
+local seas,seasden_sta,ddummies,fandg,ny,X_n_k,Y_n_k,mA,g_sqA,denA,err,
+        f_hat_eps,f_hat,sig2_hat,h_i,i,i_max,w_m34,garb,sig_ok,ee;
+local neg_sig; /* differs from original GIR program */        
+local sig2_rep;
+
+/* Feb2003 */
+if printlog > 3;
+    print "hs " hs;
+    hs = hs;
+    print "hs " hs;
+endif;    
+
+seas        = 0;
+seasden_sta = 0;
+ddummies    = 0;
+fandg       = 1;
+i_max       = 5; 
+sig2_rep    = 0;    /* allows to report bandwidth changes or use of NW, 040205 */
+
+ny          = rows(yorig);
+
+Y_n_k       = yorig[1:ny];
+X_n_k       = X[1:ny,.];
+
+if rows(eps_hat) == 1;
+    err = 1;
+    do while err;       /* Feb 24, 2000 loop added if bandwidth failed */
+    {mA,g_sqA,denA,err } = f_v_llc_nonparam(X_n_k,Y_n_k,heps,X_n_k,kern_reg,
+                                lorq,fandg,loo,seas,seasden_sta,ddummies);
+    if not(err);
+             f_hat_eps         = mA[.,1];
+        else;
+            "sig22llc_nonparam: inversion of (Z_k W_k Z_k) for computing";
+            "         residuals failed;";
+            "         bandwidth multiplied with 1.05.";
+            heps              = heps * 1.05;            
+        endif;
+    endo;
+
+    eps_hat     = y_n_k - f_hat_eps;
+endif;
+if f_yes;
+    /* compute f_hat at required data */
+    err     = 1;
+    do while err;
+        {mA,g_sqA,denA,err } = f_v_llc_nonparam(X_n_k,Y_n_k,hf,X_t_j,kern_reg,
+                                lorq,fandg,loo,seas,seasden_sta,ddummies);
+        if not(err);
+            f_hat         = mA[.,1];
+        else;
+            "sig22llc_nonparam: inversion of (Z_k W_k Z_k) for f estimation failed;";
+            "         bandwidth multiplied with 1.05";
+            hf              = hf * 1.05;
+        endif;
+    endo;
+
+    if printlog >= 2;
+        print "sig22llc_nonparam: f_hat   " f_hat;
+    endif;
+else;
+    f_hat = zeros(rows(yorig),1);
+endif;
+
+if printlog >= 3;
+    print "sig22llc_nonparam: meanc(eps_hat^2)" meanc(eps_hat^2);
+endif;
+
+/* compute conditional variance at X_t_j */
+w_m34   = 1;
+i       = 1;
+h_i     = hs;
+sig_ok  = 0;
+i_max   = 30;  /* no changes of bandwidth, Feb2003 */
+
+ /* Feb2003 */
+do until sig_ok or (i > i_max) ;
+    if printlog > 3;
+        "sig22llc: i" i;
+    endif;        
+    {mA,g_sqA,denA,err } = f_v_llc_nonparam(X_n_k,eps_hat^2,h_i,X_t_j,kern_reg,
+                                    lorq,fandg,loo,seas,seasden_sta,
+                                    ddummies);
+    if not(err);
+        sig2_hat         = mA[.,1];
+        if rows(x_t_j)== rows(x_n_k); /* differs from original GIR program */
+            ee =  (x_t_j == x_n_k);
+        else;
+            ee = 0;
+        endif;                        
+        if printlog > 3;
+            print "ee" ee;
+        endif;            
+        if minc(sig2_hat) < 0;
+            if ee;
+                garb   = wei_nonparam(denA,per_m34,1);
+                w_m34  = substute(garb,sig2_hat .< 0,0);
+                sig_ok = 1;
+            else;
+                sig_ok = 1;
+            endif;                
+        else;
+            if ee;
+                w_m34   = wei_nonparam(denA,per_m34,1);
+            endif;
+            sig_ok = 1;
+        endif;
+        if printlog > 3;
+            print "sig_ok" sig_ok;
+        endif;            
+    else;
+        "sig22llc_nonparam: inversion of (Z_k W_k Z_k) for sigma^2 estimation failed;";
+        "         bandwidth multiplied with 1.05.";
+        sig_ok  = 0;
+        sig2_hat= {.}; /* added 030615 */
+        h_i     = h_i * 1.05;  /* differs from original GIR program */
+        i       = i + 1;
+    endif;
+    if printlog >= 2;
+        print "sig22llc_nonparam: i, hs, h_i   " i~hs~h_i;
+        print "sig22llc_nonparam: sig2_hat" sig2_hat;
+        print "sig22llc_nonparam: sig_ok" sig_ok;
+    endif;
+endo; 
+    
+if i >= 2;   /* added, 040205 */ 
+    sig2_rep    = h_i;      /* allows to report actually used bandwidth */
+endif;
+neg_sig    = indexcat(sig2_hat,(-1e100|0));  /* differs from original GIR program */
+if printlog > 3;
+    print "neg_sig" neg_sig;
+endif;    
+
+/* Feb2003  */
+/* err = 1;neg_sig=1; */
+if printlog > 3;
+    print "hs " hs;
+endif;    
+if err or not(scalmiss(neg_sig)); /* differs from original GIR program */
+/* Feb2003    { sig2_hat,denA } = f_v_nwc_nonparam(X_n_k,eps_hat^2,hs,X_t_j,kern_reg,loo); */
+    { sig2_hat,denA } = nadwat(X_n_k,eps_hat^2,hs,X_t_j);  
+    sig2_rep    = -hs;    /*    allows to identify use of NW estimator by minus sign, 
+                                added, 040205 */ 
+    if printlog > 3;
+        "nadwat.g used";
+    endif;        
+    if printlog >= 2;
+        "sig22llc_nonparam:
+    endif;
+    if _print_cafpejm;   /* added, 040205 */
+        Nadaraya-Watson estimator used for volatility estimation";
+    endif;
+    if printlog >= 2;
+        print "sig22llc_nonparam: hs      " hs;
+        print "sig22llc_nonparam: sig2_hat" sig2_hat;
+        print "Feb2003 sig22llc:meanc(sig2_hat) "meanc(sig2_hat);
+    endif; 
+
+endif;
+
+retp(f_hat,sig2_hat,eps_hat,w_m34,sig2_rep);
+endp;
+
+/* ==================================================================== */
+
+/*  LY and RT, February 1999 ok
+**
+**  -----------------------------------------------------------
+**                     F_V_NWC_NONPARAM.G
+**  -----------------------------------------------------------
+**
+**  COPIED FROM THE GIR PROGRAM F_V_NWC.G 
+**
+**  Subroutine for local constant (Nadaraya-Watson) estimation
+**  using C++ - routines via dlls.
+**
+**  It can do cond. mean, cond. volatility, cond. densities with full or
+**  leave-one-out and density estimation with all possible
+**  data or only lagged data.
+**  At the moment only the gaussian kernel can be used.
+**
+**  Input variables
+**          X_s_j           (n x d) matrix of regressors
+**          Yorig           (ny x 1) vector of dependent data
+**          h               scalar or (d x 1) vector, bandwidth
+**          X_t_j           (nxest x d) matrix of data at which
+**                                  estimation is conducted
+**          kern_reg          character: must currently be "gaussian"
+**          loo                     0=take all,
+**                                  1= leave-one-out (only works if n=ny)
+**  Output variables
+**          mA              (nxest x d) matrix of cond. mean
+**          denA            (nxest x 1) vector of cond. density
+**
+**  GAUSS subroutines needed:
+**
+**  DLLs needed:
+**          nadwat.dll     for Windows 95/NT
+**          nadwat.so      for Sun-UNIX
+*/
+
+
+
+proc(2) = f_v_nwc_nonparam(X_s_j,Yorig,h,X_t_j,kern_reg,loo);
+local xorig_c,yorig_c,xest_c,yorig_ind,xest_ind,n_c,ny_c,nxest_c,
+      h_c,seas_c,mA,g_sqA,denA,m_c,g_sq_c,den_c,d_c,err;
+
+@ ------- prepare input matrices and check inputs ---------- @
+
+    if not(loo==0 or loo==1);
+        "f_v_nwc_nonparam: choose loo = 0 or 1";
+        "         see header of f_v_llc.g";
+        print "loo  " loo;
+        "         Program terminated.";
+        end;
+    endif;
+    if prodc(h .<= 0)==1;
+        "f_v_nwc_nonparam: choose positive bandwidth vector";
+        print "h    " h;
+        "         Program terminated.";
+        end;
+    endif;
+
+    d_c                     = cols(X_t_j);
+
+    if rows(x_t_j) /= rows(x_s_j) and loo==1;
+        "f_v_nwc_nonparam: be careful: leave-one-out only works ";
+        "         if X_s_j[1:rows(yorig),.] and X_t_j are the same";
+    endif;
+
+        if kern_reg $== "quartic";        /* sorting for quartic kernel */
+/*
+                {xorig_c,yorig_c,xest_c,yorig_ind,xest_ind} =
+                                xorig_qu_nonparam(X_s_j,Yorig);
+
+                xorig_c = xorig_c';             /* transpose for C++-routines */
+                xest_c  = xest_c';
+
+*/
+        elseif kern_reg $== "gaussian";
+
+
+        else;
+            "f_p_nwc_nonparam: choose available kernel function";
+            "         Program terminated";
+            end;
+        endif;
+
+        n_c             = rows(x_s_j);        /* get dimension of C++ mat. */
+        ny_c            = rows(yorig);
+        nxest_c         = rows(x_t_j);
+
+
+        if ny_c /= n_c;
+                "f_v_nwc_nonparam: check rows of Yorig and X_t_j";
+                "         Program terminated";
+                end;
+        endif;
+
+        if rows(h) == 1;
+                h_c     = h*ones(d_c,1);        /* bandwidth vector    */
+        elseif rows(h) == d_c;
+                h_c     = h;
+        else;
+                "f_v_nwc_nonparam: choose h scalar or of correct dimension";
+                "         Program terminated.";
+                end;
+        endif;
+
+@ ------------- initialize output variables ------------------- @
+
+        mA              = zeros(nxest_c,1);    /* cond. mean */
+        denA            = zeros(nxest_c,1);
+
+@ ------------- call C++ routines ----------------------------- @
+
+        if kern_reg $== "gaussian";
+                dllcall x_nwq(x_s_j,n_c,d_c,yorig,h_c,x_t_j,nxest_c,
+                mA,denA,loo);
+
+        else;
+            "f_v_nwc_nonparam: Nadaraya-Watson estimation only programmed for";
+            "         gaussian kernel ";
+            "         Program terminated.";
+            end;
+        endif;
+
+@ ------------- check output ---------------------------------- @
+
+        retp(mA,denA);
+
+
+retp(mA,denA);
+endp;
+
+/*  ============================================================== */
+
+/*  RT, February 2003 ok
+**
+**  -----------------------------------------------------------
+**                     NADWAT.G
+**  -----------------------------------------------------------
+**
+**
+**  Subroutine for local constant (Nadaraya-Watson) estimation
+**  At the moment only the gaussian kernel can be used.
+**
+**  Input variables
+**          X_s_j           (n x d) matrix of regressors
+**          Yorig           (n x 1) vector of dependent data
+**          h               scalar bandwidth
+**          X_t_j           (nxest x d) matrix of data at which
+**                                  estimation is conducted
+
+**  Output variables
+**          mA              (nxest x d) matrix of cond. mean
+**          denA            (nxest x 1) vector of cond. density
+**
+*/
+
+
+proc(2) = nadwat(x,y,h,x_t);
+local j,fhat,denA,w,nom,denom;
+
+j       = 1;
+fhat    = zeros(rows(x_t),1);
+denA    = fhat;
+/*
+"rows(y)" rows(y);
+"rows(x)" rows(x);
+"rows(x_t)" rows(x_t);
+"rows(h)" rows(h);
+"cols(y)" cols(y);
+"cols(x)" cols(x);
+"cols(x_t)" cols(x_t);
+"cols(h)" cols(h);
+*/
+do while j <= rows(x_t);
+     w      = prodc( (pdfn((x - x_t[j,.])/h))' )/(h^cols(x_t));
+     nom    = w'y;
+     denom  = sumc(w);
+     fhat[j]= nom/denom;
+     denA[j]= denom/rows(y);
+     j      = j + 1;
+endo;
+retp(fhat,denA);
+endp;

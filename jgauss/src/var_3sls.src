@@ -1,0 +1,369 @@
+/*
+ This file is part of the econometric software package JMulTi.
+ Copyright (C) 2000-2005  Alexander Benkwitz
+
+ This program is free software; you can redistribute it and/or
+ modify it under the terms of the GNU General Public License
+ as published by the Free Software Foundation; either version 2
+ of the License, or (at your option) any later version.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, write to the Free Software
+ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ */
+
+#ifos2win 
+/* to be used by library creation, windows only */
+#include var.dec
+#endif
+
+/*
+** SYNTAX
+** {coeff,cv_coeff,u,cv_u,msg} = xxx_3sls(yx,sr);
+**
+** INPUT
+** yx / (T,K+M) / matrix / observations
+** sr / (K,K+M) / matrix / subset restrictions
+**
+** OUTPUT
+** coeff    / (K,K+M)           / matrix /
+** cv_coeff / (K*(K+M),K*(K+M)) / matrix / coefficient covariance matrix
+** u        / (T,K)             / matrix /
+** cv_u     / (K,K)             / matrix /
+** msg      / (1,1)             / string /
+** 
+**
+*/
+proc(5)=xxx_3sls(obs,sr);
+	local coeff,cv_coeff,u,cv_u,msg,noi;
+
+local r,d,K;
+K = rows(sr);
+sr = dotfgt(sr, zeros(rows(sr),cols(sr)));
+r = sr[.,K+1:cols(sr)]';
+d = sr[.,1:K]';
+r = .not r;
+r = sumc(r);
+d = sumc(d) + 1;
+d = r.>=(d - 1);
+r = "";
+for i (1,rows(d),1);
+	if d[i]==0;
+		if r$/="";
+			r=r$+"\n";
+		endif;
+		K = i;
+		r = r$+"Equation "$+ftocv(K,1,0)$+" is not identified.";
+	endif;
+endfor;
+if r$/="";
+	errorlog("Cannot estimate structural form:\n"$+r);
+	  retp(-10,-10,-10,-10,-10);
+endif;
+
+
+	noi=maxc(1|__var_iter)-1;
+	{coeff,cv_coeff,u,cv_u,msg} = xxx__i3sls(obs,sr',noi);
+	coeff = coeff';
+
+
+	retp(coeff,cv_coeff,u,cv_u,msg);
+endp;
+/**
+** PURPOSE
+** i3sls estimator (nach DHRYMES, p.211)
+**
+** SYNTAX
+** mod_hat = i3sls(obs,mod,noi);
+**
+** INPUT   obs     / (TxK+M) / matrix of endogenous and predetermined variables
+**         mod     / (K+MxK) / model matrix of endogenous and predetermined variables
+**         noi		/ (1x1)	/ scalar	/ number of iterations {0,1,2,...}
+** OUTPUT  mod_h   / (K+MxK) / model matrix with estimated model parameters
+**
+** REMARK  cols(mod)=number of equations
+**         rows(obs)=number of observations
+**
+**         The (K+i)-th row of 'mod' may be filled with zeros. This means that
+**         the i-th predetermined variable is not included in ANY of the K equations.
+**         Therefore the (i)-th variable is removed before doing the estimation
+**         (removing (K+i)-th column of 'obs' and (K+i)-th row of 'mod').
+**
+**         The j-th column of 'mod' may be filled with zeros. This means that the 
+**         j-th equation contains no estimateable parameters. Therefore the j-th
+**         equation is removed before doing the estimation (removing the j-th
+**         column of 'obs' and the j-th row and column of 'mod').
+**
+*/
+proc(5)=xxx__i3sls(obs,mod,noi);
+	local K,T,x,y,mod_h,p,b,temp,ztemp ,tmp,
+			a,Z,Q,idxR,idxC,tempi,tempj,cvu,n,cn,step,
+			varIdx,equIdx,modFull,cvui,msg,d0,d1,cv_par,u,old_cvu;
+
+	@ check of input parameters @
+		if not(diag(mod)==0);
+			"";
+			errorlog("3SLS: Bad input argument. Diagonal elements of 'mod' must be zero!");
+			retp(-10,-10,-10,-10,-10);
+		endif;
+		if not(rows(mod)==cols(obs));
+			"";
+			errorlog("3SLS: Bad input arguments. Wrong dimension!");	  
+			retp(-10,-10,-10,-10,-10);
+		endif;
+
+	/**
+	**  filter out unneeded predetermined variables 
+	*/
+local modOrig, obsOrig;
+	modFull = mod;
+	modOrig = mod;
+	obsOrig = obs;
+	varIdx=selif(seqa(cols(mod)+1,1,rows(mod)-cols(mod)),sumc(mod[cols(mod)+1:rows(mod),.]'));
+	if rows(varIdx)<(rows(modFull)-cols(modFull));
+		temp=seqa(1,1,cols(mod));
+		mod = mod[temp|varIdx,.];
+		obs = obs[.,temp|varIdx];
+	else;
+		varIdx=miss(0,0);
+	endif;
+
+	/**
+	**  filter out unestimateable equations 
+	**  - equIdx is scalmiss if all equations contain at least one estimateable parameter 
+	**  - equIdx holds the indices of equations with at least one estimateable parameter 
+	**    if at least one equation drops out.
+	*/
+	equIdx = selif(seqa(1,1,cols(mod)), (sumc(mod)./=0));
+	if not(scalmiss(equIdx)) AND rows(equIdx)==cols(mod);
+		equIdx = miss(0,0);
+	endif;
+	if not(scalmiss(equIdx));
+		obs = obs[.,equIdx]~obs[.,cols(mod)+1:cols(obs)];
+		mod = mod[equIdx,equIdx]|mod[cols(mod)+1:rows(mod),equIdx];
+	endif;
+
+
+	/**
+	** preliminary 
+	*/
+	K	=	cols(mod);				@ number of equations @
+	T	=	rows(obs);				@ number of observations @
+	x 	= 	obs[.,K+1:cols(obs)]; 	@ predetermined variables @
+	y	= 	obs[.,1:K]; 			@ endogenous variables @
+
+
+	a	= 	x*invpd(x'*x)*x'; 
+
+	/**
+	** defining Zi-matrices
+	*/
+	Z	=	vput(0,"Zi","id");
+	for i (1,K,1);
+		idxR = i;
+		Z	 = vput(Z,selif(obs',mod[.,idxR])',"Z"$+ftocv(idxR,1,0));
+	endfor;
+
+	/**
+	** computing of Qij-matrices [=(Qi'*Qj)]
+	*/
+	Q	=	vput(0,"Qij","id");
+	for i (1,K,1);
+		idxR=i;
+		for j (1,K,1);
+			idxC=	j;
+			Q	=	vput(
+			Q,
+			vread(Z,"Z"$+ftocv(idxR,1,0))'*a*vread(Z,"Z"$+ftocv(idxC,1,0)),
+			"Q"$+ftocv(idxR,1,0)$+ftocv(idxC,1,0)
+			);
+		endfor;
+	endfor;
+	/**
+	** estimation of residual covariance matrix
+	*/
+	cvu		= zeros(K,K);
+	idxR	= 1;
+	do while idxR<=K;
+		idxC=1;
+		do while idxC<=K;
+    		if idxR>idxC;
+				cvu[idxR,idxC] = cvu[idxC,idxR];
+			else;
+				tempi=eye(T)-vread(Z,"Z"$+ftocv(idxR,1,0))*
+					invpd(vread(Q,"Q"$+ftocv(idxR,1,0)$+ftocv(idxR,1,0)))*
+					vread(Z,"Z"$+ftocv(idxR,1,0))'*a;
+				if idxC==idxR;
+					tempj=tempi;
+				else;
+					tempj=eye(T)-vread(Z,"Z"$+ftos(idxC,"%*.*lf",1,0))*
+						invpd(vread(Q,"Q"$+ftos(idxC,"%*.*lf",1,0)$+ftos(idxC,"%*.*lf",1,0)))*
+						vread(Z,"Z"$+ftos(idxC,"%*.*lf",1,0))'*a;
+				endif;
+				cvu[idxR,idxC] = ( y[.,idxR]'*tempi'*tempj*y[.,idxC] )/ T; 
+   						/*sqrt( (T-sumc(mod[.,idxR]))*(T-sumc(mod[.,idxC])) ); */
+			endif;
+			idxC=idxC+1;
+		endo;
+		idxR=idxR+1;
+	endo;
+	cvui=invpd(cvu);
+
+	/**
+	** iterated 3sls estimator
+	** - for step=0 the uniterated estimator is computed
+	*/
+	n		=	sumc(mod);
+	cn		=	0|cumsumc(n);
+	msg     = "";
+	step=0;
+	do while step<=noi;
+
+		/**
+		** set up 'tempi'-matrix
+		*/
+		tempi=zeros(sumc(n),sumc(n));
+		idxR=1;
+		do while idxR<=K;
+			idxC=1;
+			do while idxC<=K;
+				tempi[cn[idxR]+1:cn[idxR+1],cn[idxC]+1:cn[idxC+1]]=cvui[idxR,idxC]*
+                	        vread(Q,"Q"$+ftos(idxR,"%*.*lf",1,0)$+ftos(idxC,"%*.*lf",1,0));
+				idxC=idxC+1;
+			endo;
+			idxR=idxR+1;
+		endo;
+
+
+		tempi=invpd(tempi); 
+		/**
+		** set up 'tempj'-matrix
+		*/
+		tempj=zeros(rows(tempi),1);
+		idxR=1;
+		do while idxR<=K;
+			idxC=1;
+			do while idxC<=K;
+				tempj[cn[idxR]+1:cn[idxR+1],1]=tempj[cn[idxR]+1:cn[idxR+1],1]+
+						cvui[idxR,idxC]*vread(Z,"Z"$+ftos(idxR,"%*.*lf",1,0))'*a*y[.,idxC];
+				idxC=idxC+1;
+			endo;
+			idxR=idxR+1;
+		endo;
+		b=tempi*tempj;
+		/**
+		** splitting
+		*/
+		mod_h	=	mod;
+		temp	=	0|cumsumc(sumc(mod_h));
+		for i ( 1, K, 1);
+			mod_h[indexcat(mod_h[.,i],1),i]=b[temp[i]+1:temp[i+1]];
+		endfor;
+
+		@ compute the i-th step residual covariance matrix @
+			old_cvu = cvu;
+			{u,cvu}  = xxx__i3sls_cv(obs,mod_h,mod);
+			cvui = invpd(cvu);
+
+		@ check for convergence @
+			if noi>0;
+	   		   	d1 = det(cvu);
+   				d0 = det(old_cvu);
+				msg = "Stopped after "$+ftocv(step+1,1,0)$+" iterations: ";
+   				if abs((ln(d1)-ln(d0))/ln(d0))<=__var_tol;
+	   				msg=msg$+"Tolerance level reached.";
+			   		break;
+				else;
+			   		msg=msg$+"Maximum number of iterations reached.";
+				endif;
+			endif;
+		step=step+1;
+	endo;
+
+	/**
+	** Rebuild the original model matrix.
+	*/
+	if not(scalmiss(varIdx)) and not(scalmiss(equIdx));
+		modFull[equIdx,equIdx] = mod_h[1:cols(mod_h),.];
+		modFull[varIdx,equIdx] = mod_h[cols(mod_h)+1:rows(mod_h),.];
+	elseif not(scalmiss(varIdx)) and scalmiss(equIdx);
+		modFull[1:cols(modFull),.] = mod_h[1:cols(mod_h),.];
+		modFull[varIdx,.] = mod_h[cols(mod_h)+1:rows(mod_h),.];
+	elseif scalmiss(varIdx) and not(scalmiss(equIdx));
+		modFull[equIdx,equIdx] = mod_h[1:cols(mod_h),.];
+		modFull[.,equIdx] = mod_h[cols(mod_h)+1:rows(mod_h),.];		
+	else;
+		modFull = mod_h;
+	endif;
+
+	/*
+	** normalizing 	coefficients:
+	*/
+	modFull[1:cols(modFull),.]=modFull[1:cols(modFull),.]-eye(cols(modFull));
+
+
+	@ compute residuals and residual covariance matrix @
+		{u,cvu}  = xxx__i3sls_cv(obsOrig,modFull,modOrig);
+
+	@ compute covariance matrix of coefficients @
+		cv_par = tempi*T; 
+		tmp    = vec(mod);
+		tmp[selif(seqa(1,1,rows(tmp)),tmp)]=seqa(1,1,rows(cv_par));
+		tmp = reshape(tmp,cols(mod),rows(mod))';
+		tmp = vecr(tmp);
+		tmp = delif(tmp,tmp.==0);
+		cv_par = cv_par[.,tmp'];
+		cv_par = cv_par[tmp,.];
+		@ now consider subset restrictions @
+   		tmp = selif(seqa(1,1,rows(modOrig)*cols(modOrig)),vec(modOrig'));
+		temp = zeros(rows(modOrig)*cols(modOrig),rows(modOrig)*cols(modOrig));
+		temp[tmp,tmp]=cv_par;
+		cv_par = temp;
+
+	retp(modFull,cv_par,u,cvu,msg);
+endp;
+/**
+** PURPOSE
+** Supplement procedure for i3sls.
+** 
+** SYNTAX
+** cvu = i3sls_cv(obs,mod_h,mod);
+*/
+proc(2)=xxx__i3sls_cv(obs,mod_h,mod);
+	local K,u,cv_u,T,cvuDiv,r,vv;
+
+	K	=	cols(mod_h);
+	T	=	rows(obs);
+	/* ignore A0 restrictions */
+	mod=mod[K+1:rows(mod),.];
+/*	vv = vecr(mod);
+	r = sumc(vv);
+	/* check subset restrictions */
+	if r < rows(vv);
+	  cvuDiv = T; 
+	else;
+	  cvuDiv = T-r/K; /* no subset */
+	endif;  	*/
+	 cvuDiv = T; 
+
+	/**
+	** estimation of covariance matrix 
+	*/
+	mod_h[1:K,.] =	diagrv(mod_h[1:K,.],-1*ones(K,1));
+	mod_h		 =	-1 * mod_h;
+
+	u			 =	obs * mod_h;
+	cv_u		 =	u'*u/cvuDiv;
+
+	retp(u,cv_u);
+endp;
+
+
+
+
+

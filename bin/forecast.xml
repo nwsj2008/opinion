@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<opinion:items xmlns:opinion="http://www.example.org/OpinionXMLSchema"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.example.org/OpinionXMLSchema OpinionXMLSchema.xsd">
+	<opinion:name>forecast</opinion:name>
+	<opinion:description>parameters of forecast</opinion:description>
+	<opinion:para>
+		<opinion:para_name>minTimePeriod</opinion:para_name>
+		<opinion:para_value>40</opinion:para_value>
+		<opinion:para_description>
+			minimum number of observation period
+		</opinion:para_description>
+	</opinion:para>
+	<opinion:para>
+		<opinion:para_name>forecastPeriod</opinion:para_name>
+		<opinion:para_value>10</opinion:para_value>
+		<opinion:para_description>
+			number of forecast period
+		</opinion:para_description>
+	</opinion:para>
+	<opinion:para>
+		<opinion:para_name>observPeriod</opinion:para_name>
+		<opinion:para_value>0</opinion:para_value>
+		<opinion:para_description>
+			number of observation period used to compare
+		</opinion:para_description>
+	</opinion:para>
+	<opinion:para>
+		<opinion:para_name>overTime</opinion:para_name>
+		<opinion:para_value>600000</opinion:para_value>
+		<opinion:para_description>
+			forecast calculation over time
+		</opinion:para_description>
+	</opinion:para>
+	<opinion:para>
+		<opinion:para_name>forecastPath</opinion:para_name>
+		<opinion:para_value>E:\\opinionImg\\</opinion:para_value>
+		<opinion:para_description>
+			the path which the forecast data put in
+		</opinion:para_description>
+	</opinion:para>
+	<opinion:para>
+		<opinion:para_name>forecastPicPath</opinion:para_name>
+		<opinion:para_value>/opinionImg/</opinion:para_value>
+		<opinion:para_description>
+			the path where to get the forecast data
+		</opinion:para_description>
+	</opinion:para>
+	<opinion:para>
+		<opinion:para_name>noPicPathString</opinion:para_name>
+		<opinion:para_value>noforecast.png</opinion:para_value>
+		<opinion:para_description>
+			the picture of the cluster which can't be forecasted
+		</opinion:para_description>
+	</opinion:para>
+</opinion:items>

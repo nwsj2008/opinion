@@ -1,0 +1,561 @@
+/*
+ This file is part of the econometric software package JMulTi.
+ Copyright (C) 2000-2005  Alexander Benkwitz, Markus Kraetzig
+
+ This program is free software; you can redistribute it and/or
+ modify it under the terms of the GNU General Public License
+ as published by the Free Software Foundation; either version 2
+ of the License, or (at your option) any later version.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, write to the Free Software
+ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ */
+
+#ifos2win 
+/* to be used by library creation, windows only */
+#include var.dec
+#endif
+
+/*
+**
+** PURPOSE
+** Estimates VECM.
+**
+** SYNTAX
+** modelHat = var__EstimateVECModel(model, showResults);
+**
+** INPUT
+** model / (Y,1) / data buffer / Data buffer defining a VAR or VECM.
+** showResults / (1,1) / matrix / 1=show estimation results on screen, 0=run quiet.
+**
+** OUTPUT 
+** modelHat / (Z,1) / data buffer / Estimated VAR or VECM as data buffer.
+** 
+**
+** REMARK
+** This procedure simply estimates the data buffer 'model' and 
+** returns and it with the estimated parameter matrices. If you
+** want to get information on standard errors, t-values, etc.
+** use vml\_ols, vml\_gls, vml\_3sls instead.
+**
+** Changes in data buffer:\\ 
+** {\tt + beta, alpha, G0, G, A0, A, B, C, F}
+*/
+proc(1)= var__EstimateVECModel(model);
+	local elementNames, keyList, tmp, tmp0, tmp1, tmp2,
+	      G0, A0, G, A, B, C_VEC, C_VAR, F_VEC, F_VAR, alpha, beta, beta_d,
+	      cvu, cv_G0, cv_A0, cv_G, cv_A, cv_B, cv_C_VEC, cv_C_VAR, cv_F_VEC,
+	      cv_F_VAR, cv_alpha, cv_P,cv_beta,cv_beta_d,
+	      u, 
+	      y, py, K, T, x, px, d, mx_cd2cr, d_vec,d_ec, Z, ec,  
+	      r_est, idx_equa, idx_norm, cir, beta_x, beta_d_x,
+	      em, mx_c, mx_c_vec, mx_c_var, em_exe;
+	      
+/* 55 declared locals */
+	@ initialize model data variables @
+		y  = vml_vread(model,"y");
+		py = vml_vread(model,"py"); 
+		K  = cols(y);
+		T  = rows(y)-py;
+		elementNames = vnamecv(model);
+
+		let keyList={"x","px",    "d","mx_cd2cr",   "Z",
+	                 "r_est","idx_equa","idx_norm","cir","beta_x","beta_d_x",
+   	                 "mx_c","em"};
+	   	tmp  = var_indcv(keyList, elementNames);
+		if rows(tmp)<rows(keyList); tmp=miss(0,0)*zeros(rows(keyList),1); endif;
+		tmp1 = {};
+	   	for i(1,rows(tmp),1);
+			if scalmiss(tmp[i]);
+   				call varputl( tmp1, keyList[i]);
+			else;
+   				call varputl( vml_vread( model, keyList[i]), keyList[i]);
+			endif;
+   		endfor;
+		{d_vec,d_ec} = var__splitDeterministics( d, mx_cd2cr);
+	        if rows(em)<1; em = "none"; endif;
+	    if not (strrindx(em,"none",1) or strrindx(em,"OLS",1) or
+     		strrindx(em,"GLS",1) or strrindx(em,"3SLS",1) or
+   	    	strrindx(em,"JOH",1) or strrindx(em,"S2S",1));
+			"";
+			errorlog("Unknown estimation method for VECM estimation!");
+			  retp(model);
+   		endif;
+
+	@ initialize results variables @
+		G0={}; G={}; A0={}; A={}; B={}; C_VEC={}; C_VAR={}; F_VEC={}; F_VAR={};
+		cv_G0 = {}; cv_G = {}; cv_A0 = {}; cv_A = {}; cv_B = {};
+		cv_C_VEC={}; cv_C_VAR={}; cv_F_VEC={}; cv_F_VAR={}; cv_alpha = {};
+		cv_beta={};cv_beta_d={};
+		alpha = {}; u = {}; cvu = {}; em_exe = "unknown";
+	@ Estimation @
+	if strrindx(em,"JOH",1) or strrindx(em,"S2S",1);
+		@   j o h a n s e n   a p p r o a c h  OR  S 2 S  a p p r o a c h  @
+			@ Warnings if parameter constraints were specified in data buffer @
+				let tmp = { "S_G0", "R_G0", "RC_G0"};
+				tmp = packr(indcv( tmp, elementNames));
+			if 	not scalmiss(tmp);
+				"";
+				if strrindx(em,"JOH",1);
+				  errorlog("This implementation of Johansen procedure");
+				else;
+				  errorlog("This implementation of S2S procedure");
+				endif;
+				  errorlog(" only estimates reduced form models.");
+			endif;
+		
+			
+		beta_x = {};
+		beta_d_x = {};
+			@ estimation Johanson @
+			if strrindx(em,"JOH",1);	
+			  {alpha,beta,beta_d,G,C_VEC,u,cvu,cv_P,cv_alpha,cv_beta,cv_beta_d,cv_G,cv_C_VEC} = 
+			  vml__johansenApproach(y,py,d_ec,d_vec,r_est);
+			  beta   = beta';		  
+			  if rows(beta_d);
+			    beta_d = beta_d';
+			  endif;
+			  
+			  em_exe = "One stage. Johansen approach";
+			  G0     = eye(K);
+			  F_VEC  = {};
+
+			else; 			  @ estimation S2S @
+			  local Hmat,free_index,h;
+			  cv_P ={};
+			  Hmat  = vml_vread(model,"resHmat"); 
+			  free_index  = vml_vread(model,"resFree");	     
+			  h  = vml_vread(model,"resH");
+			  {alpha,beta,beta_d,G,C_VEC,u,cvu,cv_alpha,cv_beta,cv_beta_d,cv_G,cv_C_VEC} = 
+			  var__S2SEstimation(y,py,d_ec,d_vec,r_est,Hmat,free_index,h);
+				
+			  beta   = beta';
+			  if rows(beta_d);
+			    beta_d = beta_d';
+			  endif;
+			  
+			  em_exe = "One stage. S2S approach";
+			  G0     = eye(K);
+			  F_VEC  = {};
+			endif;
+			
+
+	else;
+
+		@   e s t i m a t i o n    i n    t w o    s t a g e s  @
+		local dy, unlaggedTerm, var,s2s_1st;
+		em_exe = "Two stage.";
+		/* 
+		** Estimate first stage if necessary:
+		*/
+   		beta   = {};  /* This is the outcome of the first stage    */
+		cv_beta   = {};
+	   	beta_d = {};  /* If this stays empty we apparently did not */
+		              /* need to run first stage estimation        */
+	        cv_beta_d = {};
+				
+		s2s_1st  = vml_vread(model,"s2s_1st");
+		
+		if rows(cir) or rows(idx_equa);
+		  if rows(cir);		    		    
+		  elseif rows(idx_equa);
+		    tmp = {};
+		    cir = var_initCIR( y, py, tmp, x, px, tmp, d, tmp, idx_equa, idx_norm);
+		    cir = vml_vput(cir, mx_cd2cr           , "mx_cd2cr");
+		    cir = vml_vput(cir, mx_c               , "mx_c"    );
+		    @ impose subset restrictions for idx_equa-th equation @
+		    let tmp = {"S_G0","S_G","S_B","S_C_VEC","S_F_VEC"};
+		    for i(1,rows(tmp),1);
+		      if not scalmiss(var_indcv( tmp[i], elementNames));
+			tmp1 = vml_vread(model,tmp[i]);
+			if rows(tmp)>1;
+			  tmp1 = tmp1[idx_equa,.];
+			endif;
+			cir = vml_SetRestrictions(cir, tmp1, tmp[i]);
+		      endif;
+		    endfor;
+		    @ impose restrictions for cointegration relation @
+		    let tmp = {"S_beta","S_beta_d",
+		    "R_beta","R_beta_d","RC_beta","RC_bet_d"};
+		    for i(1,rows(tmp),1);
+		      if not scalmiss(var_indcv( tmp[i], elementNames));
+			tmp1 = vml_vread(model,tmp[i]);
+			cir = vml_SetRestrictions(cir, tmp1, tmp[i]);
+		      endif;
+		    endfor;
+		    @ impose general linear restrictions for idx_equa-th equation @
+		    let tmp = {"R_G0" ,"R_G" ,"R_B" ,"R_C_VEC" ,"R_F_VEC" ,
+		    "RC_G0","RC_G","RC_B","RC_C_VEC","RC_F_VEC"};
+		    for i(1,rows(tmp),1);
+		      if not scalmiss(var_indcv( tmp[i], elementNames));
+			tmp1 = vml_vread(model,tmp[i]);			
+			tmp2 = strsect(tmp[i],2,1)$=="_";	
+			tmp1 = vml__extractRowOfGLR(tmp1,idx_equa,K,tmp2);
+			cir = vml_SetRestrictions(cir, tmp1, tmp[i]);
+		      endif;
+		    endfor;
+		    /*
+		    The time varying parameters of the VECM  not apply 1:1 to the single equation error
+		    correction model estimation (hint: ec-variable)
+		    */
+		  endif; 
+		  cir    = var_EstimateModel(cir);
+		  beta   = vml_vread(cir,"beta");
+		  beta_d = vml_vread(cir,"beta_d");
+		  tmp    = vml_vread(cir,"idx_norm");
+		  tmp    = beta[tmp];  @ norming factor @
+		  beta   = beta./tmp;
+		  if rows(beta_d);
+		    beta_d = beta_d./tmp;
+		  endif;
+		  em_exe = em_exe$+" 1st="$+vml_vread(cir,"em_exe");
+  
+		elseif rows(r_est) ; 
+		  if r_est > 0;
+		    
+		    if rows(s2s_1st);  /* S2S estimation of first stage */
+		      
+		      cir = var_SetEstimationMethod( model, "S2S");
+		      cir = var__EstimateVECModel ( cir);
+		      beta     =  vml_vread( cir, "beta"  );
+		      beta_d   = vml_vread( cir, "beta_d");
+		      cv_beta   = vml_vread(cir,"cv_beta");
+		      cv_beta_d = vml_vread(cir,"cv_bet_d");
+		      if rows(beta_x);
+			cv_beta = cv_beta~zeros(rows(cv_beta),rows(beta_x));
+			cv_beta = cv_beta|zeros(rows(beta_x),cols(cv_beta));
+		      endif;
+		      if rows(beta_d_x);
+			cv_beta_d = cv_beta_d~zeros(rows(cv_beta_d),rows(beta_d_x));
+			cv_beta_d = cv_beta_d|zeros(rows(beta_d_x),cols(cv_beta_d));
+		      endif;
+		      em_exe = em_exe$+" 1st=S2S";
+		    else; /* otherwise Johansen estimation of first stage */
+		      
+		      cir = var_SetEstimationMethod( model, "JOH");
+		      cir = var__EstimateVECModel ( cir);
+		      beta     =  vml_vread( cir, "beta"  );
+		      beta_d   = vml_vread( cir, "beta_d");
+		      cv_beta   = vml_vread(cir,"cv_beta");
+		      cv_beta_d = vml_vread(cir,"cv_bet_d");
+		      if rows(beta_x);
+			cv_beta = cv_beta~zeros(rows(cv_beta),rows(beta_x));
+			cv_beta = cv_beta|zeros(rows(beta_x),cols(cv_beta));
+		      endif;
+		      if rows(beta_d_x);
+			cv_beta_d = cv_beta_d~zeros(rows(cv_beta_d),rows(beta_d_x));
+			cv_beta_d = cv_beta_d|zeros(rows(beta_d_x),cols(cv_beta_d));
+		      endif;
+		      em_exe = em_exe$+" 1st=Johansen approach";
+		    endif;
+		  endif;
+		  
+		else; /* nothing to estimate in beta, everything predefined */ 
+		  em_exe = em_exe$+" 1st=pre-defined";
+		endif;
+		cir = {};
+		
+		  /* 
+		  ** Now compute observations of ec-variable
+		  */
+		  beta   = beta  |beta_x;
+		  beta_d = beta_d|beta_d_x;
+		  
+		  if rows(beta)<1;
+		    "";
+		    errorlog("No cointegration vector found!");
+		    retp(model);
+		  endif;
+		  @ 'ec' contains ec(t-1) @
+		  ec = y[py:py+T-1,.]*beta';  
+		  if rows(d_ec);
+		    ec = ec+d_ec[py:py+T-1,.]*beta_d';
+		  endif;
+		  /* 
+		  ** Compute observations of mixed-variable.
+		  */
+		  /*
+		  TO DO!
+		  
+		  */		
+		  
+		  /* 
+		  ** Estimate second stage:
+		  */
+		  dy  = y[2:rows(y),.]-y[1:rows(y)-1,.];
+		  if rows(d_vec);
+		    d_vec   = d_vec[2:rows(d_vec),.];
+		  endif;
+		  if cols(Z) and (py>1) ;
+		    Z = zeros(py-1,cols(Z))|Z;
+		  endif;
+		  if cols(ec) and (py>1) ;
+		    ec = zeros(py-1,cols(ec))|ec;
+		  endif;
+		  unlaggedTerm = d_vec~Z~ec;
+
+		  tmp = {}; 
+		  var = vml_InitVAR(dy,py-1,tmp,x,px,tmp,unlaggedTerm,tmp);
+		  
+		  @ impose subset restrictions @
+		  if not scalmiss(var_indcv( "S_G0", elementNames));
+		    var = vml_SetRestrictions(var, vml_vread(model,"S_G0"), "S_A0");
+		  endif;
+		  if not scalmiss(var_indcv( "S_G", elementNames));
+		    var = vml_SetRestrictions(var, vml_vread(model,"S_G"), "S_A");
+		  endif;
+		  if not scalmiss(var_indcv( "S_B", elementNames));
+		    var = vml_SetRestrictions(var, vml_vread(model,"S_B"), "S_B");
+		  endif;
+		  tmp0 = {}; 	if not scalmiss(var_indcv( "S_C_VEC", elementNames));
+		    tmp0 = vml_vread(model,"S_C_VEC");
+		  endif;
+		  tmp1 = {}; 	if not scalmiss(var_indcv( "S_F_VEC", elementNames));
+		    tmp1 = vml_vread(model,"S_F_VEC");
+		  endif;
+		  tmp2 = {}; 	if not scalmiss(var_indcv( "S_alpha", elementNames));
+		    tmp2 = vml_vread(model,"S_alpha");
+		  endif;
+		  if rows(tmp0)+rows(tmp1)+rows(tmp2);
+		    tmp =  vml__syncSRMatrix(tmp0,K,cols(d_vec))
+		    ~vml__syncSRMatrix(tmp1,K,cols(Z))
+		    ~vml__syncSRMatrix(tmp2,K,cols(ec));
+		    var = vml_SetRestrictions(var, tmp, "S_C_VAR");
+		  endif;
+		  @ impose general linear restrictions @
+		  if not scalmiss(var_indcv( "R_G0", elementNames));
+		    var = vml_SetRestrictions(var, vml_vread(model,"R_G0"), "R_A0");
+		  endif;
+		  if not scalmiss(var_indcv( "R_G", elementNames));
+		    var = vml_SetRestrictions(var, vml_vread(model,"R_G"), "R_A");
+		  endif;
+		  if not scalmiss(var_indcv( "R_B", elementNames));
+		    var = vml_SetRestrictions(var, vml_vread(model,"R_B"), "R_B");
+		  endif;
+		  tmp  = {}; 	if not scalmiss(var_indcv( "R_C_VEC", elementNames));
+		    tmp  = vml_vread(model,"R_C_VEC");
+		  endif;
+		  tmp0 = {}; 	if not scalmiss(var_indcv( "RC_C_VEC", elementNames));
+		    tmp0 = vml_vread(model,"RC_C_VEC");
+		  endif;
+		  tmp1 = {}; 	if not scalmiss(var_indcv( "R_F_VEC", elementNames));
+		    tmp1 = vml_vread(model,"R_F_VEC");
+		  endif;
+		  tmp2 = {}; 	if not scalmiss(var_indcv( "RC_F_VEC", elementNames));
+		    tmp2 = vml_vread(model,"RC_F_VEC");
+		  endif;
+		  if rows(tmp)+rows(tmp0)+rows(tmp1)+rows(tmp2);
+		    {tmp,tmp0} = vml__mergeRConstraints( K*cols(d_vec), K*cols(Z),
+		    tmp,tmp0, tmp1,tmp2);
+		  endif;
+		  tmp1 = {}; 	if not scalmiss(var_indcv( "R_alpha", elementNames));
+		    tmp1 = vml_vread(model,"R_alpha");
+		  endif;
+		  tmp2 = {}; 	if not scalmiss(var_indcv( "RC_alpha", elementNames));
+		    tmp2 = vml_vread(model,"RC_alpha");
+		  endif;
+		  if rows(tmp)+rows(tmp0)+rows(tmp1)+rows(tmp2);
+		    {tmp,tmp0} = vml__mergeRConstraints( K*(cols(d_vec)+cols(Z)), K*cols(ec),
+		    tmp,tmp0, tmp1,tmp2);
+		  endif;
+		  if rows(tmp);
+		    var = vml_SetRestrictions(var, tmp, "R_C_VAR");
+		  endif;
+		  if rows(tmp1);
+		    var = vml_SetRestrictions(var, tmp1, "RC_C_VAR");
+		  endif;
+
+		  @ set estimation method @
+		  var = var_SetEstimationMethod(var,em);
+
+		  @ estimate second stage as VAR @
+		  
+		  var = vml__EstimateVARModel(var,1);
+
+		  @ read the covariance matrices @
+		  elementNames = vnamecv(var);
+		  if not scalmiss(var_indcv( "cv_A0", elementNames));
+		    cv_G0 = vml_vread(var,"cv_A0");
+		  endif;
+		  if not scalmiss(var_indcv( "cv_A", elementNames));
+		    cv_G = vml_vread(var,"cv_A");
+		  endif;
+		  if not scalmiss(var_indcv( "cv_B", elementNames));
+		    cv_B = vml_vread(var,"cv_B");
+		  endif;
+		  if not scalmiss(var_indcv( "cv_C_VAR", elementNames));
+		    cv_C_VEC = vml_vread(var,"cv_C_VAR");
+		    tmp = K*(cols(d_vec)+cols(Z));
+		    cv_alpha = cv_C_VEC[tmp+1:tmp+K*cols(ec),tmp+1:tmp+K*cols(ec)];
+		    if cols(Z);
+		      tmp = K*cols(d_vec);	
+		      cv_F_VEC = cv_C_VEC[tmp+1:tmp+K*cols(Z),tmp+1:tmp+K*cols(Z)];
+		    endif;
+		    if cols(d_vec);
+		      tmp = 0;
+		      cv_C_VEC = cv_C_VEC[tmp+1:tmp+K*cols(d_vec),tmp+1:tmp+K*cols(d_vec)];
+		    else;
+		      cv_C_VEC = {};
+		    endif;
+		  endif;
+		  @ read the parameter matrices @
+		  if not scalmiss(var_indcv( "A0", elementNames));
+		    G0 = vml_vread(var,"A0");
+		  endif;
+		  if not scalmiss(var_indcv( "A", elementNames));
+		    G = vml_vread(var,"A");
+		  endif;
+		  if not scalmiss(var_indcv( "B", elementNames));
+		    B = vml_vread(var,"B");
+		  endif;
+		  if not scalmiss(var_indcv( "C_VAR", elementNames));
+		    C_VEC = vml_vread(var,"C_VAR");
+		    tmp = cols(d_vec)+cols(Z);
+		    alpha = C_VEC[.,tmp+1:tmp+cols(ec)];
+		    if cols(Z);
+		      tmp = cols(d_vec);	
+		      F_VEC = C_VEC[.,tmp+1:tmp+cols(Z)];
+		    endif;
+		    if cols(d_vec);
+		      tmp = 0;
+		      C_VEC = C_VEC[.,tmp+1:tmp+cols(d_vec)];
+		    else;
+		      C_VEC = {};
+		    endif;
+		  endif;
+		  
+		  @ read out residuals and residual covariance matrix @
+		  u   = vml_vread(var,"u");
+		  cvu = vml_vread(var,"cvRes");
+		  @ and the estimation method applied @
+		  em_exe = em_exe$+", 2nd="$+strsect(vml_vread(var,"em_exe"),1,4);
+		  var=0;
+		  cv_P = {};
+	endif;
+		
+	@ compute VAR representation @
+	mx_c_vec = {};		  
+   	{A0,A,tmp,F_VAR,mx_c_var}=vml__VEC2VAR(G0,G,alpha,beta,beta_d, F_VEC,mx_c_vec);
+		C_VAR = C_VEC~tmp;
+	{cv_A,tmp} = vml__VEC2VAR_cv(K, cv_P, cv_G);
+	if G0==eye(K);
+		G0 = {};
+		A0 = {};
+	endif;
+
+	/* Did we estimate some beta vectors or were some/ all set externally ? */
+	if rows(beta_x);
+		tmp = rows(beta)-rows(beta_x); /* number of estimated betas */
+		if tmp>0;
+			tmp    = seqa(1,1,tmp); /* indices of estimated betas */
+			beta   = beta[tmp,.];
+			beta_d = beta_d[tmp,.];			
+		else;
+			beta   = {};
+			beta_d = {};
+		endif;
+	endif;
+
+	/* Store results in data buffer */
+	model = vml_vput(model, beta    , "beta"    ); 
+	model = vml_vput(model, beta_d  , "beta_d"  ); 
+	model = vml_vput(model, cv_beta    , "cv_beta"    ); 
+	model = vml_vput(model, cv_beta_d  , "cv_bet_d"  ); 
+	model = vml_vput(model, alpha   , "alpha"   ); 
+	model = vml_vput(model, G0      , "G0"      ); 
+	model = vml_vput(model, A0      , "A0"      ); 
+	model = vml_vput(model, G       , "G"       ); 
+	model = vml_vput(model, A       , "A"       ); 
+	model = vml_vput(model, B       , "B"       ); 
+	model = vml_vput(model, C_VEC   , "C_VEC"   ); 
+	model = vml_vput(model, C_VAR   , "C_VAR"   ); 
+	model = vml_vput(model, F_VEC   , "F_VEC"   ); 
+	model = vml_vput(model, F_VAR   , "F_VAR"   ); 
+	model = vml_vput(model, mx_c_VAR, "mx_c_VAR"); 
+	model = vml_vput(model, u       , "u"       ); 
+	model = vml_vput(model, cvu     , "cvRes"   ); 
+	model = vml_vput(model, cv_P    , "cv_P"    );
+	model = vml_vput(model, cv_G    , "cv_G"    );
+	model = vml_vput(model, cv_G0    , "cv_G0"    );
+	model = vml_vput(model, cv_B    , "cv_B"    );
+	model = vml_vput(model, cv_C_VEC, "cv_C_VEC"    );
+	model = vml_vput(model, cv_alpha, "cv_alpha");
+	model = vml_vput(model, cv_A    , "cv_A"    ); 
+	model = vml_vput(model,em_exe,"em_exe");
+   	model = vml_vput(model,"VEC" ,"id"    );
+	retp(model);
+endp;
+
+
+/*
+**
+** PURPOSE
+** Helper method for {\tt vml\_\_EstimateVECMModel()}.
+**
+** Extracts from a linear restriction matrix the linear restrictions for a
+** specified row.
+**
+** SYNTAX
+** Rnew = vml__extractRowOfGLR(Rold,idx,rType);
+**
+** INPUT
+** Rold  / (M,N) / matrix / Restriction matrix
+** idx   / (1,1) / matrix / equation index
+** rType / (1,1) / matrix / Determines type of restriction: 0: {\tt Rold}$=r$, otherwise
+**                          {\tt Rold}$=R$
+**
+** OUTPUT 
+** Rnew / (Q,R) / matrix /
+** 
+**
+** REMARK
+*/
+proc(1)=vml__extractRowOfGLR(R,idx,K,rType);
+	if rows(R)>1 ;
+		local n;
+		n   = round(rows(R)/K); /* number of parameters in each equation */
+   		idx = seqa(idx,K,n);
+	   	R   = R[idx,.];
+		if rType;
+			idx = miss(0,0)*zeros(cols(R),1);
+			for i(1,cols(R),1);
+				if unique(R[.,i],1)/=0;
+					idx[i]=i;
+				endif;
+			endfor;
+			idx = packr(idx);
+			if scalmiss(idx);
+				R = 0;
+			else;
+				R = R[.,idx];
+			endif;
+		endif;
+		if cols(R)>rows(R);
+			"";
+			errorlog("Poor restriction matrix!");
+			errorlog("Cannot extract linear restriction for one equation");
+			  retp(R);
+		endif;
+	endif;
+	retp(R);
+endp;
+
+
+
+
+
+
+
+
+
+
+
+
+
+

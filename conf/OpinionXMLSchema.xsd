@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema" targetNamespace="http://www.example.org/OpinionXMLSchema" xmlns:opinion="http://www.example.org/OpinionXMLSchema" elementFormDefault="qualified">
+   <xsd:element name="items">  
+      <xsd:complexType>        
+         <xsd:sequence>
+            <xsd:element name="name" type="xsd:string"/>
+            <xsd:element name="description" type="xsd:string"/>
+            <xsd:element name="para" minOccurs="1" maxOccurs="unbounded">
+                <xsd:complexType >
+                  <xsd:sequence>
+                     <xsd:element name="para_name" type="xsd:string"/>
+                     <xsd:element name="para_value" type="xsd:string"/>
+                     <xsd:element name="para_description" type="xsd:string"/>
+                  </xsd:sequence> 
+               </xsd:complexType>      
+            </xsd:element>         
+         </xsd:sequence>
+      </xsd:complexType>     
+   </xsd:element>
+</xsd:schema>

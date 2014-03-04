@@ -1,0 +1,258 @@
+/*
+ This file is part of the econometric software package JMulTi.
+ Copyright (C) 2000-2005  Alexander Benkwitz, Markus Kraetzig
+
+ This program is free software; you can redistribute it and/or
+ modify it under the terms of the GNU General Public License
+ as published by the Free Software Foundation; either version 2
+ of the License, or (at your option) any later version.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, write to the Free Software
+ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ */
+ 
+#ifos2win 
+/* to be used by library creation, windows only */
+#include var.dec
+#endif
+
+/*
+** PURPOSE
+** Sets estimation method for system estimation.
+**
+** SYNTAX
+** y = var_SetEstimationMethod(model, method);
+**
+** INPUT
+** model  / (Y,1) / data buffer / VAR or VECM
+** method / (1,1) / string / Key for estimation method. Valid keys
+**                           are "none", "OLS", "GLS", "3SLS", "SEQ", "JOH".
+**
+** OUTPUT 
+** y / (Z,1) / data buffer / Data buffer containing information about 
+**                           system estimation.
+** 
+** REMARK
+** is OLS equal single equation OLS?
+** is multivariate GLS equal SUR?
+**
+** Change in data buffer:\\ 
+** {\tt + em\_sys}
+**
+** SEE
+** vml_InitVAR
+** var_EstimateModel
+**
+*/
+proc(1)= var_SetEstimationMethod(model, method);
+	/*local validKeys;
+
+	let validKeys={"none","OLS","GLS","3SLS","SEQ","JOH","S2S"};
+	if scalmiss(indcv(method,validKeys));  */
+	if not( strrindx(method,"none",1) or strrindx(method,"OLS",1) or
+	strrindx(method,"GLS",1) or strrindx(method,"3SLS",1) or
+	strrindx(method,"SEQ",1) or strrindx(method,"JOH",1) or strrindx(method,"S2S",1));
+		"";
+		errorlog("Unknown estimation method: '"$+method$+"'");
+		/*	" must be one of";
+		$validKeys';
+		retp(model);*/
+	endif;
+
+	if strrindx(method,"none",1);
+	  model = vml_vdel(model, "em");
+	else;
+	  model = vml_vput(model,method,"em");
+        endif;
+
+	retp(model);
+endp;
+
+/*
+** PURPOSE
+** Estimates VAR or VECM.
+**
+** SYNTAX
+** y = var_EstimateModel(model);
+**
+** INPUT
+** model / (Y,1) / data buffer / Data buffer defining a VAR or VECM.
+**
+** OUTPUT 
+** y / (Z,1) / data buffer / Estimated VAR or VECM as data buffer.
+** 
+**
+** REMARK
+** This procedure estimates the data buffer 'model' and 
+** returns and it with the estimated parameter matrices. If you
+** want to get information on standard errors, t-values, etc.
+** use vml\_ols, vml\_gls, vml\_3sls instead.
+**
+** First the cointegration rank $r$ is determined. If $r=0$
+** $\delta y_t$ has a stable VAR($p-1$) representation and
+** for $r=K$ $y_t$ is a stable VAR($p$). This is considered
+** in the estimation procedure.
+**
+** Changes in data buffer:\\ 
+** {\tt + beta, alpha, G0, G, A0, A, B, C, F}
+*/
+proc(1)= var_EstimateModel(model);
+	local K,r,test;
+				
+	test =	vml_vread(model,"id");	
+	if strrindx(test,"EC",1);
+		model = var_EstimateECModel(model);
+	else;
+		K = cols(vml_vread(model,"y"));
+		r = vml_GetCointRank(model); /* 0<=r<=K - guaranteed */
+		if r==K;	  
+			model = vml__EstimateVARModel(model,0);
+	        elseif r>0;	
+			model = var__EstimateVECModel(model);
+		else;
+			/* stable VAR(p-1) representation of differences */
+			"";
+			errorlog("NIY");
+			retp(model);
+		endif;
+	endif;
+	retp(model);
+endp;
+
+
+/*
+**
+** PURPOSE
+** Computes various statistics from the estimated model.
+**
+** SYNTAX
+** y = var_ComputeModelStatistics(model);
+**
+** INPUT
+** model / (Y,1) / data buffer / Estimated VAR or VECM.
+**
+** OUTPUT 
+** y / (Z,1) / data buffer / Estimated VAR or VECM with additional statistics.
+**                           
+** 
+** REMARK
+** This procedure should be applied after calling {\tt vml\_EstimateModel()}
+**
+** Computes
+** \begin{itemize}
+** \item Matrix of standard deviation ({\tt sd_}\it{[matrix]}),
+** \item Matrix of t-values ({\tt tv_}\it{[matrix]}),
+** \item Matrix of p-values ({\tt pv_}\it{[matrix]}).
+** \end{itemize}
+**
+** Changes in data buffer:\\ 
+** {\tt + {\tt sd_}\it{[matrix]}, {\tt tv_}\it{[matrix]}, {\tt pv_}\it{[matrix]}}
+**
+** SEE
+** var_EstimateModel
+*/
+proc(1)=var_ComputeModelStatistics(model);
+	local py, K, T, id,
+	      keyPairs,
+	      name_i,coeff,sd,tv,pv;
+
+	py =vml_vread(model,"py");
+	K  = cols(vread(model,"y"));
+	T  = rows(vread(model,"y"))-py;
+	id =vml_vread(model,"id");
+		
+	
+   	@ compute coefficients standard deviation, t-values and p-values @
+	keyPairs =   ("A0"    $~ "cv_A0"     )
+	           $|("A"     $~ "cv_A"      )
+	           $|("B"     $~ "cv_B"      )
+	           $|("C_VAR" $~ "cv_C_VAR"  )
+	           $|("F_VAR" $~ "cv_F_VAR"  )
+	           $|("G0"    $~ "cv_G0"     )
+	           $|("alpha" $~ "cv_alpha"  )
+	           $|("G"     $~ "cv_G"      )
+	           $|("C_VEC" $~ "cv_C_VEC"  )
+	           $|("F_VEC" $~ "cv_F_VEC"  );
+	if strrindx(id,"EC",1) or strrindx(id,"VEC",1);
+			keyPairs = keyPairs
+		           $|("beta"   $~ "cv_beta")
+		           $|("beta_d" $~ "cv_bet_d");
+		 endif;
+   	for i(1,rows(keyPairs),1);
+	   	coeff= vml_vread(model,keyPairs[i,1]);
+	   	sd   = vml_vread(model,keyPairs[i,2]);
+		if rows(coeff);
+		  if rows(sd);
+		    sd = sqrt(diag(sd)/T);
+		    sd = reshape(sd,cols(coeff),rows(coeff))';
+		    tv =  coeff./sd;
+		    
+		    pv = abs(tv);		    
+		    pv = missrv(pv,1000);
+		    pv = 2*cdfnc(pv); 
+		    
+		    tv = missrv(tv,0);
+		    pv = missrv(pv,0);
+		    tv = vml_setInf(tv,0);
+		    pv = vml_setInf(pv,0);
+		    ndpclex;
+		  else;
+		    /* sd = ""$+zeros(rows(coeff),cols(coeff))$+"n.a.";     */
+		    sd = zeros(rows(coeff),cols(coeff));
+		    tv = sd;
+		    pv = sd;
+		  endif;
+		  name_i = keyPairs[i,1];
+		  if strrindx(name_i,"beta_d",1);
+		    name_i="bet_d";
+		  endif;
+		  model = vml_vput(model,sd,"se_"$+name_i);
+		  model = vml_vput(model,tv,"tv_"$+name_i);
+		  model = vml_vput(model,pv,"pv_"$+name_i);
+		endif;
+		
+   	endfor;
+
+		@ compute test for residual autocorrelation @
+/*
+local u_ar,tmp0,tmp1;
+			u =vml_vread(model,"u");
+			u_ar = zeros(K,1);
+			for i (1,K,1);
+				tmp1=u[2:rows(u),i];
+				tmp0=u[1:rows(u)-1,i];
+				u_ar[i]=(tmp1'*tmp0)/(tmp0'*tmp0);
+			endfor;
+			u_ar = sqrt(rows(u)-1)*u_ar;
+			model = vput(model,u_ar,"u_ar");
+*/
+	retp(model);
+endp;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

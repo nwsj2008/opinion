@@ -1,0 +1,264 @@
+/*
+ This file is part of the econometric software package JMulTi.
+ Copyright (C) 2000-2005  Alexander Benkwitz
+
+ This program is free software; you can redistribute it and/or
+ modify it under the terms of the GNU General Public License
+ as published by the Free Software Foundation; either version 2
+ of the License, or (at your option) any later version.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, write to the Free Software
+ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ */
+
+/*
+**
+*/
+proc(3)=vec_GetNamesOfDeterministics(model);
+	local Nd,Nd_vec,Nd_ec,Nd_var,mx_cd2cr;
+	Nd_vec={};Nd_ec={};Nd_var={};
+	Nd = vml_vread(model,"Nd");
+	if rows(Nd);
+		mx_cd2cr = vml_vread(model,"mx_cd2cr");
+		{Nd_vec,Nd_ec}=var__splitDeterministicsNames(Nd,mx_cd2cr);
+		if rows(Nd_vec) and rows(Nd_ec);
+			Nd_var = Nd_vec$|Nd_ec;
+		elseif rows(Nd_vec);
+			Nd_var = Nd_vec;
+		elseif rows(Nd_ec);
+			Nd_var = Nd_ec;
+		endif;
+	endif;
+
+	retp(Nd_vec,Nd_ec,Nd_var);
+endp;
+
+/*
+** SYNTAX
+** {G0,G,alpha, beta, beta_d, B, C_VEC, F_VEC,
+**  A0,A,C_VAR,F_VAR} = vec_GetCoefficients(var); 
+**
+** PURPOSE
+**
+**
+** INPUT
+**
+** OUTPUT
+*/
+proc(12)=vec_GetCoefficients(var); 
+	local G0,G,alpha, beta, beta_d, beta_x, beta_d_x, B, C_VEC, F_VEC,
+	      A0,A, C_VAR,F_VAR,
+	      keyList,idx,emptyMatrix;
+
+   	let keyList={"G0", "G", "alpha", "beta", "beta_d", "B", "C_VEC", "F_VEC",
+	             "A0", "A", "C_VAR","F_VAR", "beta_x", "beta_d_x"};
+	idx = vnamecv(var)$+"        ";
+   	idx = indcv(keyList$+"        ", idx);
+	emptyMatrix = {};
+   	for i(1,rows(idx),1);
+		if scalmiss(idx[i]);
+   			call varputl( emptyMatrix            , keyList[i]);
+		else;
+   			call varputl( vread( var, keyList[i]), keyList[i]);
+		endif;
+   	endfor;
+
+		if rows(beta) and rows(beta_x);
+			beta = beta|beta_x;
+		elseif not rows(beta) and rows(beta_x);
+			beta = beta_x;
+		endif;
+		if rows(beta_d) and rows(beta_d_x);
+			beta_d = beta_d|beta_d_x;
+		elseif not rows(beta_d) and rows(beta_d_x);
+			beta_d = beta_d_x;
+		endif;
+
+	retp(G0,G,alpha, beta, beta_d, B, C_VEC, F_VEC,
+	     A0,A,C_VAR,F_VAR);
+endp;
+/*
+** SYNTAX
+** {tv_G0, tv_G, tv_alpha, tv_beta, tv_bet_d, tv_B, tv_C_VEC, tv_F_VEC,
+**  tv_A0, tv_A, tv_C_VAR, tv_F_VAR} = vec_GetT_Values(var); 
+**
+** PURPOSE
+**
+**
+** INPUT
+**
+** OUTPUT
+*/
+proc(12)=vec_GetT_Values(var); 
+	local tv_G0, tv_G, tv_alpha, tv_beta, tv_bet_d, tv_B, tv_C_VEC, tv_F_VEC,
+	      tv_A0, tv_A, tv_C_VAR, tv_F_VAR, beta_x, beta_d_x, 
+	      keyList;
+
+   	let keyList={"tv_G0", "tv_G", "tv_alpha", "tv_beta", "tv_bet_d", "tv_B", 
+	             "tv_C_VEC", "tv_F_VEC", 
+	             "tv_A0", "tv_A", "tv_C_VAR","tv_F_VAR", "beta_x", "beta_d_x"};
+
+   	for i(1,rows(keyList),1);
+   		call varputl( vml_vread( var, keyList[i]), keyList[i]);
+   	endfor;
+
+		if rows(beta_x);
+			if type(tv_beta)==13 or type(tv_beta)==15;
+				beta_x = "---"$+beta_x;		
+   				tv_beta = tv_beta$|beta_x;
+			else;
+				beta_x = miss(0,0)*zeros(rows(beta_x),cols(beta_x));
+				tv_beta = tv_beta|beta_x;
+			endif;
+		endif;
+		if rows(beta_d_x);
+			if type(tv_bet_d)==13 or type(tv_bet_d)==15;
+				beta_d_x = "---"$+beta_d_x;		
+   				tv_bet_d = tv_bet_d$|beta_d_x;
+			else;
+				beta_d_x = miss(0,0)*zeros(rows(beta_d_x),cols(beta_d_x));
+				tv_bet_d = tv_bet_d|beta_d_x;
+			endif;
+		endif;
+		
+
+	retp(tv_G0, tv_G, tv_alpha, tv_beta, tv_bet_d, tv_B, tv_C_VEC, tv_F_VEC,
+         tv_A0, tv_A, tv_C_VAR, tv_F_VAR);
+endp;
+/*
+** SYNTAX
+** {pv_G0, pv_G, pv_alpha, pv_beta, pv_bet_d, pv_B, pv_C_VEC, pv_F_VEC,
+**  pv_A0, pv_A, pv_B, pv_C_VAR, pv_F_VAR} = vec_GetP_Values(var); 
+**
+** PURPOSE
+**
+**
+** INPUT
+**
+** OUTPUT
+*/
+proc(12)=vec_GetP_Values(var); 
+	local pv_G0, pv_G, pv_alpha, pv_beta, pv_bet_d, pv_B, pv_C_VEC, pv_F_VEC,
+	      pv_A0, pv_A, pv_C_VAR, pv_F_VAR, beta_x, beta_d_x,
+	      keyList,idx,emptyMatrix;
+
+   	let keyList={"pv_G0", "pv_G", "pv_alpha", "pv_beta", "pv_bet_d", "pv_B", 
+	             "pv_C_VEC", "pv_F_VEC",
+	             "pv_A0", "pv_A", "pv_C_VAR","pv_F_VAR", "beta_x", "beta_d_x"};
+	idx = vnamecv(var)$+"        ";
+   	idx = indcv(keyList$+"        ", idx);
+	emptyMatrix = {};
+   	for i(1,rows(idx),1);
+   		call varputl( vml_vread( var, keyList[i]), keyList[i]);
+   	endfor;
+
+		if rows(beta_x);
+			if type(pv_beta)==13 or type(pv_beta)==15;
+				beta_x = "---"$+beta_x;		
+   				pv_beta = pv_beta$|beta_x;
+			else;
+				beta_x = miss(0,0)*zeros(rows(beta_x),cols(beta_x));
+				pv_beta = pv_beta|beta_x;
+			endif;
+		endif;
+		if rows(beta_d_x);
+			if type(pv_bet_d)==13 or type(pv_bet_d)==15;
+				beta_d_x = "---"$+beta_d_x;		
+   				pv_bet_d = pv_bet_d$|beta_d_x;
+			else;
+				beta_d_x = miss(0,0)*zeros(rows(beta_d_x),cols(beta_d_x));
+				pv_bet_d = pv_bet_d|beta_d_x;
+			endif;
+		endif;
+
+	retp(pv_G0, pv_G, pv_alpha, pv_beta, pv_bet_d, pv_B, pv_C_VEC, pv_F_VEC,
+         pv_A0, pv_A, pv_C_VAR, pv_F_VAR);
+endp;
+/*
+** SYNTAX
+** {se_G0, se_G, se_alpha, se_beta, se_bet_d, se_B, se_C_VEC, se_F_VEC,
+**  se_A0, se_A, se_C_VAR, se_F_VAR} = vec_GetStandardErrors(var); 
+**
+** PURPOSE
+**
+**
+** INPUT
+**
+** OUTPUT
+*/
+proc(12)=vec_GetStandardErrors(var); 
+	local se_G0, se_G, se_alpha, se_beta, se_bet_d, se_B, se_C_VEC, se_F_VEC,
+	      se_A0, se_A, se_C_VAR, se_F_VAR,  beta_x, beta_d_x,
+	      keyList,idx,emptyMatrix;
+
+   	let keyList={"se_G0", "se_G", "se_alpha", "se_beta", "se_bet_d", "se_B", 
+	             "se_C_VEC", "se_F_VEC", 
+	             "se_A0", "se_A", "se_C_VAR","se_F_VAR", "beta_x", "beta_d_x"};
+	idx = vnamecv(var)$+"        ";
+   	idx = indcv(keyList$+"        ", idx);
+	emptyMatrix = {};
+   	for i(1,rows(idx),1);
+   		call varputl( vml_vread( var, keyList[i]), keyList[i]);
+   	endfor;
+
+		if rows(beta_x);
+			if type(se_beta)==13 or type(se_beta)==15;
+				beta_x = "---"$+beta_x;		
+   				se_beta = se_beta$|beta_x;
+			else;
+				beta_x = miss(0,0)*zeros(rows(beta_x),cols(beta_x));
+				se_beta = se_beta|beta_x;
+			endif;
+		endif;
+		if rows(beta_d_x);
+			if type(se_bet_d)==13 or type(se_bet_d)==15;
+				beta_d_x = "---"$+beta_d_x;		
+   				se_bet_d = se_bet_d$|beta_d_x;
+			else;
+				beta_d_x = miss(0,0)*zeros(rows(beta_d_x),cols(beta_d_x));
+				se_bet_d = se_bet_d|beta_d_x;
+			endif;
+		endif;
+
+	retp(se_G0, se_G, se_alpha, se_beta, se_bet_d, se_B, se_C_VEC, se_F_VEC,
+         se_A0, se_A, se_C_VAR, se_F_VAR);
+endp;
+
+
+
+/*
+Computes the LR test to check whether restrictions are valid.
+
+Input:
+
+var_unres - estimation buffer without restrictions,
+cvu_res - estimated covariance from restricted estimation
+resnum - number of restrictions in estimation
+
+Output:
+
+lrstat~p-val~resnum
+
+*/
+proc(1)=vec_computeLRStat(var_unres,cvu_res,resnum);
+local cv,lr,T;
+
+var_unres = var_EstimateModel(var_unres);
+T = rows(vml_vread( var_unres, "u"));
+cv = vml_vread( var_unres, "cvRes");
+lr = T*(ln(det(cvu_res))-ln(det(cv)));
+lr = lr|cdfchic(lr,resnum)|resnum;
+
+retp(lr);
+endp;
+
+
+
+
+

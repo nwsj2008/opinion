@@ -1,0 +1,1238 @@
+2010-01-19 19:28:25,828 INFO  cfg.Environment - Hibernate 3.1.3
+2010-01-19 19:28:25,859 INFO  cfg.Environment - hibernate.properties not found
+2010-01-19 19:28:25,875 INFO  cfg.Environment - using CGLIB reflection optimizer
+2010-01-19 19:28:25,890 INFO  cfg.Environment - using JDK 1.4 java.sql.Timestamp handling
+2010-01-19 19:28:26,031 INFO  cfg.Configuration - configuring from resource: /hibernate.cfg.xml
+2010-01-19 19:28:26,031 INFO  cfg.Configuration - Configuration resource: /hibernate.cfg.xml
+2010-01-19 19:28:26,093 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbCluster.hbm.xml
+2010-01-19 19:28:26,406 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbCluster -> tb_cluster
+2010-01-19 19:28:26,578 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbClusterTopic.hbm.xml
+2010-01-19 19:28:26,625 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbClusterTopic -> tb_cluster_topic
+2010-01-19 19:28:26,750 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbHotTopic.hbm.xml
+2010-01-19 19:28:26,781 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbHotTopic -> tb_hot_topic
+2010-01-19 19:28:26,781 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbParserBbs.hbm.xml
+2010-01-19 19:28:26,828 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbParserBbs -> tb_parser_bbs
+2010-01-19 19:28:26,828 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbParserNews.hbm.xml
+2010-01-19 19:28:26,859 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbParserNews -> tb_parser_news
+2010-01-19 19:28:26,859 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbReBbs.hbm.xml
+2010-01-19 19:28:26,875 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbReBbs -> tb_re_bbs
+2010-01-19 19:28:26,890 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbReNews.hbm.xml
+2010-01-19 19:28:26,906 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbReNews -> tb_re_news
+2010-01-19 19:28:26,906 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbSensitiveTopic.hbm.xml
+2010-01-19 19:28:26,937 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbSensitiveTopic -> tb_sensitive_topic
+2010-01-19 19:28:26,937 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbAuRef.hbm.xml
+2010-01-19 19:28:26,953 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbAuRef -> tb_au_ref
+2010-01-19 19:28:26,968 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbUser.hbm.xml
+2010-01-19 19:28:26,984 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbUser -> tb_user
+2010-01-19 19:28:26,984 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbAu.hbm.xml
+2010-01-19 19:28:27,000 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbAu -> tb_au
+2010-01-19 19:28:27,000 INFO  cfg.Configuration - Configured SessionFactory: null
+2010-01-19 19:28:27,000 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbCluster.tbSensitiveTopics -> tb_sensitive_topic
+2010-01-19 19:28:27,000 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbCluster.tbHotTopics -> tb_hot_topic
+2010-01-19 19:28:27,015 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbCluster.tbClusterTopics -> tb_cluster_topic
+2010-01-19 19:28:27,015 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbParserBbs.tbSensitiveTopics -> tb_sensitive_topic
+2010-01-19 19:28:27,015 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbParserBbs.tbClusterTopics -> tb_cluster_topic
+2010-01-19 19:28:27,015 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbParserBbs.tbReBbses -> tb_re_bbs
+2010-01-19 19:28:27,015 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbParserNews.tbClusterTopics -> tb_cluster_topic
+2010-01-19 19:28:27,015 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbParserNews.tbReNewses -> tb_re_news
+2010-01-19 19:28:27,015 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbParserNews.tbSensitiveTopics -> tb_sensitive_topic
+2010-01-19 19:28:27,015 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbReBbs.tbSensitiveTopics -> tb_sensitive_topic
+2010-01-19 19:28:27,015 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbReNews.tbSensitiveTopics -> tb_sensitive_topic
+2010-01-19 19:28:27,015 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbUser.tbAuRefs -> tb_au_ref
+2010-01-19 19:28:27,015 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbAu.tbAuRefs -> tb_au_ref
+2010-01-19 19:28:27,031 INFO  connection.DriverManagerConnectionProvider - Using Hibernate built-in connection pool (not for production use!)
+2010-01-19 19:28:27,031 INFO  connection.DriverManagerConnectionProvider - Hibernate connection pool size: 20
+2010-01-19 19:28:27,031 INFO  connection.DriverManagerConnectionProvider - autocommit mode: false
+2010-01-19 19:28:27,062 INFO  connection.DriverManagerConnectionProvider - using driver: com.mysql.jdbc.Driver at URL: jdbc:mysql://192.168.198.21:3306/yqfx
+2010-01-19 19:28:27,062 INFO  connection.DriverManagerConnectionProvider - connection properties: {user=yqfx, password=****}
+2010-01-19 19:28:32,359 INFO  cfg.SettingsFactory - RDBMS: MySQL, version: 5.0.41-community-nt
+2010-01-19 19:28:32,359 INFO  cfg.SettingsFactory - JDBC driver: MySQL-AB JDBC Driver, version: mysql-connector-java-5.0.8 ( Revision: ${svn.Revision} )
+2010-01-19 19:28:32,468 INFO  dialect.Dialect - Using dialect: org.hibernate.dialect.MySQLDialect
+2010-01-19 19:28:32,484 INFO  transaction.TransactionFactoryFactory - Using default transaction strategy (direct JDBC transactions)
+2010-01-19 19:28:32,500 INFO  transaction.TransactionManagerLookupFactory - No TransactionManagerLookup configured (in JTA environment, use of read-write or transactional second-level cache is not recommended)
+2010-01-19 19:28:32,500 INFO  cfg.SettingsFactory - Automatic flush during beforeCompletion(): disabled
+2010-01-19 19:28:32,500 INFO  cfg.SettingsFactory - Automatic session close at end of transaction: disabled
+2010-01-19 19:28:32,500 INFO  cfg.SettingsFactory - JDBC batch size: 50
+2010-01-19 19:28:32,500 INFO  cfg.SettingsFactory - JDBC batch updates for versioned data: disabled
+2010-01-19 19:28:32,500 INFO  cfg.SettingsFactory - Scrollable result sets: enabled
+2010-01-19 19:28:32,500 INFO  cfg.SettingsFactory - JDBC3 getGeneratedKeys(): enabled
+2010-01-19 19:28:32,500 INFO  cfg.SettingsFactory - JDBC result set fetch size: 50
+2010-01-19 19:28:32,500 INFO  cfg.SettingsFactory - Connection release mode: auto
+2010-01-19 19:28:32,500 INFO  cfg.SettingsFactory - Maximum outer join fetch depth: 3
+2010-01-19 19:28:32,500 INFO  cfg.SettingsFactory - Default batch fetch size: 4
+2010-01-19 19:28:32,500 INFO  cfg.SettingsFactory - Generate SQL with comments: disabled
+2010-01-19 19:28:32,500 INFO  cfg.SettingsFactory - Order SQL updates by primary key: disabled
+2010-01-19 19:28:32,500 INFO  cfg.SettingsFactory - Query translator: org.hibernate.hql.ast.ASTQueryTranslatorFactory
+2010-01-19 19:28:32,531 INFO  ast.ASTQueryTranslatorFactory - Using ASTQueryTranslatorFactory
+2010-01-19 19:28:32,531 INFO  cfg.SettingsFactory - Query language substitutions: {}
+2010-01-19 19:28:32,531 INFO  cfg.SettingsFactory - Second-level cache: enabled
+2010-01-19 19:28:32,531 INFO  cfg.SettingsFactory - Query cache: disabled
+2010-01-19 19:28:32,531 INFO  cfg.SettingsFactory - Cache provider: org.hibernate.cache.EhCacheProvider
+2010-01-19 19:28:32,578 INFO  cfg.SettingsFactory - Optimize cache for minimal puts: disabled
+2010-01-19 19:28:32,578 INFO  cfg.SettingsFactory - Structured second-level cache entries: disabled
+2010-01-19 19:28:32,578 INFO  cfg.SettingsFactory - Echoing all SQL to stdout
+2010-01-19 19:28:32,578 INFO  cfg.SettingsFactory - Statistics: disabled
+2010-01-19 19:28:32,593 INFO  cfg.SettingsFactory - Deleted entity synthetic identifier rollback: disabled
+2010-01-19 19:28:32,593 INFO  cfg.SettingsFactory - Default entity-mode: pojo
+2010-01-19 19:28:32,796 INFO  impl.SessionFactoryImpl - building session factory
+2010-01-19 19:28:34,531 INFO  impl.SessionFactoryObjectFactory - Not binding factory to JNDI, no JNDI name configured
+2010-01-19 19:28:37,500 INFO  model.GaussPCall - GRTE:               true
+2010-01-19 19:28:41,031 INFO  component.SystemOutHolder - *** Tue, 19 Jan 2010 19:28:41 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             春运 
+order of differencing (d):     0 
+adjusted sample range:         [12, 41], T = 30
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=2, q=2
+Hannan-Quinn Criterion:   p=2, q=2
+Schwarz Criterion:        p=2, q=0
+
+2010-01-19 19:28:41,625 INFO  component.SystemOutHolder - *** Tue, 19 Jan 2010 19:28:41 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             春运 
+order of differencing (d):     0 
+adjusted sample range:         [12, 41], T = 30
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=2, q=0
+Hannan-Quinn Criterion:   p=2, q=0
+Schwarz Criterion:        p=2, q=0
+
+2010-01-19 19:28:41,687 INFO  component.SystemOutHolder - *** Tue, 19 Jan 2010 19:28:41 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             春运 
+order of differencing (d):     1 
+adjusted sample range:         [13, 41], T = 29
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=1, q=0
+Hannan-Quinn Criterion:   p=1, q=0
+Schwarz Criterion:        p=1, q=0
+
+2010-01-19 19:28:41,796 INFO  component.SystemOutHolder - *** Tue, 19 Jan 2010 19:28:41 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             春运 
+order of differencing (d):     1 
+adjusted sample range:         [13, 41], T = 29
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=1, q=0
+Hannan-Quinn Criterion:   p=1, q=0
+Schwarz Criterion:        p=1, q=0
+
+2010-01-19 19:28:41,906 INFO  component.SystemOutHolder - *** Tue, 19 Jan 2010 19:28:41 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             春运 
+order of differencing (d):     2 
+adjusted sample range:         [14, 41], T = 28
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=0, q=2
+Hannan-Quinn Criterion:   p=0, q=2
+Schwarz Criterion:        p=0, q=2
+
+2010-01-19 19:28:42,015 INFO  component.SystemOutHolder - *** Tue, 19 Jan 2010 19:28:42 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             春运 
+order of differencing (d):     2 
+adjusted sample range:         [14, 41], T = 28
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=0, q=2
+Hannan-Quinn Criterion:   p=0, q=2
+Schwarz Criterion:        p=0, q=2
+
+2010-01-19 19:28:42,203 INFO  component.SystemOutHolder - *** Tue, 19 Jan 2010 19:28:42 ***
+sample range:       [2, 41], T = 40
+Model:  ARIMA(1,1,0)
+
+
+Final Results:
+
+Iterations Until Convergence:   4
+
+Log Likelihood:    -98.974745         Number of Residuals: 40    
+AIC           :    201.949490         Error Variance     : 8.538666829      
+SBC           :    205.327249         Standard Error     : 2.922099729      
+
+DF: 38      Adj. SSE: 330.213570843        SSE: 324.469339484    
+
+Dependent Variable:             春运 
+
+            Coefficients     Std. Errors      T-Ratio    Approx. Prob.
+AR1           0.71019630      0.12239872      5.80232          0.00000
+const         3.52570859      1.51119584      2.33306          0.02504
+
+Total Computation Time: 0.00 (seconds)
+
+AR Root:   1.40806 
+
+
+2010-01-19 19:28:42,234 INFO  component.SystemOutHolder - *** Tue, 19 Jan 2010 19:28:42 ***
+PORTMANTEAU TEST with 10 lags
+
+Portmanteau:               4.4633      
+ p-Value (Chi^2):          0.8131      
+Ljung & Box:               5.3935      
+ p-Value (Chi^2):          0.7148      
+
+
+2010-01-19 19:28:42,281 INFO  component.SystemOutHolder - *** Tue, 19 Jan 2010 19:28:42 ***
+
+forecasted variable: 春运 (in levels)
+forecast range:      [42, 51], T = 10
+
+time           lower CI             forecast             upper CI             std. err            
+42              129.1067             134.8339             140.5611             2.9221             
+43              130.7833             142.1295             153.4757             5.7890             
+44              131.3148             148.3326             165.3503             8.6827             
+45              131.2493             153.7597             176.2701             11.4851            
+46              130.9069             158.6358             186.3648             14.1477            
+47              130.4763             163.1206             195.7649             16.6556            
+48              130.0680             167.3274             204.5869             19.0103            
+49              129.7447             171.3368             212.9289             21.2208            
+50              129.5401             175.2061             220.8720             23.2994            
+51              129.4697             178.9758             228.4818             25.2586            
+
+2010-01-19 19:29:33,390 INFO  cfg.Environment - Hibernate 3.1.3
+2010-01-19 19:29:33,406 INFO  cfg.Environment - hibernate.properties not found
+2010-01-19 19:29:33,406 INFO  cfg.Environment - using CGLIB reflection optimizer
+2010-01-19 19:29:33,406 INFO  cfg.Environment - using JDK 1.4 java.sql.Timestamp handling
+2010-01-19 19:29:33,531 INFO  cfg.Configuration - configuring from resource: /hibernate.cfg.xml
+2010-01-19 19:29:33,531 INFO  cfg.Configuration - Configuration resource: /hibernate.cfg.xml
+2010-01-19 19:29:33,578 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbCluster.hbm.xml
+2010-01-19 19:29:33,765 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbCluster -> tb_cluster
+2010-01-19 19:29:33,796 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbClusterTopic.hbm.xml
+2010-01-19 19:29:33,859 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbClusterTopic -> tb_cluster_topic
+2010-01-19 19:29:33,968 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbHotTopic.hbm.xml
+2010-01-19 19:29:34,000 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbHotTopic -> tb_hot_topic
+2010-01-19 19:29:34,000 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbParserBbs.hbm.xml
+2010-01-19 19:29:34,031 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbParserBbs -> tb_parser_bbs
+2010-01-19 19:29:34,046 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbParserNews.hbm.xml
+2010-01-19 19:29:34,062 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbParserNews -> tb_parser_news
+2010-01-19 19:29:34,062 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbReBbs.hbm.xml
+2010-01-19 19:29:34,093 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbReBbs -> tb_re_bbs
+2010-01-19 19:29:34,093 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbReNews.hbm.xml
+2010-01-19 19:29:34,125 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbReNews -> tb_re_news
+2010-01-19 19:29:34,125 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbSensitiveTopic.hbm.xml
+2010-01-19 19:29:34,140 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbSensitiveTopic -> tb_sensitive_topic
+2010-01-19 19:29:34,140 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbAuRef.hbm.xml
+2010-01-19 19:29:34,156 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbAuRef -> tb_au_ref
+2010-01-19 19:29:34,171 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbUser.hbm.xml
+2010-01-19 19:29:34,187 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbUser -> tb_user
+2010-01-19 19:29:34,187 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbAu.hbm.xml
+2010-01-19 19:29:34,203 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbAu -> tb_au
+2010-01-19 19:29:34,203 INFO  cfg.Configuration - Configured SessionFactory: null
+2010-01-19 19:29:34,203 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbCluster.tbSensitiveTopics -> tb_sensitive_topic
+2010-01-19 19:29:34,203 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbCluster.tbHotTopics -> tb_hot_topic
+2010-01-19 19:29:34,203 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbCluster.tbClusterTopics -> tb_cluster_topic
+2010-01-19 19:29:34,203 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbParserBbs.tbSensitiveTopics -> tb_sensitive_topic
+2010-01-19 19:29:34,203 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbParserBbs.tbClusterTopics -> tb_cluster_topic
+2010-01-19 19:29:34,218 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbParserBbs.tbReBbses -> tb_re_bbs
+2010-01-19 19:29:34,218 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbParserNews.tbClusterTopics -> tb_cluster_topic
+2010-01-19 19:29:34,218 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbParserNews.tbReNewses -> tb_re_news
+2010-01-19 19:29:34,218 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbParserNews.tbSensitiveTopics -> tb_sensitive_topic
+2010-01-19 19:29:34,218 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbReBbs.tbSensitiveTopics -> tb_sensitive_topic
+2010-01-19 19:29:34,218 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbReNews.tbSensitiveTopics -> tb_sensitive_topic
+2010-01-19 19:29:34,218 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbUser.tbAuRefs -> tb_au_ref
+2010-01-19 19:29:34,218 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbAu.tbAuRefs -> tb_au_ref
+2010-01-19 19:29:34,234 INFO  connection.DriverManagerConnectionProvider - Using Hibernate built-in connection pool (not for production use!)
+2010-01-19 19:29:34,234 INFO  connection.DriverManagerConnectionProvider - Hibernate connection pool size: 20
+2010-01-19 19:29:34,234 INFO  connection.DriverManagerConnectionProvider - autocommit mode: false
+2010-01-19 19:29:34,250 INFO  connection.DriverManagerConnectionProvider - using driver: com.mysql.jdbc.Driver at URL: jdbc:mysql://192.168.198.21:3306/yqfx
+2010-01-19 19:29:34,250 INFO  connection.DriverManagerConnectionProvider - connection properties: {user=yqfx, password=****}
+2010-01-19 19:29:39,093 INFO  cfg.SettingsFactory - RDBMS: MySQL, version: 5.0.41-community-nt
+2010-01-19 19:29:39,093 INFO  cfg.SettingsFactory - JDBC driver: MySQL-AB JDBC Driver, version: mysql-connector-java-5.0.8 ( Revision: ${svn.Revision} )
+2010-01-19 19:29:39,140 INFO  dialect.Dialect - Using dialect: org.hibernate.dialect.MySQLDialect
+2010-01-19 19:29:39,140 INFO  transaction.TransactionFactoryFactory - Using default transaction strategy (direct JDBC transactions)
+2010-01-19 19:29:39,156 INFO  transaction.TransactionManagerLookupFactory - No TransactionManagerLookup configured (in JTA environment, use of read-write or transactional second-level cache is not recommended)
+2010-01-19 19:29:39,156 INFO  cfg.SettingsFactory - Automatic flush during beforeCompletion(): disabled
+2010-01-19 19:29:39,156 INFO  cfg.SettingsFactory - Automatic session close at end of transaction: disabled
+2010-01-19 19:29:39,156 INFO  cfg.SettingsFactory - JDBC batch size: 50
+2010-01-19 19:29:39,156 INFO  cfg.SettingsFactory - JDBC batch updates for versioned data: disabled
+2010-01-19 19:29:39,156 INFO  cfg.SettingsFactory - Scrollable result sets: enabled
+2010-01-19 19:29:39,156 INFO  cfg.SettingsFactory - JDBC3 getGeneratedKeys(): enabled
+2010-01-19 19:29:39,156 INFO  cfg.SettingsFactory - JDBC result set fetch size: 50
+2010-01-19 19:29:39,156 INFO  cfg.SettingsFactory - Connection release mode: auto
+2010-01-19 19:29:39,156 INFO  cfg.SettingsFactory - Maximum outer join fetch depth: 3
+2010-01-19 19:29:39,156 INFO  cfg.SettingsFactory - Default batch fetch size: 4
+2010-01-19 19:29:39,156 INFO  cfg.SettingsFactory - Generate SQL with comments: disabled
+2010-01-19 19:29:39,156 INFO  cfg.SettingsFactory - Order SQL updates by primary key: disabled
+2010-01-19 19:29:39,156 INFO  cfg.SettingsFactory - Query translator: org.hibernate.hql.ast.ASTQueryTranslatorFactory
+2010-01-19 19:29:39,156 INFO  ast.ASTQueryTranslatorFactory - Using ASTQueryTranslatorFactory
+2010-01-19 19:29:39,156 INFO  cfg.SettingsFactory - Query language substitutions: {}
+2010-01-19 19:29:39,156 INFO  cfg.SettingsFactory - Second-level cache: enabled
+2010-01-19 19:29:39,156 INFO  cfg.SettingsFactory - Query cache: disabled
+2010-01-19 19:29:39,156 INFO  cfg.SettingsFactory - Cache provider: org.hibernate.cache.EhCacheProvider
+2010-01-19 19:29:39,171 INFO  cfg.SettingsFactory - Optimize cache for minimal puts: disabled
+2010-01-19 19:29:39,171 INFO  cfg.SettingsFactory - Structured second-level cache entries: disabled
+2010-01-19 19:29:39,171 INFO  cfg.SettingsFactory - Echoing all SQL to stdout
+2010-01-19 19:29:39,171 INFO  cfg.SettingsFactory - Statistics: disabled
+2010-01-19 19:29:39,171 INFO  cfg.SettingsFactory - Deleted entity synthetic identifier rollback: disabled
+2010-01-19 19:29:39,171 INFO  cfg.SettingsFactory - Default entity-mode: pojo
+2010-01-19 19:29:39,250 INFO  impl.SessionFactoryImpl - building session factory
+2010-01-19 19:29:40,250 INFO  impl.SessionFactoryObjectFactory - Not binding factory to JNDI, no JNDI name configured
+2010-01-19 19:29:42,406 INFO  model.GaussPCall - GRTE:               true
+2010-01-19 19:29:43,093 INFO  component.SystemOutHolder - *** Tue, 19 Jan 2010 19:29:43 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             春运 
+order of differencing (d):     0 
+adjusted sample range:         [12, 41], T = 30
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=1, q=3
+Hannan-Quinn Criterion:   p=1, q=3
+Schwarz Criterion:        p=1, q=1
+
+2010-01-19 19:29:43,375 INFO  component.SystemOutHolder - *** Tue, 19 Jan 2010 19:29:43 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             春运 
+order of differencing (d):     0 
+adjusted sample range:         [12, 41], T = 30
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=2, q=0
+Hannan-Quinn Criterion:   p=2, q=0
+Schwarz Criterion:        p=0, q=0
+
+2010-01-19 19:29:43,468 INFO  component.SystemOutHolder - *** Tue, 19 Jan 2010 19:29:43 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             春运 
+order of differencing (d):     1 
+adjusted sample range:         [13, 41], T = 29
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=0, q=2
+Hannan-Quinn Criterion:   p=0, q=0
+Schwarz Criterion:        p=0, q=0
+
+2010-01-19 19:29:43,562 INFO  component.SystemOutHolder - *** Tue, 19 Jan 2010 19:29:43 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             春运 
+order of differencing (d):     1 
+adjusted sample range:         [13, 41], T = 29
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=0, q=2
+Hannan-Quinn Criterion:   p=0, q=2
+Schwarz Criterion:        p=0, q=0
+
+2010-01-19 19:29:43,671 INFO  component.SystemOutHolder - *** Tue, 19 Jan 2010 19:29:43 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             春运 
+order of differencing (d):     2 
+adjusted sample range:         [14, 41], T = 28
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=0, q=0
+Hannan-Quinn Criterion:   p=0, q=0
+Schwarz Criterion:        p=0, q=0
+
+2010-01-19 19:29:43,781 INFO  component.SystemOutHolder - *** Tue, 19 Jan 2010 19:29:43 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             春运 
+order of differencing (d):     2 
+adjusted sample range:         [14, 41], T = 28
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=0, q=0
+Hannan-Quinn Criterion:   p=0, q=0
+Schwarz Criterion:        p=0, q=0
+
+2010-01-19 19:29:43,921 INFO  component.SystemOutHolder - *** Tue, 19 Jan 2010 19:29:43 ***
+sample range:       [2, 41], T = 40
+Model:  ARIMA(0,1,0)
+
+
+Final Results:
+
+Iterations Until Convergence:   1
+
+Log Likelihood:   -206.126943         Number of Residuals: 40    
+AIC           :    414.253887         Error Variance     : 1796.845512821   
+SBC           :    415.942766         Standard Error     : 42.389214581     
+
+DF: 39      Adj. SSE: 70076.975000000      SSE: 70076.975000000  
+
+Dependent Variable:             春运 
+
+            Coefficients     Std. Errors      T-Ratio    Approx. Prob.
+const         9.77500028      6.70232334      1.45845          0.15272
+Total Computation Time: 0.00 (seconds)
+
+
+2010-01-19 19:29:44,000 INFO  component.SystemOutHolder - *** Tue, 19 Jan 2010 19:29:44 ***
+PORTMANTEAU TEST with 10 lags
+
+Portmanteau:               0.1584      
+ p-Value (Chi^2):          1.0000      
+Ljung & Box:               0.1910      
+ p-Value (Chi^2):          1.0000      
+
+
+2010-01-19 19:29:44,109 INFO  component.SystemOutHolder - *** Tue, 19 Jan 2010 19:29:44 ***
+
+forecasted variable: 春运 (in levels)
+forecast range:      [42, 51], T = 10
+
+time           lower CI             forecast             upper CI             std. err            
+42              319.6937             402.7750             485.8563             42.3892            
+43              295.0553             412.5500             530.0447             59.9474            
+44              278.4239             422.3250             566.2261             73.4203            
+45              265.9373             432.1000             598.2627             84.7784            
+46              256.0995             441.8750             627.6505             94.7852            
+47              248.1431             451.6500             655.1569             103.8319           
+48              241.6125             461.4250             681.2375             112.1513           
+49              236.2105             471.2000             706.1895             119.8948           
+50              231.7310             480.9750             730.2190             127.1676           
+51              228.0238             490.7500             753.4762             134.0465           
+
+2010-01-19 19:30:20,687 INFO  cfg.Environment - Hibernate 3.1.3
+2010-01-19 19:30:20,703 INFO  cfg.Environment - hibernate.properties not found
+2010-01-19 19:30:20,703 INFO  cfg.Environment - using CGLIB reflection optimizer
+2010-01-19 19:30:20,703 INFO  cfg.Environment - using JDK 1.4 java.sql.Timestamp handling
+2010-01-19 19:30:20,812 INFO  cfg.Configuration - configuring from resource: /hibernate.cfg.xml
+2010-01-19 19:30:20,812 INFO  cfg.Configuration - Configuration resource: /hibernate.cfg.xml
+2010-01-19 19:30:20,875 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbCluster.hbm.xml
+2010-01-19 19:30:21,062 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbCluster -> tb_cluster
+2010-01-19 19:30:21,109 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbClusterTopic.hbm.xml
+2010-01-19 19:30:21,156 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbClusterTopic -> tb_cluster_topic
+2010-01-19 19:30:21,265 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbHotTopic.hbm.xml
+2010-01-19 19:30:21,312 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbHotTopic -> tb_hot_topic
+2010-01-19 19:30:21,312 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbParserBbs.hbm.xml
+2010-01-19 19:30:21,343 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbParserBbs -> tb_parser_bbs
+2010-01-19 19:30:21,343 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbParserNews.hbm.xml
+2010-01-19 19:30:21,375 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbParserNews -> tb_parser_news
+2010-01-19 19:30:21,375 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbReBbs.hbm.xml
+2010-01-19 19:30:21,406 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbReBbs -> tb_re_bbs
+2010-01-19 19:30:21,406 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbReNews.hbm.xml
+2010-01-19 19:30:21,421 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbReNews -> tb_re_news
+2010-01-19 19:30:21,437 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbSensitiveTopic.hbm.xml
+2010-01-19 19:30:21,453 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbSensitiveTopic -> tb_sensitive_topic
+2010-01-19 19:30:21,453 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbAuRef.hbm.xml
+2010-01-19 19:30:21,468 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbAuRef -> tb_au_ref
+2010-01-19 19:30:21,468 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbUser.hbm.xml
+2010-01-19 19:30:21,500 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbUser -> tb_user
+2010-01-19 19:30:21,500 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbAu.hbm.xml
+2010-01-19 19:30:21,515 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbAu -> tb_au
+2010-01-19 19:30:21,515 INFO  cfg.Configuration - Configured SessionFactory: null
+2010-01-19 19:30:21,515 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbCluster.tbSensitiveTopics -> tb_sensitive_topic
+2010-01-19 19:30:21,515 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbCluster.tbHotTopics -> tb_hot_topic
+2010-01-19 19:30:21,515 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbCluster.tbClusterTopics -> tb_cluster_topic
+2010-01-19 19:30:21,515 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbParserBbs.tbSensitiveTopics -> tb_sensitive_topic
+2010-01-19 19:30:21,515 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbParserBbs.tbClusterTopics -> tb_cluster_topic
+2010-01-19 19:30:21,515 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbParserBbs.tbReBbses -> tb_re_bbs
+2010-01-19 19:30:21,515 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbParserNews.tbClusterTopics -> tb_cluster_topic
+2010-01-19 19:30:21,515 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbParserNews.tbReNewses -> tb_re_news
+2010-01-19 19:30:21,515 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbParserNews.tbSensitiveTopics -> tb_sensitive_topic
+2010-01-19 19:30:21,515 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbReBbs.tbSensitiveTopics -> tb_sensitive_topic
+2010-01-19 19:30:21,515 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbReNews.tbSensitiveTopics -> tb_sensitive_topic
+2010-01-19 19:30:21,515 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbUser.tbAuRefs -> tb_au_ref
+2010-01-19 19:30:21,515 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbAu.tbAuRefs -> tb_au_ref
+2010-01-19 19:30:21,531 INFO  connection.DriverManagerConnectionProvider - Using Hibernate built-in connection pool (not for production use!)
+2010-01-19 19:30:21,531 INFO  connection.DriverManagerConnectionProvider - Hibernate connection pool size: 20
+2010-01-19 19:30:21,531 INFO  connection.DriverManagerConnectionProvider - autocommit mode: false
+2010-01-19 19:30:21,546 INFO  connection.DriverManagerConnectionProvider - using driver: com.mysql.jdbc.Driver at URL: jdbc:mysql://192.168.198.21:3306/yqfx
+2010-01-19 19:30:21,546 INFO  connection.DriverManagerConnectionProvider - connection properties: {user=yqfx, password=****}
+2010-01-19 19:30:26,406 INFO  cfg.SettingsFactory - RDBMS: MySQL, version: 5.0.41-community-nt
+2010-01-19 19:30:26,406 INFO  cfg.SettingsFactory - JDBC driver: MySQL-AB JDBC Driver, version: mysql-connector-java-5.0.8 ( Revision: ${svn.Revision} )
+2010-01-19 19:30:26,453 INFO  dialect.Dialect - Using dialect: org.hibernate.dialect.MySQLDialect
+2010-01-19 19:30:26,453 INFO  transaction.TransactionFactoryFactory - Using default transaction strategy (direct JDBC transactions)
+2010-01-19 19:30:26,468 INFO  transaction.TransactionManagerLookupFactory - No TransactionManagerLookup configured (in JTA environment, use of read-write or transactional second-level cache is not recommended)
+2010-01-19 19:30:26,468 INFO  cfg.SettingsFactory - Automatic flush during beforeCompletion(): disabled
+2010-01-19 19:30:26,468 INFO  cfg.SettingsFactory - Automatic session close at end of transaction: disabled
+2010-01-19 19:30:26,468 INFO  cfg.SettingsFactory - JDBC batch size: 50
+2010-01-19 19:30:26,468 INFO  cfg.SettingsFactory - JDBC batch updates for versioned data: disabled
+2010-01-19 19:30:26,468 INFO  cfg.SettingsFactory - Scrollable result sets: enabled
+2010-01-19 19:30:26,468 INFO  cfg.SettingsFactory - JDBC3 getGeneratedKeys(): enabled
+2010-01-19 19:30:26,468 INFO  cfg.SettingsFactory - JDBC result set fetch size: 50
+2010-01-19 19:30:26,468 INFO  cfg.SettingsFactory - Connection release mode: auto
+2010-01-19 19:30:26,468 INFO  cfg.SettingsFactory - Maximum outer join fetch depth: 3
+2010-01-19 19:30:26,468 INFO  cfg.SettingsFactory - Default batch fetch size: 4
+2010-01-19 19:30:26,468 INFO  cfg.SettingsFactory - Generate SQL with comments: disabled
+2010-01-19 19:30:26,468 INFO  cfg.SettingsFactory - Order SQL updates by primary key: disabled
+2010-01-19 19:30:26,468 INFO  cfg.SettingsFactory - Query translator: org.hibernate.hql.ast.ASTQueryTranslatorFactory
+2010-01-19 19:30:26,468 INFO  ast.ASTQueryTranslatorFactory - Using ASTQueryTranslatorFactory
+2010-01-19 19:30:26,468 INFO  cfg.SettingsFactory - Query language substitutions: {}
+2010-01-19 19:30:26,468 INFO  cfg.SettingsFactory - Second-level cache: enabled
+2010-01-19 19:30:26,468 INFO  cfg.SettingsFactory - Query cache: disabled
+2010-01-19 19:30:26,468 INFO  cfg.SettingsFactory - Cache provider: org.hibernate.cache.EhCacheProvider
+2010-01-19 19:30:26,484 INFO  cfg.SettingsFactory - Optimize cache for minimal puts: disabled
+2010-01-19 19:30:26,484 INFO  cfg.SettingsFactory - Structured second-level cache entries: disabled
+2010-01-19 19:30:26,484 INFO  cfg.SettingsFactory - Echoing all SQL to stdout
+2010-01-19 19:30:26,484 INFO  cfg.SettingsFactory - Statistics: disabled
+2010-01-19 19:30:26,484 INFO  cfg.SettingsFactory - Deleted entity synthetic identifier rollback: disabled
+2010-01-19 19:30:26,484 INFO  cfg.SettingsFactory - Default entity-mode: pojo
+2010-01-19 19:30:26,546 INFO  impl.SessionFactoryImpl - building session factory
+2010-01-19 19:30:27,578 INFO  impl.SessionFactoryObjectFactory - Not binding factory to JNDI, no JNDI name configured
+2010-01-19 19:30:30,828 INFO  model.GaussPCall - GRTE:               true
+2010-01-19 19:30:31,531 INFO  component.SystemOutHolder - *** Tue, 19 Jan 2010 19:30:31 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             京沪高铁 
+order of differencing (d):     0 
+adjusted sample range:         [12, 41], T = 30
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=3, q=0
+Hannan-Quinn Criterion:   p=2, q=0
+Schwarz Criterion:        p=2, q=0
+
+2010-01-19 19:30:31,843 INFO  component.SystemOutHolder - *** Tue, 19 Jan 2010 19:30:31 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             京沪高铁 
+order of differencing (d):     0 
+adjusted sample range:         [12, 41], T = 30
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=2, q=0
+Hannan-Quinn Criterion:   p=2, q=0
+Schwarz Criterion:        p=2, q=0
+
+2010-01-19 19:30:31,937 INFO  component.SystemOutHolder - *** Tue, 19 Jan 2010 19:30:31 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             京沪高铁 
+order of differencing (d):     1 
+adjusted sample range:         [13, 41], T = 29
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=2, q=0
+Hannan-Quinn Criterion:   p=2, q=0
+Schwarz Criterion:        p=2, q=0
+
+2010-01-19 19:30:32,015 INFO  component.SystemOutHolder - *** Tue, 19 Jan 2010 19:30:32 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             京沪高铁 
+order of differencing (d):     1 
+adjusted sample range:         [13, 41], T = 29
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=2, q=1
+Hannan-Quinn Criterion:   p=2, q=1
+Schwarz Criterion:        p=2, q=0
+
+2010-01-19 19:30:32,125 INFO  component.SystemOutHolder - *** Tue, 19 Jan 2010 19:30:32 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             京沪高铁 
+order of differencing (d):     2 
+adjusted sample range:         [14, 41], T = 28
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=1, q=0
+Hannan-Quinn Criterion:   p=1, q=0
+Schwarz Criterion:        p=1, q=0
+
+2010-01-19 19:30:32,234 INFO  component.SystemOutHolder - *** Tue, 19 Jan 2010 19:30:32 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             京沪高铁 
+order of differencing (d):     2 
+adjusted sample range:         [14, 41], T = 28
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=1, q=0
+Hannan-Quinn Criterion:   p=1, q=0
+Schwarz Criterion:        p=1, q=0
+
+2010-01-19 19:30:32,390 INFO  component.SystemOutHolder - *** Tue, 19 Jan 2010 19:30:32 ***
+sample range:       [3, 41], T = 39
+Model:  ARIMA(1,2,0)
+
+
+Final Results:
+
+Iterations Until Convergence:   7
+
+Log Likelihood:   -175.362993         Number of Residuals: 39    
+AIC           :    354.725985         Error Variance     : 486.031592767    
+SBC           :    358.053109         Standard Error     : 22.046124212     
+
+DF: 37      Adj. SSE: 18373.387428140      SSE: 17983.168932369  
+
+Dependent Variable:         京沪高铁 
+
+            Coefficients     Std. Errors      T-Ratio    Approx. Prob.
+AR1           0.75305045      0.19020396      3.95917          0.00033
+const        12.06927031     15.12235532      0.79811          0.42990
+
+Total Computation Time: 0.03 (seconds)
+
+AR Root:   1.32793 
+
+
+2010-01-19 19:30:32,453 INFO  component.SystemOutHolder - *** Tue, 19 Jan 2010 19:30:32 ***
+PORTMANTEAU TEST with 10 lags
+
+Portmanteau:               2.3447      
+ p-Value (Chi^2):          0.9686      
+Ljung & Box:               3.1443      
+ p-Value (Chi^2):          0.9250      
+
+
+2010-01-19 19:30:32,609 INFO  component.SystemOutHolder - *** Tue, 19 Jan 2010 19:30:32 ***
+
+forecasted variable: 京沪高铁 (in levels)
+forecast range:      [42, 51], T = 10
+
+time           lower CI             forecast             upper CI             std. err            
+42              1094.1369            1137.3466            1180.5562            22.0461            
+43              1411.4055            1537.9683            1664.5310            64.5740            
+44              1743.6273            1996.7504            2249.8735            129.1468           
+45              2080.1049            2502.3107            2924.5166            215.4151           
+46              2413.9053            3046.0779            3678.2505            322.5430           
+47              2740.6197            3621.5973            4502.5749            449.4867           
+48              3057.5531            4224.0082            5390.4633            595.1411           
+49              3363.1785            4849.6502            6336.1219            758.4179           
+50              3656.7613            5495.7670            7334.7727            938.2855           
+51              3938.0994            6160.2828            8382.4661            1133.7879          
+
+2010-01-19 19:31:09,453 INFO  cfg.Environment - Hibernate 3.1.3
+2010-01-19 19:31:09,453 INFO  cfg.Environment - hibernate.properties not found
+2010-01-19 19:31:09,468 INFO  cfg.Environment - using CGLIB reflection optimizer
+2010-01-19 19:31:09,468 INFO  cfg.Environment - using JDK 1.4 java.sql.Timestamp handling
+2010-01-19 19:31:09,578 INFO  cfg.Configuration - configuring from resource: /hibernate.cfg.xml
+2010-01-19 19:31:09,578 INFO  cfg.Configuration - Configuration resource: /hibernate.cfg.xml
+2010-01-19 19:31:09,640 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbCluster.hbm.xml
+2010-01-19 19:31:09,812 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbCluster -> tb_cluster
+2010-01-19 19:31:09,859 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbClusterTopic.hbm.xml
+2010-01-19 19:31:09,906 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbClusterTopic -> tb_cluster_topic
+2010-01-19 19:31:10,015 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbHotTopic.hbm.xml
+2010-01-19 19:31:10,062 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbHotTopic -> tb_hot_topic
+2010-01-19 19:31:10,062 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbParserBbs.hbm.xml
+2010-01-19 19:31:10,093 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbParserBbs -> tb_parser_bbs
+2010-01-19 19:31:10,093 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbParserNews.hbm.xml
+2010-01-19 19:31:10,125 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbParserNews -> tb_parser_news
+2010-01-19 19:31:10,125 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbReBbs.hbm.xml
+2010-01-19 19:31:10,156 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbReBbs -> tb_re_bbs
+2010-01-19 19:31:10,156 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbReNews.hbm.xml
+2010-01-19 19:31:10,171 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbReNews -> tb_re_news
+2010-01-19 19:31:10,171 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbSensitiveTopic.hbm.xml
+2010-01-19 19:31:10,203 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbSensitiveTopic -> tb_sensitive_topic
+2010-01-19 19:31:10,203 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbAuRef.hbm.xml
+2010-01-19 19:31:10,218 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbAuRef -> tb_au_ref
+2010-01-19 19:31:10,218 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbUser.hbm.xml
+2010-01-19 19:31:10,250 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbUser -> tb_user
+2010-01-19 19:31:10,250 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbAu.hbm.xml
+2010-01-19 19:31:10,265 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbAu -> tb_au
+2010-01-19 19:31:10,265 INFO  cfg.Configuration - Configured SessionFactory: null
+2010-01-19 19:31:10,265 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbCluster.tbSensitiveTopics -> tb_sensitive_topic
+2010-01-19 19:31:10,265 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbCluster.tbHotTopics -> tb_hot_topic
+2010-01-19 19:31:10,265 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbCluster.tbClusterTopics -> tb_cluster_topic
+2010-01-19 19:31:10,265 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbParserBbs.tbSensitiveTopics -> tb_sensitive_topic
+2010-01-19 19:31:10,265 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbParserBbs.tbClusterTopics -> tb_cluster_topic
+2010-01-19 19:31:10,265 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbParserBbs.tbReBbses -> tb_re_bbs
+2010-01-19 19:31:10,265 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbParserNews.tbClusterTopics -> tb_cluster_topic
+2010-01-19 19:31:10,265 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbParserNews.tbReNewses -> tb_re_news
+2010-01-19 19:31:10,265 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbParserNews.tbSensitiveTopics -> tb_sensitive_topic
+2010-01-19 19:31:10,265 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbReBbs.tbSensitiveTopics -> tb_sensitive_topic
+2010-01-19 19:31:10,265 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbReNews.tbSensitiveTopics -> tb_sensitive_topic
+2010-01-19 19:31:10,265 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbUser.tbAuRefs -> tb_au_ref
+2010-01-19 19:31:10,265 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbAu.tbAuRefs -> tb_au_ref
+2010-01-19 19:31:10,281 INFO  connection.DriverManagerConnectionProvider - Using Hibernate built-in connection pool (not for production use!)
+2010-01-19 19:31:10,281 INFO  connection.DriverManagerConnectionProvider - Hibernate connection pool size: 20
+2010-01-19 19:31:10,281 INFO  connection.DriverManagerConnectionProvider - autocommit mode: false
+2010-01-19 19:31:10,296 INFO  connection.DriverManagerConnectionProvider - using driver: com.mysql.jdbc.Driver at URL: jdbc:mysql://192.168.198.21:3306/yqfx
+2010-01-19 19:31:10,296 INFO  connection.DriverManagerConnectionProvider - connection properties: {user=yqfx, password=****}
+2010-01-19 19:31:15,156 INFO  cfg.SettingsFactory - RDBMS: MySQL, version: 5.0.41-community-nt
+2010-01-19 19:31:15,156 INFO  cfg.SettingsFactory - JDBC driver: MySQL-AB JDBC Driver, version: mysql-connector-java-5.0.8 ( Revision: ${svn.Revision} )
+2010-01-19 19:31:15,203 INFO  dialect.Dialect - Using dialect: org.hibernate.dialect.MySQLDialect
+2010-01-19 19:31:15,203 INFO  transaction.TransactionFactoryFactory - Using default transaction strategy (direct JDBC transactions)
+2010-01-19 19:31:15,203 INFO  transaction.TransactionManagerLookupFactory - No TransactionManagerLookup configured (in JTA environment, use of read-write or transactional second-level cache is not recommended)
+2010-01-19 19:31:15,203 INFO  cfg.SettingsFactory - Automatic flush during beforeCompletion(): disabled
+2010-01-19 19:31:15,203 INFO  cfg.SettingsFactory - Automatic session close at end of transaction: disabled
+2010-01-19 19:31:15,203 INFO  cfg.SettingsFactory - JDBC batch size: 50
+2010-01-19 19:31:15,203 INFO  cfg.SettingsFactory - JDBC batch updates for versioned data: disabled
+2010-01-19 19:31:15,203 INFO  cfg.SettingsFactory - Scrollable result sets: enabled
+2010-01-19 19:31:15,203 INFO  cfg.SettingsFactory - JDBC3 getGeneratedKeys(): enabled
+2010-01-19 19:31:15,203 INFO  cfg.SettingsFactory - JDBC result set fetch size: 50
+2010-01-19 19:31:15,203 INFO  cfg.SettingsFactory - Connection release mode: auto
+2010-01-19 19:31:15,218 INFO  cfg.SettingsFactory - Maximum outer join fetch depth: 3
+2010-01-19 19:31:15,218 INFO  cfg.SettingsFactory - Default batch fetch size: 4
+2010-01-19 19:31:15,218 INFO  cfg.SettingsFactory - Generate SQL with comments: disabled
+2010-01-19 19:31:15,218 INFO  cfg.SettingsFactory - Order SQL updates by primary key: disabled
+2010-01-19 19:31:15,218 INFO  cfg.SettingsFactory - Query translator: org.hibernate.hql.ast.ASTQueryTranslatorFactory
+2010-01-19 19:31:15,218 INFO  ast.ASTQueryTranslatorFactory - Using ASTQueryTranslatorFactory
+2010-01-19 19:31:15,218 INFO  cfg.SettingsFactory - Query language substitutions: {}
+2010-01-19 19:31:15,218 INFO  cfg.SettingsFactory - Second-level cache: enabled
+2010-01-19 19:31:15,218 INFO  cfg.SettingsFactory - Query cache: disabled
+2010-01-19 19:31:15,218 INFO  cfg.SettingsFactory - Cache provider: org.hibernate.cache.EhCacheProvider
+2010-01-19 19:31:15,218 INFO  cfg.SettingsFactory - Optimize cache for minimal puts: disabled
+2010-01-19 19:31:15,218 INFO  cfg.SettingsFactory - Structured second-level cache entries: disabled
+2010-01-19 19:31:15,234 INFO  cfg.SettingsFactory - Echoing all SQL to stdout
+2010-01-19 19:31:15,234 INFO  cfg.SettingsFactory - Statistics: disabled
+2010-01-19 19:31:15,234 INFO  cfg.SettingsFactory - Deleted entity synthetic identifier rollback: disabled
+2010-01-19 19:31:15,234 INFO  cfg.SettingsFactory - Default entity-mode: pojo
+2010-01-19 19:31:15,296 INFO  impl.SessionFactoryImpl - building session factory
+2010-01-19 19:31:16,328 INFO  impl.SessionFactoryObjectFactory - Not binding factory to JNDI, no JNDI name configured
+2010-01-19 19:31:17,890 INFO  model.GaussPCall - GRTE:               true
+2010-01-19 19:31:18,593 INFO  component.SystemOutHolder - *** Tue, 19 Jan 2010 19:31:18 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             车票实名制 
+order of differencing (d):     0 
+adjusted sample range:         [12, 41], T = 30
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=3, q=0
+Hannan-Quinn Criterion:   p=3, q=0
+Schwarz Criterion:        p=1, q=0
+
+2010-01-19 19:31:18,968 INFO  component.SystemOutHolder - *** Tue, 19 Jan 2010 19:31:18 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             车票实名制 
+order of differencing (d):     0 
+adjusted sample range:         [12, 41], T = 30
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=1, q=0
+Hannan-Quinn Criterion:   p=1, q=0
+Schwarz Criterion:        p=1, q=0
+
+2010-01-19 19:31:19,031 INFO  component.SystemOutHolder - *** Tue, 19 Jan 2010 19:31:19 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             车票实名制 
+order of differencing (d):     1 
+adjusted sample range:         [13, 41], T = 29
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=0, q=0
+Hannan-Quinn Criterion:   p=0, q=0
+Schwarz Criterion:        p=0, q=0
+
+2010-01-19 19:31:19,140 INFO  component.SystemOutHolder - *** Tue, 19 Jan 2010 19:31:19 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             车票实名制 
+order of differencing (d):     1 
+adjusted sample range:         [13, 41], T = 29
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=0, q=0
+Hannan-Quinn Criterion:   p=0, q=0
+Schwarz Criterion:        p=0, q=0
+
+2010-01-19 19:31:19,250 INFO  component.SystemOutHolder - *** Tue, 19 Jan 2010 19:31:19 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             车票实名制 
+order of differencing (d):     2 
+adjusted sample range:         [14, 41], T = 28
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=1, q=0
+Hannan-Quinn Criterion:   p=1, q=0
+Schwarz Criterion:        p=1, q=0
+
+2010-01-19 19:31:19,359 INFO  component.SystemOutHolder - *** Tue, 19 Jan 2010 19:31:19 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             车票实名制 
+order of differencing (d):     2 
+adjusted sample range:         [14, 41], T = 28
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=1, q=0
+Hannan-Quinn Criterion:   p=1, q=0
+Schwarz Criterion:        p=1, q=0
+
+2010-01-19 19:31:19,500 INFO  component.SystemOutHolder - *** Tue, 19 Jan 2010 19:31:19 ***
+sample range:       [2, 41], T = 40
+Model:  ARIMA(0,1,0)
+
+
+Final Results:
+
+Iterations Until Convergence:   1
+
+Log Likelihood:   -160.721887         Number of Residuals: 40    
+AIC           :    323.443774         Error Variance     : 185.589102564    
+SBC           :    325.132654         Standard Error     : 13.623109137     
+
+DF: 39      Adj. SSE: 7237.975000000       SSE: 7237.975000000   
+
+Dependent Variable:         车票实名 
+
+            Coefficients     Std. Errors      T-Ratio    Approx. Prob.
+const         5.47500013      2.15400268      2.54178          0.01512
+Total Computation Time: 0.00 (seconds)
+
+
+2010-01-19 19:31:19,578 INFO  component.SystemOutHolder - *** Tue, 19 Jan 2010 19:31:19 ***
+PORTMANTEAU TEST with 10 lags
+
+Portmanteau:               3.0684      
+ p-Value (Chi^2):          0.9615      
+Ljung & Box:               3.8220      
+ p-Value (Chi^2):          0.9227      
+
+
+2010-01-19 19:31:19,687 INFO  component.SystemOutHolder - *** Tue, 19 Jan 2010 19:31:19 ***
+
+forecasted variable: 车票实名制 (in levels)
+forecast range:      [42, 51], T = 10
+
+time           lower CI             forecast             upper CI             std. err            
+42              201.7742             228.4750             255.1758             13.6231            
+43              196.1894             233.9500             271.7106             19.2660            
+44              193.1779             239.4250             285.6721             23.5959            
+45              191.4984             244.9000             298.3016             27.2462            
+46              190.6702             250.3750             310.0798             30.4622            
+47              190.4467             255.8500             321.2533             33.3697            
+48              190.6813             261.3250             331.9687             36.0434            
+49              191.2787             266.8000             342.3213             38.5320            
+50              192.1726             272.2750             352.3774             40.8693            
+51              193.3147             277.7500             362.1854             43.0801            
+
+2010-01-19 19:32:13,656 INFO  cfg.Environment - Hibernate 3.1.3
+2010-01-19 19:32:13,671 INFO  cfg.Environment - hibernate.properties not found
+2010-01-19 19:32:13,671 INFO  cfg.Environment - using CGLIB reflection optimizer
+2010-01-19 19:32:13,671 INFO  cfg.Environment - using JDK 1.4 java.sql.Timestamp handling
+2010-01-19 19:32:13,781 INFO  cfg.Configuration - configuring from resource: /hibernate.cfg.xml
+2010-01-19 19:32:13,781 INFO  cfg.Configuration - Configuration resource: /hibernate.cfg.xml
+2010-01-19 19:32:13,843 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbCluster.hbm.xml
+2010-01-19 19:32:14,031 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbCluster -> tb_cluster
+2010-01-19 19:32:14,062 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbClusterTopic.hbm.xml
+2010-01-19 19:32:14,109 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbClusterTopic -> tb_cluster_topic
+2010-01-19 19:32:14,218 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbHotTopic.hbm.xml
+2010-01-19 19:32:14,265 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbHotTopic -> tb_hot_topic
+2010-01-19 19:32:14,265 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbParserBbs.hbm.xml
+2010-01-19 19:32:14,296 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbParserBbs -> tb_parser_bbs
+2010-01-19 19:32:14,296 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbParserNews.hbm.xml
+2010-01-19 19:32:14,328 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbParserNews -> tb_parser_news
+2010-01-19 19:32:14,328 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbReBbs.hbm.xml
+2010-01-19 19:32:14,359 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbReBbs -> tb_re_bbs
+2010-01-19 19:32:14,359 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbReNews.hbm.xml
+2010-01-19 19:32:14,375 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbReNews -> tb_re_news
+2010-01-19 19:32:14,375 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbSensitiveTopic.hbm.xml
+2010-01-19 19:32:14,406 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbSensitiveTopic -> tb_sensitive_topic
+2010-01-19 19:32:14,406 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbAuRef.hbm.xml
+2010-01-19 19:32:14,421 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbAuRef -> tb_au_ref
+2010-01-19 19:32:14,421 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbUser.hbm.xml
+2010-01-19 19:32:14,453 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbUser -> tb_user
+2010-01-19 19:32:14,453 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbAu.hbm.xml
+2010-01-19 19:32:14,468 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbAu -> tb_au
+2010-01-19 19:32:14,468 INFO  cfg.Configuration - Configured SessionFactory: null
+2010-01-19 19:32:14,468 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbCluster.tbSensitiveTopics -> tb_sensitive_topic
+2010-01-19 19:32:14,468 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbCluster.tbHotTopics -> tb_hot_topic
+2010-01-19 19:32:14,468 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbCluster.tbClusterTopics -> tb_cluster_topic
+2010-01-19 19:32:14,468 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbParserBbs.tbSensitiveTopics -> tb_sensitive_topic
+2010-01-19 19:32:14,468 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbParserBbs.tbClusterTopics -> tb_cluster_topic
+2010-01-19 19:32:14,468 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbParserBbs.tbReBbses -> tb_re_bbs
+2010-01-19 19:32:14,468 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbParserNews.tbClusterTopics -> tb_cluster_topic
+2010-01-19 19:32:14,468 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbParserNews.tbReNewses -> tb_re_news
+2010-01-19 19:32:14,468 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbParserNews.tbSensitiveTopics -> tb_sensitive_topic
+2010-01-19 19:32:14,468 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbReBbs.tbSensitiveTopics -> tb_sensitive_topic
+2010-01-19 19:32:14,468 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbReNews.tbSensitiveTopics -> tb_sensitive_topic
+2010-01-19 19:32:14,468 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbUser.tbAuRefs -> tb_au_ref
+2010-01-19 19:32:14,468 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbAu.tbAuRefs -> tb_au_ref
+2010-01-19 19:32:14,484 INFO  connection.DriverManagerConnectionProvider - Using Hibernate built-in connection pool (not for production use!)
+2010-01-19 19:32:14,484 INFO  connection.DriverManagerConnectionProvider - Hibernate connection pool size: 20
+2010-01-19 19:32:14,484 INFO  connection.DriverManagerConnectionProvider - autocommit mode: false
+2010-01-19 19:32:14,500 INFO  connection.DriverManagerConnectionProvider - using driver: com.mysql.jdbc.Driver at URL: jdbc:mysql://192.168.198.21:3306/yqfx
+2010-01-19 19:32:14,500 INFO  connection.DriverManagerConnectionProvider - connection properties: {user=yqfx, password=****}
+2010-01-19 19:32:19,343 INFO  cfg.SettingsFactory - RDBMS: MySQL, version: 5.0.41-community-nt
+2010-01-19 19:32:19,343 INFO  cfg.SettingsFactory - JDBC driver: MySQL-AB JDBC Driver, version: mysql-connector-java-5.0.8 ( Revision: ${svn.Revision} )
+2010-01-19 19:32:19,390 INFO  dialect.Dialect - Using dialect: org.hibernate.dialect.MySQLDialect
+2010-01-19 19:32:19,406 INFO  transaction.TransactionFactoryFactory - Using default transaction strategy (direct JDBC transactions)
+2010-01-19 19:32:19,406 INFO  transaction.TransactionManagerLookupFactory - No TransactionManagerLookup configured (in JTA environment, use of read-write or transactional second-level cache is not recommended)
+2010-01-19 19:32:19,421 INFO  cfg.SettingsFactory - Automatic flush during beforeCompletion(): disabled
+2010-01-19 19:32:19,421 INFO  cfg.SettingsFactory - Automatic session close at end of transaction: disabled
+2010-01-19 19:32:19,421 INFO  cfg.SettingsFactory - JDBC batch size: 50
+2010-01-19 19:32:19,421 INFO  cfg.SettingsFactory - JDBC batch updates for versioned data: disabled
+2010-01-19 19:32:19,421 INFO  cfg.SettingsFactory - Scrollable result sets: enabled
+2010-01-19 19:32:19,421 INFO  cfg.SettingsFactory - JDBC3 getGeneratedKeys(): enabled
+2010-01-19 19:32:19,421 INFO  cfg.SettingsFactory - JDBC result set fetch size: 50
+2010-01-19 19:32:19,421 INFO  cfg.SettingsFactory - Connection release mode: auto
+2010-01-19 19:32:19,421 INFO  cfg.SettingsFactory - Maximum outer join fetch depth: 3
+2010-01-19 19:32:19,421 INFO  cfg.SettingsFactory - Default batch fetch size: 4
+2010-01-19 19:32:19,421 INFO  cfg.SettingsFactory - Generate SQL with comments: disabled
+2010-01-19 19:32:19,421 INFO  cfg.SettingsFactory - Order SQL updates by primary key: disabled
+2010-01-19 19:32:19,421 INFO  cfg.SettingsFactory - Query translator: org.hibernate.hql.ast.ASTQueryTranslatorFactory
+2010-01-19 19:32:19,421 INFO  ast.ASTQueryTranslatorFactory - Using ASTQueryTranslatorFactory
+2010-01-19 19:32:19,421 INFO  cfg.SettingsFactory - Query language substitutions: {}
+2010-01-19 19:32:19,421 INFO  cfg.SettingsFactory - Second-level cache: enabled
+2010-01-19 19:32:19,421 INFO  cfg.SettingsFactory - Query cache: disabled
+2010-01-19 19:32:19,421 INFO  cfg.SettingsFactory - Cache provider: org.hibernate.cache.EhCacheProvider
+2010-01-19 19:32:19,437 INFO  cfg.SettingsFactory - Optimize cache for minimal puts: disabled
+2010-01-19 19:32:19,437 INFO  cfg.SettingsFactory - Structured second-level cache entries: disabled
+2010-01-19 19:32:19,437 INFO  cfg.SettingsFactory - Echoing all SQL to stdout
+2010-01-19 19:32:19,437 INFO  cfg.SettingsFactory - Statistics: disabled
+2010-01-19 19:32:19,437 INFO  cfg.SettingsFactory - Deleted entity synthetic identifier rollback: disabled
+2010-01-19 19:32:19,437 INFO  cfg.SettingsFactory - Default entity-mode: pojo
+2010-01-19 19:32:19,500 INFO  impl.SessionFactoryImpl - building session factory
+2010-01-19 19:32:20,515 INFO  impl.SessionFactoryObjectFactory - Not binding factory to JNDI, no JNDI name configured
+2010-01-19 19:32:22,078 INFO  model.GaussPCall - GRTE:               true
+2010-01-19 19:32:22,796 INFO  component.SystemOutHolder - *** Tue, 19 Jan 2010 19:32:22 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             车票实名制 
+order of differencing (d):     0 
+adjusted sample range:         [12, 41], T = 30
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=2, q=1
+Hannan-Quinn Criterion:   p=2, q=1
+Schwarz Criterion:        p=2, q=0
+
+2010-01-19 19:32:23,078 INFO  component.SystemOutHolder - *** Tue, 19 Jan 2010 19:32:23 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             车票实名制 
+order of differencing (d):     0 
+adjusted sample range:         [12, 41], T = 30
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=2, q=0
+Hannan-Quinn Criterion:   p=2, q=0
+Schwarz Criterion:        p=1, q=0
+
+2010-01-19 19:32:23,171 INFO  component.SystemOutHolder - *** Tue, 19 Jan 2010 19:32:23 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             车票实名制 
+order of differencing (d):     1 
+adjusted sample range:         [13, 41], T = 29
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=0, q=0
+Hannan-Quinn Criterion:   p=0, q=0
+Schwarz Criterion:        p=0, q=0
+
+2010-01-19 19:32:23,281 INFO  component.SystemOutHolder - *** Tue, 19 Jan 2010 19:32:23 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             车票实名制 
+order of differencing (d):     1 
+adjusted sample range:         [13, 41], T = 29
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=0, q=0
+Hannan-Quinn Criterion:   p=0, q=0
+Schwarz Criterion:        p=0, q=0
+
+2010-01-19 19:32:23,390 INFO  component.SystemOutHolder - *** Tue, 19 Jan 2010 19:32:23 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             车票实名制 
+order of differencing (d):     2 
+adjusted sample range:         [14, 41], T = 28
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=0, q=0
+Hannan-Quinn Criterion:   p=0, q=0
+Schwarz Criterion:        p=0, q=0
+
+2010-01-19 19:32:23,500 INFO  component.SystemOutHolder - *** Tue, 19 Jan 2010 19:32:23 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             车票实名制 
+order of differencing (d):     2 
+adjusted sample range:         [14, 41], T = 28
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=0, q=0
+Hannan-Quinn Criterion:   p=0, q=0
+Schwarz Criterion:        p=0, q=0
+
+2010-01-19 19:32:23,640 INFO  component.SystemOutHolder - *** Tue, 19 Jan 2010 19:32:23 ***
+sample range:       [2, 41], T = 40
+Model:  ARIMA(0,1,0)
+
+
+Final Results:
+
+Iterations Until Convergence:   1
+
+Log Likelihood:   -160.721887         Number of Residuals: 40    
+AIC           :    323.443774         Error Variance     : 185.589102564    
+SBC           :    325.132654         Standard Error     : 13.623109137     
+
+DF: 39      Adj. SSE: 7237.975000000       SSE: 7237.975000000   
+
+Dependent Variable:         车票实名 
+
+            Coefficients     Std. Errors      T-Ratio    Approx. Prob.
+const         5.47500013      2.15400268      2.54178          0.01512
+Total Computation Time: 0.02 (seconds)
+
+
+2010-01-19 19:32:23,718 INFO  component.SystemOutHolder - *** Tue, 19 Jan 2010 19:32:23 ***
+PORTMANTEAU TEST with 10 lags
+
+Portmanteau:               3.1375      
+ p-Value (Chi^2):          0.9586      
+Ljung & Box:               3.9014      
+ p-Value (Chi^2):          0.9178      
+
+
+2010-01-19 19:32:23,750 INFO  component.SystemOutHolder - *** Tue, 19 Jan 2010 19:32:23 ***
+
+forecasted variable: 车票实名制 (in levels)
+forecast range:      [42, 51], T = 10
+
+time           lower CI             forecast             upper CI             std. err            
+42              200.7742             227.4750             254.1758             13.6231            
+43              195.1894             232.9500             270.7106             19.2660            
+44              192.1779             238.4250             284.6721             23.5959            
+45              190.4984             243.9000             297.3016             27.2462            
+46              189.6702             249.3750             309.0798             30.4622            
+47              189.4467             254.8500             320.2533             33.3697            
+48              189.6813             260.3250             330.9687             36.0434            
+49              190.2787             265.8000             341.3213             38.5320            
+50              191.1726             271.2750             351.3774             40.8693            
+51              192.3147             276.7500             361.1854             43.0801            
+
+2010-01-19 19:34:22,343 INFO  cfg.Environment - Hibernate 3.1.3
+2010-01-19 19:34:22,343 INFO  cfg.Environment - hibernate.properties not found
+2010-01-19 19:34:22,343 INFO  cfg.Environment - using CGLIB reflection optimizer
+2010-01-19 19:34:22,343 INFO  cfg.Environment - using JDK 1.4 java.sql.Timestamp handling
+2010-01-19 19:34:22,468 INFO  cfg.Configuration - configuring from resource: /hibernate.cfg.xml
+2010-01-19 19:34:22,468 INFO  cfg.Configuration - Configuration resource: /hibernate.cfg.xml
+2010-01-19 19:34:22,515 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbCluster.hbm.xml
+2010-01-19 19:34:22,703 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbCluster -> tb_cluster
+2010-01-19 19:34:22,734 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbClusterTopic.hbm.xml
+2010-01-19 19:34:22,781 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbClusterTopic -> tb_cluster_topic
+2010-01-19 19:34:22,906 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbHotTopic.hbm.xml
+2010-01-19 19:34:22,953 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbHotTopic -> tb_hot_topic
+2010-01-19 19:34:22,953 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbParserBbs.hbm.xml
+2010-01-19 19:34:22,984 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbParserBbs -> tb_parser_bbs
+2010-01-19 19:34:22,984 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbParserNews.hbm.xml
+2010-01-19 19:34:23,015 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbParserNews -> tb_parser_news
+2010-01-19 19:34:23,015 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbReBbs.hbm.xml
+2010-01-19 19:34:23,046 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbReBbs -> tb_re_bbs
+2010-01-19 19:34:23,046 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbReNews.hbm.xml
+2010-01-19 19:34:23,062 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbReNews -> tb_re_news
+2010-01-19 19:34:23,062 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbSensitiveTopic.hbm.xml
+2010-01-19 19:34:23,093 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbSensitiveTopic -> tb_sensitive_topic
+2010-01-19 19:34:23,093 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbAuRef.hbm.xml
+2010-01-19 19:34:23,109 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbAuRef -> tb_au_ref
+2010-01-19 19:34:23,109 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbUser.hbm.xml
+2010-01-19 19:34:23,140 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbUser -> tb_user
+2010-01-19 19:34:23,140 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbAu.hbm.xml
+2010-01-19 19:34:23,156 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbAu -> tb_au
+2010-01-19 19:34:23,156 INFO  cfg.Configuration - Configured SessionFactory: null
+2010-01-19 19:34:23,156 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbCluster.tbSensitiveTopics -> tb_sensitive_topic
+2010-01-19 19:34:23,156 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbCluster.tbHotTopics -> tb_hot_topic
+2010-01-19 19:34:23,156 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbCluster.tbClusterTopics -> tb_cluster_topic
+2010-01-19 19:34:23,156 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbParserBbs.tbSensitiveTopics -> tb_sensitive_topic
+2010-01-19 19:34:23,156 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbParserBbs.tbClusterTopics -> tb_cluster_topic
+2010-01-19 19:34:23,156 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbParserBbs.tbReBbses -> tb_re_bbs
+2010-01-19 19:34:23,156 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbParserNews.tbClusterTopics -> tb_cluster_topic
+2010-01-19 19:34:23,156 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbParserNews.tbReNewses -> tb_re_news
+2010-01-19 19:34:23,156 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbParserNews.tbSensitiveTopics -> tb_sensitive_topic
+2010-01-19 19:34:23,156 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbReBbs.tbSensitiveTopics -> tb_sensitive_topic
+2010-01-19 19:34:23,156 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbReNews.tbSensitiveTopics -> tb_sensitive_topic
+2010-01-19 19:34:23,156 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbUser.tbAuRefs -> tb_au_ref
+2010-01-19 19:34:23,156 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbAu.tbAuRefs -> tb_au_ref
+2010-01-19 19:34:23,171 INFO  connection.DriverManagerConnectionProvider - Using Hibernate built-in connection pool (not for production use!)
+2010-01-19 19:34:23,171 INFO  connection.DriverManagerConnectionProvider - Hibernate connection pool size: 20
+2010-01-19 19:34:23,171 INFO  connection.DriverManagerConnectionProvider - autocommit mode: false
+2010-01-19 19:34:23,187 INFO  connection.DriverManagerConnectionProvider - using driver: com.mysql.jdbc.Driver at URL: jdbc:mysql://192.168.198.21:3306/yqfx
+2010-01-19 19:34:23,187 INFO  connection.DriverManagerConnectionProvider - connection properties: {user=yqfx, password=****}
+2010-01-19 19:34:28,046 INFO  cfg.SettingsFactory - RDBMS: MySQL, version: 5.0.41-community-nt
+2010-01-19 19:34:28,046 INFO  cfg.SettingsFactory - JDBC driver: MySQL-AB JDBC Driver, version: mysql-connector-java-5.0.8 ( Revision: ${svn.Revision} )
+2010-01-19 19:34:28,093 INFO  dialect.Dialect - Using dialect: org.hibernate.dialect.MySQLDialect
+2010-01-19 19:34:28,093 INFO  transaction.TransactionFactoryFactory - Using default transaction strategy (direct JDBC transactions)
+2010-01-19 19:34:28,093 INFO  transaction.TransactionManagerLookupFactory - No TransactionManagerLookup configured (in JTA environment, use of read-write or transactional second-level cache is not recommended)
+2010-01-19 19:34:28,093 INFO  cfg.SettingsFactory - Automatic flush during beforeCompletion(): disabled
+2010-01-19 19:34:28,109 INFO  cfg.SettingsFactory - Automatic session close at end of transaction: disabled
+2010-01-19 19:34:28,109 INFO  cfg.SettingsFactory - JDBC batch size: 50
+2010-01-19 19:34:28,109 INFO  cfg.SettingsFactory - JDBC batch updates for versioned data: disabled
+2010-01-19 19:34:28,109 INFO  cfg.SettingsFactory - Scrollable result sets: enabled
+2010-01-19 19:34:28,109 INFO  cfg.SettingsFactory - JDBC3 getGeneratedKeys(): enabled
+2010-01-19 19:34:28,109 INFO  cfg.SettingsFactory - JDBC result set fetch size: 50
+2010-01-19 19:34:28,109 INFO  cfg.SettingsFactory - Connection release mode: auto
+2010-01-19 19:34:28,109 INFO  cfg.SettingsFactory - Maximum outer join fetch depth: 3
+2010-01-19 19:34:28,109 INFO  cfg.SettingsFactory - Default batch fetch size: 4
+2010-01-19 19:34:28,109 INFO  cfg.SettingsFactory - Generate SQL with comments: disabled
+2010-01-19 19:34:28,109 INFO  cfg.SettingsFactory - Order SQL updates by primary key: disabled
+2010-01-19 19:34:28,109 INFO  cfg.SettingsFactory - Query translator: org.hibernate.hql.ast.ASTQueryTranslatorFactory
+2010-01-19 19:34:28,109 INFO  ast.ASTQueryTranslatorFactory - Using ASTQueryTranslatorFactory
+2010-01-19 19:34:28,109 INFO  cfg.SettingsFactory - Query language substitutions: {}
+2010-01-19 19:34:28,109 INFO  cfg.SettingsFactory - Second-level cache: enabled
+2010-01-19 19:34:28,109 INFO  cfg.SettingsFactory - Query cache: disabled
+2010-01-19 19:34:28,109 INFO  cfg.SettingsFactory - Cache provider: org.hibernate.cache.EhCacheProvider
+2010-01-19 19:34:28,109 INFO  cfg.SettingsFactory - Optimize cache for minimal puts: disabled
+2010-01-19 19:34:28,109 INFO  cfg.SettingsFactory - Structured second-level cache entries: disabled
+2010-01-19 19:34:28,125 INFO  cfg.SettingsFactory - Echoing all SQL to stdout
+2010-01-19 19:34:28,125 INFO  cfg.SettingsFactory - Statistics: disabled
+2010-01-19 19:34:28,125 INFO  cfg.SettingsFactory - Deleted entity synthetic identifier rollback: disabled
+2010-01-19 19:34:28,125 INFO  cfg.SettingsFactory - Default entity-mode: pojo
+2010-01-19 19:34:28,187 INFO  impl.SessionFactoryImpl - building session factory
+2010-01-19 19:34:29,234 INFO  impl.SessionFactoryObjectFactory - Not binding factory to JNDI, no JNDI name configured
+2010-01-19 19:34:33,046 INFO  model.GaussPCall - GRTE:               true
+2010-01-19 19:34:33,781 INFO  component.SystemOutHolder - *** Tue, 19 Jan 2010 19:34:33 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             京沪高铁 
+order of differencing (d):     0 
+adjusted sample range:         [12, 41], T = 30
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=2, q=1
+Hannan-Quinn Criterion:   p=2, q=1
+Schwarz Criterion:        p=2, q=1
+
+2010-01-19 19:34:34,171 INFO  component.SystemOutHolder - *** Tue, 19 Jan 2010 19:34:34 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             京沪高铁 
+order of differencing (d):     0 
+adjusted sample range:         [12, 41], T = 30
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=2, q=0
+Hannan-Quinn Criterion:   p=2, q=0
+Schwarz Criterion:        p=2, q=0
+
+2010-01-19 19:34:34,265 INFO  component.SystemOutHolder - *** Tue, 19 Jan 2010 19:34:34 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             京沪高铁 
+order of differencing (d):     1 
+adjusted sample range:         [13, 41], T = 29
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=0, q=0
+Hannan-Quinn Criterion:   p=0, q=0
+Schwarz Criterion:        p=0, q=0
+
+2010-01-19 19:34:34,375 INFO  component.SystemOutHolder - *** Tue, 19 Jan 2010 19:34:34 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             京沪高铁 
+order of differencing (d):     1 
+adjusted sample range:         [13, 41], T = 29
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=0, q=0
+Hannan-Quinn Criterion:   p=0, q=0
+Schwarz Criterion:        p=0, q=0
+
+2010-01-19 19:34:34,484 INFO  component.SystemOutHolder - *** Tue, 19 Jan 2010 19:34:34 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             京沪高铁 
+order of differencing (d):     2 
+adjusted sample range:         [14, 41], T = 28
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=0, q=0
+Hannan-Quinn Criterion:   p=0, q=0
+Schwarz Criterion:        p=0, q=0
+
+2010-01-19 19:34:34,593 INFO  component.SystemOutHolder - *** Tue, 19 Jan 2010 19:34:34 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             京沪高铁 
+order of differencing (d):     2 
+adjusted sample range:         [14, 41], T = 28
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=0, q=0
+Hannan-Quinn Criterion:   p=0, q=0
+Schwarz Criterion:        p=0, q=0
+
+2010-01-19 19:34:34,750 INFO  component.SystemOutHolder - *** Tue, 19 Jan 2010 19:34:34 ***
+sample range:       [2, 41], T = 40
+Model:  ARIMA(0,1,0)
+
+
+Final Results:
+
+Iterations Until Convergence:   1
+
+Log Likelihood:   -172.854818         Number of Residuals: 40    
+AIC           :    347.709637         Error Variance     : 340.420512821    
+SBC           :    349.398516         Standard Error     : 18.450488146     
+
+DF: 39      Adj. SSE: 13276.400000000      SSE: 13276.400000000  
+
+Dependent Variable:         京沪高铁 
+
+            Coefficients     Std. Errors      T-Ratio    Approx. Prob.
+const        14.69999993      2.91727832      5.03894          0.00001
+Total Computation Time: 0.03 (seconds)
+
+
+2010-01-19 19:34:34,812 INFO  component.SystemOutHolder - *** Tue, 19 Jan 2010 19:34:34 ***
+PORTMANTEAU TEST with 10 lags
+
+Portmanteau:               4.2991      
+ p-Value (Chi^2):          0.8906      
+Ljung & Box:               5.4682      
+ p-Value (Chi^2):          0.7917      
+
+
+2010-01-19 19:34:34,859 INFO  component.SystemOutHolder - *** Tue, 19 Jan 2010 19:34:34 ***
+
+forecasted variable: 京沪高铁 (in levels)
+forecast range:      [42, 51], T = 10
+
+time           lower CI             forecast             upper CI             std. err            
+42              569.5377             605.7000             641.8623             18.4505            
+43              569.2588             620.4000             671.5412             26.0929            
+44              572.4651             635.1000             697.7349             31.9572            
+45              577.4754             649.8000             722.1246             36.9010            
+46              583.6387             664.5000             745.3613             41.2565            
+47              590.6208             679.2000             767.7792             45.1943            
+48              598.2236             693.9000             789.5764             48.8154            
+49              606.3176             708.6000             810.8824             52.1859            
+50              614.8131             723.3000             831.7869             55.3515            
+51              623.6448             738.0000             852.3552             58.3456            
+

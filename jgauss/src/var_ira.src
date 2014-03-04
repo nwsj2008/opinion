@@ -1,0 +1,302 @@
+/*
+ This file is part of the econometric software package JMulTi.
+ Copyright (C) 2000-2005  Alexander Benkwitz, Markus Kraetzig
+
+ This program is free software; you can redistribute it and/or
+ modify it under the terms of the GNU General Public License
+ as published by the Free Software Foundation; either version 2
+ of the License, or (at your option) any later version.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, write to the Free Software
+ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ */
+#ifos2win 
+/* to be used by library creation, windows only */
+#include var.dec
+#endif
+
+/*
+** PURPOSE
+** Computes impulse responses.
+**
+** SYNTAX
+** {feir,feir_ac, orir, orir_ac} = var__IRA(model,irmax);
+**
+** INPUT
+** model  / (N,1) / data buffer / 
+** irmax / (1,1) / matrix / Time horizon for computing impulse responses.
+**
+** OUTPUT
+** feir / (1+ir_max,K*K) / matrix / Forecast error impulse responses, if {\tt outFmt=1}
+** feir_ac / (1+ir_max,K*K) / matrix / Accumulated forecast error impulse responses, if {\tt outFmt=1} 
+** orir / (1+ir_max,K*K) / matrix / Orthogonalized impulse responses, if {\tt outFmt=1}
+**      / (0,0)  / matrix / if {\tt A0, A} specify a structural model.
+** orir_ac / (1+ir_max,K*K) / matrix / Accumulated orthogonalized impulse responses, if {\tt outFmt=1}
+**      / (0,0)  / matrix / if {\tt A0, A} specify a structural model.
+**
+** REMARK
+** Impulse responses are computed for the model
+** \[
+** A_0 y_t = A_1 y_{t-1} + \dots + A_p y_{t-p}
+** \]
+** with $A=[A_1:A_2:\dots :A_p]$
+**
+** This procedure distinguishes between reduced form models and structural
+** form models. Reduced form models are identified if the argument $A_0=I_K$,
+** or $A_0=\{\}$.
+**
+** Impulse responses for reduced form models are computed by
+** $$ \Phi_i=\sum_{j=1}^i \Phi_{i-j}A_j, \qquad i=1,2,\dots $$
+** (see \citeasnoun{HL91}) with $\Phi_0=I_K$.
+** When impulse response for structural form models are computed 
+** the coefficient matrices are first transformed to reduced form
+** coefficient matrices and then the recursion above is used using
+** $\Phi_0=A_0^{-1}$. This procedure fails if $A_0$ is not invertible.
+**
+** If the matrix $A_0$ is specified no orthogonal impulse responses are 
+** computed.
+**
+*/
+proc(4)=var__IRA(model,irmax);
+	local A0,A,cvu,outFmt,fe,oh,fe_ac,oh_ac;
+	A0  = vml_vread(model,"A0");
+	A   = vml_vread(model,"A");
+	cvu = vml_vread(model,"cvu");
+	outFmt = 1;
+	{fe,fe_ac,oh,oh_ac} = var_impulseResponses(A0,A,cvu,irmax,outFmt);
+	retp(fe,fe_ac,oh,oh_ac);
+endp;
+
+/*
+** PURPOSE
+** Computes impulse responses.
+**
+** SYNTAX
+** {feir,feir_ac, orir, orir_ac} = var_impulseResponses(A0,A,cvu,ir_max,outFmt);
+**
+** INPUT
+** A0 / (K,K) / matrix / Parameter matrix of endogenous variables
+**    / (0,0) /        / {\tt A0=\{\}}
+** A  / (K,p*K) / matrix / Parameter matrix of $p$ lagged endogenous
+**                         variables
+** cvu / (K,K) / matrix / Residual covariance matrix
+** ir_max / (1,1) / matrix / Time horizon for computing impulse responses.
+** outFmt / (1,1) / matrix / outFmt=1: output as {\tt (1+ir\_max,K*K)}-matrices
+**        /       /        / outFmt=0: output as {\tt (1,K*K*(1+ir\_max))}-matrices
+**
+** OUTPUT
+** feir / (1+ir_max,K*K) / matrix / Forecast error impulse responses, if {\tt outFmt=1}
+**      / (1,K*K*(1+ir_max)) / matrix / if {\tt outFmt=0}
+** feir_ac / (1+ir_max,K*K) / matrix / Accumulated forecast error impulse responses, if {\tt outFmt=1}
+**      / (1,K*K*(1+ir_max)) / matrix / if {\tt outFmt=0}
+
+** orir / (1+ir_max,K*K) / matrix / Orthogonalized impulse responses, if {\tt outFmt=1}
+**      / (1,K*K*(1+ir_max)) / matrix / if {\tt outFmt=0}
+**      / (0,0)  / matrix / if {\tt A0, A} specify a structural model.
+** orir_ac / (1+ir_max,K*K) / matrix / Accumulated orthogonalized impulse responses, if {\tt outFmt=1}
+**      / (1,K*K*(1+ir_max)) / matrix / if {\tt outFmt=0}
+**      / (0,0)  / matrix / if {\tt A0, A} specify a structural model.
+**
+** REMARK
+** Impulse responses are computed for the model
+** \[
+** A_0 y_t = A_1 y_{t-1} + \dots + A_p y_{t-p}
+** \]
+** with $A=[A_1:A_2:\dots :A_p]$
+**
+** This procedure distinguishes between reduced form models and structural
+** form models. Reduced form models are identified if the argument $A_0=I_K$,
+** or $A_0=\{\}$.
+**
+** Impulse responses for reduced form models are computed by
+** $$ \Phi_i=\sum_{j=1}^i \Phi_{i-j}A_j, \qquad i=1,2,\dots $$
+** (see \citeasnoun{HL91}) with $\Phi_0=I_K$.
+** When impulse response for structural form models are computed 
+** the coefficient matrices are first transformed to reduced form
+** coefficient matrices and then the recursion above is used using
+** $\Phi_0=A_0^{-1}$. This procedure fails if $A_0$ is not invertible.
+**
+** If the matrix $A_0$ is specified no orthogonal impulse responses are 
+** computed.
+**
+*/
+proc(4)=var_impulseResponses(A0,A,cvu,ir_max,outFmt);
+	local phi,theta,K,p,old_ir_max,temp,c,oldval,A0i,cvu_decomposed,phi_ac, theta_ac;
+	K = rows(A);
+	p = round(cols(A)/K);
+	if p*K/=cols(A);
+		errorlog("Inconsistent coefficient matrix (A)");
+		retp(-10,-10,-10,-10);
+	endif;
+
+	old_ir_max=ir_max;
+	ir_max=maxc(ir_max|p);
+
+	@ rule out the A0=identity matrix case @
+	if A0==eye(K);
+		A0={};
+	endif;
+
+	if rows(A0)>0;
+		oldval = trapchk(1);  
+    	trap 1,1;  
+	    A0i = inv(A0);  
+    	trap oldval,1;  
+	    if scalerr(A0i);
+			errorlog("Structural coefficient matrix is not invertible!");
+			retp(-10,-10,-10,-10);
+		endif;
+		@ @
+		A=A0i*A;
+		phi=zeros(K,K*ir_max)~eye(K); @ A0; @ ;
+	else;
+		phi=zeros(K,K*ir_max)~eye(K);
+		cvu_decomposed=chol(cvu)';
+	endif;
+	
+
+	@ A=(A(1),A(2),...,A(p)), but we need the A(i) stacked in a column vector! @
+	A=reshape(vecr(A'),p,K*K);
+		temp=vecr(reshape(seqa(1,1,K*K),K,K)');
+		A[.,temp]=A;
+		A=reshape(A,p*K,K);
+
+	@ compute the impulse response matrices phi(1),...,phi(p) @
+	c=cols(phi);
+	for i(1,p,1);
+		phi[.,c-K*(i+1)+1:c-K*i]=phi[.,c-K*i+1:c]*A[1:K*i,.];
+	endfor;
+
+	@ compute the remaining impulse response (if any) @
+	for i(1,ir_max-p,1);
+		phi[.,c-K*(p+1+i)+1:c-K*(p+i)]=phi[.,c-K*(p+i)+1:c-K*i]*A;
+	endfor;
+	@   @
+	if rows(A0)>0;
+		for i(0,ir_max,1);
+			phi[.,i*K+1:i*K+K]=phi[.,i*K+1:i*K+K]*A0i;
+		endfor;
+	endif;
+
+	@ compute orthogonal impulse responses only if no structural model is present @
+	if rows(A0)>0;
+		theta={};
+	else;
+		theta=phi;
+		for i(1,ir_max+1,1);
+			theta[.,(i-1)*K+1:i*K]=theta[.,(i-1)*K+1:i*K]*cvu_decomposed;
+		endfor;
+	endif;
+	
+	@ phi contains the matrices in reversed order: @
+	@ {phi(ir_max),phi(ir_max-1),...,phi(2),phi(1),phi(0)} @
+	@ after next line it should be {vec(phi(0))',vec(phi(1))',....} @
+	phi=rev(reshape(vecr(phi'),ir_max+1,K*K));
+	temp=vecr(reshape(seqa(1,1,K*K),K,K)');
+	phi[.,temp]=phi;
+	if not(rows(A0)>0);
+		theta=rev(reshape(vecr(theta'),ir_max+1,K*K));
+		theta[.,temp]=theta;
+	endif;
+	
+	@ reset to old ir_max parameter @
+	if old_ir_max<ir_max;
+		phi=phi[1:old_ir_max+1,.];
+		if not(rows(A0)>0);
+			theta=theta[1:old_ir_max+1,.];
+		endif;
+	endif;
+	
+	@ compute accumulated irs @ 
+	phi_ac ={} ; theta_ac ={};
+	if rows(phi);
+	  phi_ac = phi[1,.];
+	  for i(2, rows(phi),1);
+	    phi_ac = phi_ac|(phi_ac[i-1,.] + phi[i,.]);
+	  endfor;
+	endif;
+	if rows(theta);
+	  theta_ac = theta[1,.];
+	  for i(2, rows(theta),1);
+	    theta_ac = theta_ac|(theta_ac[i-1,.] + theta[i,.]);
+	  endfor;
+	endif;
+
+	@ return @
+	if outFmt;
+		retp(phi,phi_ac,theta,theta_ac);
+	else;
+		retp(vec(phi)',vec(phi_ac)',vec(theta)',vec(theta_ac)');
+	endif;
+endp;
+
+
+proc power_svar_var(matrixx,exponent);					/* Power of matrice */
+	local j, y, r; 
+	r=rows(matrixx);
+	y=eye(r); 
+	  j=1; 
+	  do while (j<=exponent); 
+	     y=y*matrixx; 
+	     j=j+1; 
+	  endo; 
+	retp(y); 
+endp; 
+
+/*
+computes IRF of SVAR models
+
+input: 
+mA estimated coefficients mat
+h  horizon
+mA0 contemp impact mat
+
+output:
+mmPhi K x K*h mat of point IR functions
+mmPsi K x K*h mat of accumulated IR functions
+
+*/
+proc(2) = ComputeIRF_svar_var(mA,h,mA0);
+local K, p, BigA, mJ, mmPhi, i;
+local mPhii, mmPsi;
+		K = rows(mA);
+		p = cols(mA)/K;
+        if p == 1;                  	   
+       	 BigA = mA;
+       	 mJ   = eye(K);
+       	else; 	   	
+         BigA = mA |(eye(K*(p-1))~zeros(K*(p-1),K));   	/* write model in companion form */  
+         mJ = eye(K)~zeros(K,K*(p-1));         
+        endif;
+        mmPsi = eye(K)*mA0;
+		mmPhi = eye(K)*mA0;
+		i = 1;		
+		do while i<= h;
+		    mPhii = (mJ*power_svar_var(BigA,i)*mJ'*mA0);
+			mmPhi = mmPhi | mPhii;
+			mmPsi = mmPsi | (mmPsi[rows(mmPsi)-K+1:rows(mmPsi),.]+mPhii);
+			i = i +1;
+		endo;
+	mmPhi = ReshapeIRF_svar_var(mmPhi,h,K);
+	mmPsi = ReshapeIRF_svar_var(mmPsi,h,K);
+retp(mmPhi,mmPsi);
+endp;
+
+proc(1) = ReshapeIRF_svar_var(mIRF,h,K);
+retp(reshape(vecr(mIRF),h+1,K^2));
+endp;
+
+
+
+
+
+
+
+
+

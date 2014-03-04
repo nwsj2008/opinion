@@ -1,0 +1,502 @@
+/*
+ This file is part of the econometric software package JMulTi.
+ Copyright (C) 2000-2005  Markus Kraetzig
+
+ This program is free software; you can redistribute it and/or
+ modify it under the terms of the GNU General Public License
+ as published by the Free Software Foundation; either version 2
+ of the License, or (at your option) any later version.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, write to the Free Software
+ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ */
+
+#ifos2win 
+/* to be used by library creation, windows only */
+#include var.dec
+#endif
+
+
+/* 
+written by Markus Kraetzig, February 2002
+
+forecast endogenous variables from a VAR model with asymptotic CIs
+the forecast conditions on the exogenous variables, therefore
+these values have to be known in advance
+ 
+computes interval forecasts 
+Luetkepohl, Introduction to multiple TSA, 
+ch. 5.2.6 -- howto treat subset restrictions
+ch. 10.5  -- howto treat exogenous variables
+
+input:
+
+Yt - endogenous variables from t onwards (including lags)
+Dt - deterministic variables from t onwards
+Xt - exogenous variables from t onwards (including lags)
+px - exogenous lags
+py - endogenous lags
+Z  - the Z matrix used in the estimation 
+Ay - endogenous coefficients
+Ax - exogenous coefficients
+Ad - deterministic coefficients
+h  - forecast horizon
+Eu - the covariance matrix of the estimated coefficients
+alpha - (1-alpha)*100%  confidence level
+asymCi - when this is > 0 then compute the omega(h) part of the MSE
+R - the matrix of the restrictions in the order (Y,X,D,Xt)
+
+output:
+point forecast|lower bound(1-alpha)|upper bound(1-alpha), 
+the complete Ey(h) matrizes
+Phi, the MA representation 
+*/
+  
+
+proc(3)=endogenous_forecast(Yt,Xt,px,py,Dt,Z,Ay,Ax,Ad,h,alpha,Eu,asymCi,R);
+
+local point,i,j,Jmat,k,interval_forecasts,omegaAll;
+local phi,phi_i,EyAll,B,A,m,tmp,Y,X,Eb,EyAlldiag,OmegaAlldiag;
+
+if cols(Ay)==0 ;
+  asymCi = 0;
+endif;
+
+if  cols(Ax) == 0;  
+  px = 0; 
+endif;
+if  cols(Ay) == 0;  
+  py = 0; 
+endif;
+
+if rows(Ad) == 0 and rows(Ay) == 0 and rows(Ax) == 0;  
+  retp(0);
+endif;
+k = rows(Ay);
+if k == 0;  
+  k = rows(Ax);
+endif;
+if k == 0;  
+  k = rows(Ad);
+endif;
+      
+m=cols(Xt);
+
+/*Yt = A*Y(t-1) + B* Xt */
+/*Y  - the matrix with the Yt's  (HL, p. 335)*/
+
+Y={};
+/* remove the Xt component, it also goes to X*/;
+if px > 0 ;  
+  Y=Z[cols(Ad)+k*py+1+m:rows(Z),.];
+endif;
+/* add the endogenous term*/
+if py > 0;  
+  Y = Z[cols(Ad)+1:cols(Ad)+k*py,.]|Y;
+else;
+  Y = zeros(k,cols(Z))|Y;
+endif;
+if cols(Ay)==0 and px == 0;
+  Y={};
+endif;
+
+
+/*X  - the matrix with the Xt's including deterministics (HL, p. 335)*/
+X={};
+tmp = {};
+if rows(Ad) > 0 ;
+  X=Z[1:cols(Ad),.]~Dt';
+endif;
+if rows(Ax) > 0 ;
+  X=X|(Z[cols(Ad)+k*py+1:cols(Ad)+k*py+m,.]~Xt');
+endif;
+X = X~tmp;
+
+
+/* create the A matrix in all different cases */
+A = {};
+if rows(Ay) > 0 and px > 0;
+  A = Ay~Ax[.,cols(Xt)+1:cols(Ax)];
+  if py > 1;
+    tmp = eye((py-1)*k)~zeros((py-1)*k,k)~zeros((py-1)*k,px*m);
+    A = A|tmp;
+  endif;
+  A = A|zeros(m,cols(A));
+  if px > 1;
+    tmp = zeros(m*(px-1),cols(Ay))~eye(m*(px-1))~zeros(m*(px-1),m);
+    A = A|tmp;
+  endif;
+endif;
+
+if rows(Ay) > 0 and px == 0;
+  A = Ay;
+  if py > 1;
+    tmp = eye((py-1)*k)~zeros((py-1)*k,k);
+    A = A|tmp;
+  endif;
+endif;
+
+/* case with no lagged endogenous */
+if rows(Ay) == 0 and px > 0;
+  A = zeros(k,k)~Ax[.,cols(Xt)+1:cols(Ax)];
+  A = A|zeros(m,cols(A));
+  if px > 1;
+    tmp = zeros(m*(px-1),k)~eye(m*(px-1))~zeros(m*(px-1),m);
+    A = A|tmp;
+  endif;
+endif;
+
+if rows(Ay) == 0 and px == 0;
+  A=0;
+endif;
+
+/*create B (HL, p. 335)*/
+B={};
+if cols(Ad) > 0 ;
+  B = Ad;
+  if py > 1;
+    B = B|zeros(k*(py-1),cols(Ad));
+  endif;
+endif;
+if cols(Ax) > 0 ;
+  if k*(py-1)+k - rows(Ax) > 0;
+    B = B~(Ax[.,1:m]|zeros(k*(py-1)+k-rows(Ax),m));
+  else;
+    B = B~Ax[.,1:m];
+  endif;
+  if px > 0;
+    if cols(Ad) > 0;
+      tmp = zeros(m,cols(Ad))~eye(m);
+    else;
+      tmp = eye(m);
+    endif;
+    B = B|tmp;
+  endif;
+  if px > 1;
+    B = B|zeros(m*(px-1),cols(B));
+  endif;
+endif;
+
+
+/* compute the J matrix to select Y(t+1)*/
+if rows(A)-k >0;
+  Jmat = eye(k)~zeros(k,rows(A)-k);
+else;
+  Jmat = eye(k);
+endif;
+
+
+/* now lets compute yt(h|x) with A,B and J, ITMTS p.335*/
+point={};
+i = 1;
+tmp = Yt;
+do while i <= h;
+  if cols(tmp) > 0;
+    Yt = A*Yt;
+  endif;
+  if cols(X) > 0;
+    if cols(tmp) > 0;
+      Yt = Yt+B*X[.,cols(Z)+i];   
+    else;
+      Yt = B*X[.,cols(Z)+i];
+    endif;
+  endif;
+  point = point~(Jmat*Yt);
+  i=i+1;
+endo;
+
+/* compute the approximate MSE matrix Ey_hat(h) */
+/* recursive computation of MA representation */
+
+Phi = eye(k);
+i = 1;
+do while i <= h;
+  j = 1;
+    Phi_i = zeros(k,k);
+  do while j <= i;
+    if  j <= py;
+      Phi_i = Phi_i + Phi[.,(i-j)*k+1:(i-j)*k+k]*Ay[.,(j-1)*k+1:(j-1)*k+k];
+    else;
+      break;
+    endif;
+    j = j + 1;
+  endo;
+  Phi = Phi~Phi_i;
+  i = i + 1;
+endo;
+
+/* compute Ey(h) from Eu and Phi */
+EyAll = {};
+EyAlldiag = {};
+tmp = zeros(k,k);
+i = 1;
+do while i <= h;
+  j = 1;
+  tmp = tmp + Phi[.,(i-1)*k+1:(i-1)*k+k]*Eu*Phi[.,(i-1)*k+1:(i-1)*k+k]';
+  EyAll = EyAll|tmp;
+  EyAlldiag = EyAlldiag|diag(tmp)';
+  i = i+1;
+endo;
+
+/* here we compute the omega(h) part of the asymptotic MSE */ 
+if asymCi > 0;
+  tmp = Y;
+  if cols(X) > 0;
+    tmp = tmp|X[.,1:cols(Z)];
+  endif;
+  /* take care of subset restrictions */
+  if R == 0 or rows(R) == 0;
+    Eb = invpd((tmp*tmp'/cols(tmp)).*.invpd(Eu));
+  else;
+    Eb = R*invpd(R'*((tmp*tmp'/cols(tmp)).*.invpd(Eu))*R)*R';
+  endif;
+  OmegaAll = {};
+  OmegaAlldiag = {};
+  i=1;
+  do while i <= h;
+    tmp = compute_omega_forecast(Y~Yt,i,A,B,Jmat,X,cols(Z),Eb,Ay,Ax,Ad);
+    OmegaAll = OmegaAll|tmp;
+    OmegaAlldiag = OmegaAlldiag|diag(tmp)';
+    i = i + 1;
+  endo;
+  EyAll = EyAll + OmegaAll/cols(Z);
+  EyAlldiag = EyAlldiag + OmegaAlldiag/cols(Z);
+endif;
+
+tmp = cdfni(1-(1-alpha)/2);
+interval_forecasts = point|point-tmp*sqrt(EyAlldiag')|point+tmp*sqrt(EyAlldiag');
+
+retp (interval_forecasts,EyAll,Phi);
+endp;
+
+proc(1) = power_forecast(mat,power);
+local i;
+if power == 0;
+  retp(eye(rows(mat)));
+endif;
+i = 1;
+do while i < power;
+  mat = mat*mat;
+  i = i + 1;
+endo;
+retp(mat);
+endp;
+
+
+/* this is a helper method to compute the omega(h) matrix */
+
+proc(1)=compute_omega_forecast(Y,h,A,B,J,X,T,Eb,Ay,Ax,Ad);
+local omega,sum1,sum2,Yt,Xt,dYdb,i,jj,index,tmp,trans;
+
+/* sum over t=1,...,T */
+omega = 0;
+index = 1; 
+do while index <= T;
+  /* here we compute the first part of dYdb (sum1) */
+  Yt=Y[.,index+1];
+  sum1 = 0;
+  i = 0;
+  do while i < h;
+    tmp = Yt'*power_forecast(A',h-1-i);
+    tmp = tmp.*.(J*power_forecast(A,i)*J');
+    sum1 = sum1 + tmp;
+    jj=0;
+    if cols(X) > 0;
+      Xt= X[.,index+h-i];  
+      do while jj < i;
+	tmp = Xt'*B'*power_forecast(A',i-1-jj);
+	tmp = tmp.*.(J*power_forecast(A,jj)*J');
+	sum1 = sum1 + tmp;
+	jj=jj+1;
+      endo;
+    endif;
+    i=i+1;
+  endo;
+
+  /* here we compute the second part of dYdb (sum2)*/
+  sum2 = {};
+  if cols(X) > 0;
+    sum2 = 0;
+    i = 0;
+    do while i < h;
+      if cols(X) > 0;
+	Xt= X[.,index+h-i];  
+      endif;
+      sum2 = sum2 + Xt'.*.(J*power_forecast(A,i)*J');
+      i=i+1;
+    endo;
+  endif;
+  /* put the parts together */
+  dYdB = sum1~sum2;  
+  omega = omega + dYdB*Eb*dYdB';
+  index = index + 1;
+endo;
+retp(omega/T);
+endp;
+
+
+/* 
+this method computes the level fcasts with MSE from
+the fcasts of the differenced series
+horizon = cols(pointfc)
+
+input:
+yt - yt of the levels
+pointfc - the point fcasts of the diferenced series 
+Eu - the covmat of the residuals
+Phi - MA representation matrizes from 0 - (h-1)
+
+out:
+point forecast|lower bound(1-alpha)|upper bound(1-alpha), 
+*/
+proc(1)=endogenous_forecast_undiff(yt,pointfc,Eu,Phi,alpha);
+local point,i,h,tmp,EyAll,Mat,k,J;
+k = cols(yt);
+h = cols(pointfc);
+i = 2;
+point = yt' + pointfc[1:cols(yt),1];
+do while i <= h;
+  point = point~(point[.,cols(point)]+pointfc[1:cols(yt),i]);
+  i = i + 1;
+endo;
+
+EyAll = {};
+J = {};
+i = 1;
+do while i <= h;
+  if i == 1;
+    Mat = eye(k);    
+  elseif i == 2;
+    Mat = Mat~zeros(k,k);
+    tmp = Phi[.,(i-1)*k+1:(i-1)*k+k]~eye(k);
+    Mat = Mat|tmp;
+  else;
+    tmp = Mat[rows(Mat)-k+1:rows(Mat),.];
+    tmp = Phi[.,(i-1)*k+1:(i-1)*k+k]~tmp;
+    Mat = (Mat~zeros(rows(Mat),k))|tmp;
+  endif;
+  J = J~eye(k);
+  tmp = J*(Mat*(eye(i).*.Eu)*Mat')*J';
+  EyAll = EyAll~diag(tmp);
+  i = i+1;
+endo;
+
+tmp = cdfni(1-(1-alpha)/2);
+tmp = point|point-tmp*sqrt(EyAll)|point+tmp*sqrt(EyAll);
+retp(tmp);
+endp;
+
+
+
+/* 
+this is to plot all the results including
+the original series 
+T2 index in yorig to start with, corresponds to time T
+*/
+	  
+proc(0)=plot_forecast(yorig, fcasts,T1,T2,selected,names,titel,t0,p);
+local y_toplot,tmp,invertsel,point,lowerCI,upperCI,k,i,sel,s;
+local expo,m,ax1,ax,ascl,ascl1;
+
+if T1 <= 0;
+  T1 = 1;
+endif;
+k = cols(yorig);
+/* only check the selected variables */
+invertsel = (selected .== 0);
+i=1;
+sel = {};
+do while i <= rows(invertsel);
+  if invertsel[i] == 0;
+    sel=sel|i;
+  endif;
+  i=i+1;
+endo;
+
+point = fcasts[1:k,.];
+lowerCI = fcasts[k+1:2*k,.];
+upperCI = fcasts[2*k+1:rows(fcasts),.];
+
+
+/* make sure that the origseries are long enough*/
+tmp = ones(cols(point),cols(yorig));
+y_toplot = yorig|miss(tmp,tmp);
+/* construct the forecast series*/
+  if T2 > 1;
+    tmp = ones(T2-1,cols(yorig));
+    point   = miss(tmp,tmp)|yorig[T2,.]|point';
+    lowerCI = miss(tmp,tmp)|yorig[T2,.]|lowerCI';
+    upperCI = miss(tmp,tmp)|yorig[T2,.]|upperCI';
+  else;
+    point   = yorig[T2,.]|point';
+    lowerCI = yorig[T2,.]|lowerCI';
+    upperCI = yorig[T2,.]|upperCI';
+  endif;
+
+
+/* eventually cut everything to the right length*/
+y_toplot = y_toplot[T1:rows(point),.];
+point   = point[T1:rows(point),.];
+lowerCI = lowerCI[T1:rows(lowerCI),.];
+upperCI = upperCI[T1:rows(upperCI),.];
+
+
+
+/********************one diagram each graph******************/
+PlotGraphset_plot;
+
+if names$=="";
+  names=seqa(1,1,sumc(selected));
+endif;
+
+{tmp, tmp} =  asclTS_plot(t0, p, rows(point)+4);
+
+
+_pcolor = {2 3 12 3};_pltype={6 3 3 3};
+_ptitle = titel;
+setGlobalPlot_plot();
+_plegctl = 0;
+
+
+if sumc(selected) > 1;
+  begwind;
+  s=smwintit_plot( ceil(sumc(selected)/2), 2, _ptitle, 0 );
+  
+  i = 1;
+  do while i <= sumc(selected);
+    setwind(s+i);
+    _ptitlht=0.25;
+    title(names[sel[i]]);
+    if  __jm_show_plot_title == 0;
+      _ptitle = "";
+    endif;
+    _ptitlht = __jm_height_plot_title; 
+    tmp = y_toplot[.,sel[i]]~lowerCI[.,sel[i]]~point[.,sel[i]]~upperCI[.,sel[i]];
+    XY(seqa(1,1,rows(tmp)),tmp);	
+    i=i+1;
+  endo;
+  endwind;
+endif;
+
+if sumc(selected) == 1;
+  _ptitlht=0.17;
+  title(titel$+" of "$+names[sel[1]]);
+  if  __jm_show_plot_title == 0;
+    _ptitle = "";
+  endif;
+  _ptitlht = __jm_height_plot_title;
+  tmp = y_toplot[.,sel[1]]~lowerCI[.,sel[1]]~point[.,sel[1]]~upperCI[.,sel[1]];
+  XY(seqa(1,1,rows(tmp)),tmp);	
+endif;
+
+graphset;
+dllcall showLastGraphic;
+
+
+endp;

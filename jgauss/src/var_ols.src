@@ -1,0 +1,280 @@
+/*
+ This file is part of the econometric software package JMulTi.
+ Copyright (C) 2000-2005  Alexander Benkwitz
+
+ This program is free software; you can redistribute it and/or
+ modify it under the terms of the GNU General Public License
+ as published by the Free Software Foundation; either version 2
+ of the License, or (at your option) any later version.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, write to the Free Software
+ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ */
+#ifos2win 
+/* to be used by library creation, windows only */
+#include var.dec
+#endif
+/**
+** SYNTAX   
+** {parY, parX, parD, u, cv_par, cvu} = 
+**    vml__ols_lr(y,x,d,py,px, Ry,Ry_c, Rx,Rx_c, Rd,Rd_c);
+**
+** PURPOSE 
+** OLS estimation with general linear constraints.
+**
+** INPUT 
+** y     / (py+T,K) /
+** x     / (px+T,L) /
+** d     / (T,M)    /
+** py    / (1,1)    /
+** px    / (1,1)    /
+** Ry    / (1,1)          /
+**       / (K*K*py,N)     /
+** Ry_c  / (1,1)          /
+**       / (K*K*py,1)     /
+** Rx    / (1,1)          /
+**       / (K*L*(px+1),O) /
+** Rx_c  / (1,1)          /
+**       / (K*L*(px+1),1) /
+** Rd    / (1,1)          /
+**       / (K*M,R)        /
+** Rd_c  / (1,1)          /
+**       / (K*M,1)        /
+**
+**
+** OUTPUT   b_hat    / (K,N)     /
+**                   /  or scalmiss /
+**          cv_b_hat / (K*N,K*N) / 
+**                   /  or scalmiss /
+**          u_hat    / (T,K)     /
+**          cv_u_hat / (K,K)     /
+**
+** REMARK  
+** This procedure takes three different variable types: 
+** \begin{itemize}
+** \item[y] Endogenous variables
+** \item[x] Exogenous variables (lagged)
+** \item[d] Exogenous variables (unlagged).
+** \end{itemize}
+** The regression model is
+** \begin{eqnarray*}
+** y_t & = & A_1 y_{t-1} + \dots + A_p y_{t-p}\\
+**     &   & + B_0 x_{t} + B_1 x_{t-1} + \dots + B_q x_{t-q} \\
+**     &   & + C d_t + u_t
+** \end{eqnarray*}
+** 
+**
+**{\tt cv\_b\_hat} is the estimated asymptotic covariance matrix of {\tt vec(b\_hat)}
+*/
+proc(6)=vml__ols_lr(y,x,d,py,px, Ry,Ry_c, Rx,Rx_c, Rd,Rd_c,isVECM);
+	local T,K,n1,n2,n3,y_lhs,Z,R,R_c,parY,parX,parD,u,cv_par,cvu,cvu_i,ZZ,g,b,cvuDiv,n;
+
+	
+	T = rows(y) - py;
+	K = cols(y);
+	if cols(x)==0; px=0; endif;
+	py = maxc(py|0);
+   	n1 = py*K;
+	n2 = cols(x)*(px+1);
+   	n3 = cols(d);
+	n  = n1+n2+n3;
+	
+		
+	{y_lhs,Z,R,R_c}=vml__prepareLS(y,x,d,py,px, Ry,Ry_c, Rx,Rx_c, Rd,Rd_c);
+	y_lhs = y_lhs';
+	if rows(Z); Z=Z'; endif;
+
+	 /* check whether subset model or not */      
+      if (cols(R) and cols(R) < n) or isVECM;
+		cvuDiv = T;
+      else; 
+		cvuDiv = T-n; /* no subset */
+      endif;
+	
+	if rows(R_c);
+		y_lhs = y_lhs-(Z'.*.eye(K))*R_c; 
+        endif;
+
+		
+	if R==0;
+		@ white noise model @
+		parY     = {};
+		parX     = {};
+		parD     = {};
+		u        = y_lhs';
+		cv_par   = {};
+		cvu     = (u'*u)/T;
+	else;
+		ZZ = Z*Z';
+		@ compute now the OLS estimator @
+			g = solpd(R'*(Z.*.eye(K))*vec(y_lhs),R'*(ZZ.*.eye(K))*R);
+			b = R*g;
+			if rows(R_c);
+				b = b+R_c;
+			endif;
+			b     = reshape(b,n1+n2+n3,K)';		
+			u     = (y_lhs - b * Z)';
+			cvu   = u'*u/cvuDiv;
+			g = (ZZ)/T;
+			cv_par =  R*solpd(R', R'*(g.*.invpd(cvu))*R)/T;
+	
+			if n1; parY = b[.,1:n1];              else; parY={}; endif;
+			if n2; parX = b[.,n1+1:n1+n2];        else; parX={}; endif;
+			if n3; parD = b[.,n1+n2+1:n1+n2+n3];  else; parD={}; endif;
+	endif;
+
+	retp(parY, parX, parD, u, cv_par, cvu);
+endp;
+
+/*
+** SYNTAX 
+** {parY, parX, parD, u, cv_par, cvu} = vml__ols_sr(y,x,d,py,px, sr_y, sr_x, sr_d);
+**
+** PURPOSE 
+** OLS estimation with subset restrictions.
+**
+** INPUT
+** y     /  (py+T,K)       / observations for endogenous variables
+** x     /  (px+T,L)       / observations for predetermined variables
+**                           that enter the model with lags (see {\tt px})
+**       /  (0,0)          / if model does not include such variables
+**                           {\tt x=\{\}}
+** d     /  (T,M)          / observations for predetermined variables that 
+**                           do not enter the model with lags
+**       /  (0,0)          / if model does not include such variables
+**                           {\tt d=\{\}}
+** py    / (1,1)           / number of presample values in {\tt y} and 
+**                           lag number for endogenous variables
+** px    / (1,1)           / number of presample values in {\tt x} and 
+**                           lag number for this variable
+** sr_y  / (K,py*K)        / Subset restriction matrix
+**       / (1,1)           / $=1$ or $=0$ as shortcut for matrix of ones and zeros.
+**       / (0,0)           / Empty matrix as shortcut for $=1$
+** sr_x  / (K,(px+1)*L)    / Subset restriction matrix
+**       / (1,1)           / $=1$ or $=0$ as shortcut for matrix of ones and zeros.
+**       / (0,0)           / Empty matrix as shortcut for $=1$
+** sr_d  / (K,M)           / Subset restriction matrix
+**       / (1,1)           / $=1$ or $=0$ as shortcut for matrix of ones and zeros.
+**       / (0,0)           / Empty matrix as shortcut for $=1$
+**
+** OUTPUT
+*/
+proc(6)=vml__ols_sr(y,x,d,py,px, sr_y, sr_x, sr_d,isVECM);
+	local T,K,r,n,n1,n2,n3,Z,zi,parY,parX,parD,u,cv_par,cvu,g,b,cvDiv,sr,vv,
+	      tmp,check;
+	      
+	T = rows(y) - py;
+	K = cols(y);
+	if cols(x)==0; px=0; endif;
+	py = maxc(py|0);
+   	n1 = py*K;
+	n2 = cols(x)*(px+1);
+   	n3 = cols(d);
+	n  = n1+n2+n3;
+
+	@ synchronize sr matrices @
+		sr_y = vml__syncSRMatrix(sr_y,K,n1);
+		sr_x = vml__syncSRMatrix(sr_x,K,n2);
+		sr_d = vml__syncSRMatrix(sr_d,K,n3);
+		sr   = sr_y~sr_x~sr_d;
+        	vv = vecr(sr);
+	@ compute number of parameters in restricted model @	
+		if rows(sr);
+			r = sumc(vv);		
+		else;
+			r = 0;
+		endif;
+
+	@ compute divisor for covariance estimation @
+	        /* check whether subset model or not */
+		if r < rows(vv) or isVECM;
+		  cvDiv = T;
+		else;
+		  cvDiv = T-n;
+		endif;
+	
+	@ create regressor and regressand @
+		Z = vml__getRegMatrix(y,x,d,py,px);
+		
+	@ now estimate @
+
+	if r==0;
+		@ white noise model @
+			parY     = {};
+			parX     = {};
+			parD     = {};
+			u        = y;
+			cv_par   = {};
+			cvu      = (u'*u)/cvDiv;
+	else;
+
+   		b = sr;
+   		for i(1,K,1);
+	   		tmp = selif(seqa(1,1,n),sr[i,.]');
+		   	if not(scalmiss(tmp)) and not(ismiss(Z));
+				zi = Z[.,tmp'];	 
+				trap 1;
+				check = invpd(zi'*zi);
+				if scalmiss(check)==0;
+				  b[i,tmp'] = (check*zi'*y[py+1:py+T,i])';
+				else;
+				  errorlog("Regressor has not full column rank.");
+				  retp(-10,-10,-10,-10,-10,-10);
+				endif;
+				trap 0;
+
+	   		endif; 
+		      endfor;
+	
+	   	u   = y[py+1:py+T,.]-Z*b';
+   		cvu = u'*u/cvDiv;
+	
+   		tmp = selif(seqa(1,1,K*n),vec(sr));
+		g = (Z'*Z)/T;
+		local tmp_inv;
+		tmp_inv = {};
+		trap 1;
+		tmp_inv = invpd(cvu);
+		trap 0;
+		if scalerr(tmp_inv);
+		  tmp_inv=miss(zeros(cols(cvu),cols(cvu)),0);
+		endif;
+	
+		g = g.*.tmp_inv;
+	   	g = g[tmp,tmp];
+		tmp_inv = {};
+		trap 1;
+		tmp_inv = invpd(g);
+		trap 0;	
+
+		if scalerr(tmp_inv);
+  		  tmp_inv=miss(zeros(cols(g),cols(g)),0);
+		endif;
+
+		g = tmp_inv;
+	   	cv_par = zeros(K*n,K*n);
+		cv_par[tmp,tmp]=g;
+   			
+	   	if n1; parY = b[.,1:n1];              else; parY={}; endif;
+		if n2; parX = b[.,n1+1:n1+n2];        else; parX={}; endif;
+		if n3; parD = b[.,n1+n2+1:n1+n2+n3];  else; parD={}; endif;
+
+	endif;
+	
+	retp(parY, parX, parD, u, cv_par, cvu);
+endp;
+
+
+
+
+
+
+
+
+

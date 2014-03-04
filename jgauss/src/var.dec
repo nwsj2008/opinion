@@ -1,0 +1,89 @@
+/*
+ This file is part of the econometric software package JMulTi.
+ Copyright (C) 2000-2005  Alexander Benkwitz, Markus Kraetzig
+
+ This program is free software; you can redistribute it and/or
+ modify it under the terms of the GNU General Public License
+ as published by the Free Software Foundation; either version 2
+ of the License, or (at your option) any later version.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, write to the Free Software
+ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ */
+
+#ifos2win 
+/* to be used by library creation, windows only */
+#include extern.dec
+#endif
+
+/* 
+** estimation of residual covariance matrix in GLS:
+** __var_gls_cvu = 0;  / get cvu estimate from unrestricted OLS 
+** __var_gls_cvu = -1; / get cvu estimate from restricted OLS  
+** __var_gls_cvu = C;  / cvu=C
+*/
+declare matrix __var_gls_cvu != 0;
+
+
+/*
+** number of iterations for iterative estimation procedures
+** __var_iter >=1   / 
+*/
+declare matrix __var_iter != 1;
+
+/*
+** tolerance level for iterative estimation procedures
+** __var_tol >=1   / 
+*/
+declare matrix __var_tol != 1e-4;
+
+/*
+** Minimum time between two progress notification messages (in seconds).
+** This global is used by procedures that provide a such a service.
+*/
+declare matrix __var_time != 5;
+
+/*
+** 
+*/
+declare matrix __XLM_LOADED != 1;
+
+/*
+** Number of digits right of decimal point for all 'show' procedures.
+*/
+declare matrix __var_showPrecision != 3;
+
+/*
+** Minimum field width of digits for all 'show' procedures.
+*/
+declare matrix __var_showWidth != 8;
+
+/*
+** Scalar. Start time. Set by program.
+*/
+declare matrix __var_Note_StartTime  != 0;
+/*
+** Scalar. Start time. Set by program.
+*/
+declare matrix __var_Note_LastTime  != 0;
+/*
+** Scalar. Minimum time in seconds between two progress notes.
+*/
+declare matrix __var_Note_MinElapsedTime  != 5;
+/*
+** Scalar. Minimum loopings between two progress notes.
+*/
+declare matrix __var_Note_MinElapsedLoops = 10;
+/*
+** Vector. Controls what progress notes come to screen. 
+*/
+declare matrix __var_Note = {1,1,1};
+
+
+

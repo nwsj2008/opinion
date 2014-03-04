@@ -1,0 +1,366 @@
+/*
+ This file is part of the econometric software package JMulTi.
+ Copyright (C) 2000-2005  Stefan Lundbergh, Markus Kraetzig
+
+ This program is free software; you can redistribute it and/or
+ modify it under the terms of the GNU General Public License
+ as published by the Free Software Foundation; either version 2
+ of the License, or (at your option) any later version.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, write to the Free Software
+ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ */
+#ifos2win 
+/* to be used by library creation, windows only */
+#include extern.dec
+#endif
+
+/*
+procedure grid_strgrid by Markus Kraetzig, Oct 2001, 
+using Stefan Lunderghs procedures
+computes a gridsearch for STR model over the parameters
+g, c1 (LSTR1) or g, c2 (LSTR2). It provides you with the
+optimal values that have the lowest RSS.
+
+
+   reference:
+   
+   Handbook of Applied Economic Statistics,
+   Aman Ullah, David E. A. Giles, 1998 (Marcel Dekker, Inc),
+   chapter 15, Timo Teräsvirta, Modeling Economic Relationships with STR
+
+
+
+*/
+/*
+input:
+
+y      is the endogenous variable  
+d      contains the deterministics without the constant 
+       (it will be appended automatically),if rows(d) < rows(y),
+       then only a const will be appended
+x      contains all lags of y and exogenous variables, also
+       the transition variables must be included here
+       then endogenous lags, then exogenous, then trend
+res    is a col(x) x 1 vector of restrictions (0 or 1) on x
+       if you want include a trend as a transition variable, then 
+       append it to X, but exclude it from the AR term with the 
+       "res" vector, because it is not allowed to have a trend 
+       in the AR part, but it is possible to have a trend as 
+       transition variable (0-exclude, 1-include)
+nonlin is a sumc(res)+cols(d)+1 x 1 vector that has possibly
+       restrictions on the nonlinear part of the STR model
+       it may be, that variables included in X (res[i] is 1)
+       can be held constant by excluding them from the nonlinear
+       part; if 1 then hold constant, if 0 then do not hold constant
+trans  is the index of the column of X that is the transition
+       variable. That variable can also be excluded from the
+       linear AR part with the "res" vector
+cinfo  start|stop|steps of c search (the same for c1 and c2 )
+ginfo  start|stop|steps of g search (gamma is search in ln-steps)
+eps    used to check when the STAR model reduces 
+       to a simple linear model (0.02 is a common value)
+k      the order of the model k=1 is LSTR1, k!=1 is LSTR2
+       
+output:
+result mat with SSR  and the searched values for gamma,c1,(c2),
+result mat with SSR  and the optimal values for gamma,c1,(c2)
+*/
+
+
+PROC(2)=grid_strgrid(Y,D,X,res,nonlin,trans,cinfo,ginfo,eps,k);
+local invertres,XL,XNL,g,gstep,cstep,SSR0;
+local M,ind,c1,c2,sizeM,cvec,str_allgrid,str_optgrid;
+cinfo=cinfo';
+ginfo=ginfo';
+x=x';
+d=d';
+res=res';
+
+if rows(d) < rows(y);
+  d={};
+endif;
+if k/=1;
+  k=2;
+endif;
+/*just to make sure that there are only 0 and 1*/
+res = (res .gt 0);
+nonlin = (nonlin .gt 0);
+
+/*impose the restrictions on X*/
+invertres = (res .== 0);
+
+XL = {};
+/*impose the general restrictions on X*/
+invertres = (res .== 0);
+if cols(X) > 1; /* trend is always removed */
+  XL = delif(X',invertres)';
+endif;  
+
+/*append deterministics to the linear part*/
+
+XL = ones(rows(X),1)~D~XL;
+
+/*append the other deterministics to the nonlinear AR part*/
+/*take care of constant variables*/
+if sumc(nonlin) == rows(nonlin);
+  errorlog("Linear model specified. Nothing to search.");
+  retp(-10,-10);
+else;
+  XNL = delif(XL',nonlin)';
+endif;
+
+/*Calculate the SSR of the linear model used when the linear approximation
+of the STAR model reduces to a simple linear model*/
+
+SSR0=Y'Y-Y'XL*invpd(XL'XL)*XL'Y;
+
+
+/* Recall that: ginfo=startvalue|stopvalue|number of steps. 
+   Recall that: cinfo=startvalue|stopvalue|number of steps.
+   Remember also that g=0 gives a linear model. */
+   
+g=ln(ginfo[1]);                      
+gstep=(ln(ginfo[2])-ln(ginfo[1]))/(ginfo[3]-1);
+cstep=(cinfo[.,2]-cinfo[.,1])./(cinfo[.,3]-1);
+sizeM=ginfo[3]*cinfo[3];
+if k == 2;
+  sizeM=sizeM*((cinfo[3]+1)/2);
+endif;
+
+M=zeros(sizeM,4);   /*Initalize with zeros */
+ind=1;
+do until g >= ln(ginfo[2])+gstep/2;
+  if k==1;         
+    c1=cinfo[1];
+    do until c1 >= cinfo[2]+cstep[1]/2; 
+      cvec=c1;
+      M[ind,1]=ssrproc_strgrid(SSR0,XL,XNL,Y,X[.,trans],exp(g),cvec,k,eps);
+      M[ind,2]=exp(g);
+      M[ind,3]=cvec;    
+      c1=c1+cstep[1];
+      ind=ind+1;
+    endo; 
+    
+  elseif k==2;    
+    c1=cinfo[1,1];
+    do until c1 > cinfo[2]+cstep[1]/2;
+      c2=c1;
+      do until c2 > cinfo[2]+cstep[1]/2; 
+	cvec=c1~c2; 
+	M[ind,1]=ssrproc_strgrid(SSR0,XL,XNL,Y,X[.,trans],exp(g),cvec,k,eps);
+	M[ind,2]=exp(g);
+	M[ind,3:4]=cvec;
+	c2=c2+cstep[1];
+	ind=ind+1;
+      endo;    
+      c1=c1+cstep[1];
+    endo; 
+  endif;
+  g=g+gstep;
+endo;
+
+str_allgrid = M[1:sizeM,.];
+ind = minindc(str_allgrid);
+str_optgrid = str_allgrid[ind[1],.];
+
+RETP(str_allgrid,str_optgrid);
+ENDP; 
+
+/********************* END OF PROC GRID ************************/
+/***************************************************************/
+
+PROC(1)=ssrproc_strgrid(SSR0,XL,XNL,Y,Trans,g,cvec,k,eps);
+LOCAL dstd,temp,j,prod,F,Fmean,Nonpart,SSR,x,invert;
+
+dstd=stdc(Trans);
+/* Calculate the non-linear part of the STAR model */
+
+temp=(Trans-cvec[1]);
+if k == 2;
+  temp=temp~(Trans-cvec[2]);
+endif;
+
+
+prod=prodc(temp');       /* We need the product of the rows (st-c1)*(st-c2)*/
+prod=prod/dstd^k;        /* Making gamma scale invariant */
+
+F=1/(1+EXP(-g*prod));
+
+/* Check if the F-term is to small in */
+/* average, i.e. use linear model. */
+trap 1;
+Fmean=meanc(F);
+IF Fmean < eps;
+  SSR=SSR0;				     
+ELSEIF Fmean > 1-eps;
+  SSR=SSR0;    
+ELSE;
+  Nonpart=XNL.*F;
+  X=XL~Nonpart;
+  invert=invpd(X'X);
+  if scalmiss(invert)==0;
+    SSR=Y'Y-Y'X*invert*X'Y;   
+  else;
+    SSR=SSR0;
+  endif;
+ENDIF;
+trap 0;
+RETP(SSR);
+ENDP; 
+/********************* END OF PROC SSRPROC ************************/
+
+proc(0)=plotm1_strgrid(m,ginfo,cinfo);
+LOCAL numg,numc1,x,y,z,i,j,txt;
+
+
+graphset;
+
+numg=ginfo[3];
+numc1=cinfo[3];
+
+y=m[1:numc1,3];
+z=zeros(numc1,numg);
+x=zeros(1,numg);
+
+i=1;
+do until i > numg;
+      x[1,i]=m[(i-1)*numc1+1,2];
+    x[1,i]=m[(i-1)*numc1+1,2];
+    j=1;
+    do until j > numc1;
+        z[j,i]=m[(i-1)*numc1+j,1];
+        j=j+1;
+    endo;
+    i=i+1;
+endo;
+
+
+begwind;
+makewind(9,6.855,0,0,0);
+title("STR Grid Search (min SSR)");
+xlabel("gamma");
+ylabel("c1");
+zlabel("SSR");
+setGlobalPlot_plot();
+ _plegctl = 0;
+contour(x[1,2:numg],y[2:numc1,1],z[2:numc1,2:numg]); 
+endwind;
+dllcall showLastGraphic;
+
+begwind;
+makewind(9,6.855,0,0,0);
+title("STR Grid Search (max -SSR)");
+xlabel("gamma");
+ylabel("c1");
+zlabel("SSR*(-1)");
+setGlobalPlot_plot();
+ _plegctl = 0;
+surface(x,y,-z); 
+endwind;
+dllcall showLastGraphic;
+  
+endp;
+/*------------------------------------------------*/
+
+proc(0)=plotm2_strgrid(m,ginfo,cinfo,nr);
+LOCAL numg,numc1,numc2,x,y,z,i,subMsize,s,ll;
+LOCAL minordiv,cstep,cval,j,l,k,txt,gval,gstep,step;
+
+graphset;
+numg=ginfo[3];
+numc1=cinfo[3];
+numc2=cinfo[3];
+
+x=zeros(1,numc2);
+y=zeros(numc1,1);
+z=zeros(numc1,numc2);
+
+cstep=(cinfo[2]-cinfo[1])./(cinfo[3]-1);
+
+cval=cinfo[1];
+y[1,1]=cval;
+i=2;
+do until i > numc1;
+    cval=cval+cstep[1,1];
+    y[i,1]=cval;
+    i=i+1;
+endo;
+
+cval=cinfo[1];
+x[1,1]=cval;
+i=2;
+do until i > numc2;
+    cval=cval+cstep;
+    x[1,i]=cval;
+    i=i+1;
+endo;
+
+
+l=1;
+ll=1;
+do until ll > numg;
+    subMsize=rows(M)/numg;
+    k=1;
+    i=1;
+    do until i > numc1;
+      j=i;
+      do until j > numc2;
+	z[i,j]=M[(l-1)*subMsize+k,1];
+	z[j,i]=z[i,j];
+	k=k+1;
+	j=j+1;
+      endo;
+      i=i+1;
+    endo;
+
+    gstep=(ginfo[2]-ginfo[1])./(ginfo[3]-1);
+    gval=ginfo[1]+(l-1)*gstep;
+    txt=0$+"g="$+ftocv(gval,2,2);  
+
+    step=(maxc(m[.,1])-minc(m[.,1]))/5;
+    minordiv=(maxc(m[.,1])-minc(m[.,1]))/10;
+    ztics(-maxc(m[.,1]),-minc(m[.,1]),step,minordiv);
+    begwind;
+    makewind(9,6.855,0,0,0);
+    title(txt);
+    xlabel("c2");
+    ylabel("c1"); 
+    zlabel("SSR*(-1)");
+    setGlobalPlot_plot();
+    _plegctl = 0;
+
+    surface(x,y,-z); 
+    endwind;
+    dllcall showLastGraphic;
+
+    begwind;
+    makewind(9,6.855,0,0,0);
+    graphset;
+    title(txt);
+    xlabel("c2");
+    ylabel("c1");
+    zlabel("SSR");
+    setGlobalPlot_plot();
+    _plegctl = 0;
+    contour(x[1,2:numc2],y[2:numc1,1],z[2:numc1,2:numc2]); 
+    endwind;
+    dllcall showLastGraphic;
+
+    l = l + 1;
+    if nr >= numg;
+      ll = ll + 1;
+    else;
+      ll=ll+numg/nr;
+    endif;
+  endo; 
+
+endp;
+
+/*------------------------------------------------*/

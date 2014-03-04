@@ -1,0 +1,94 @@
+2010-04-20 15:42:09,289 INFO  cfg.Environment - Hibernate 3.1.3
+2010-04-20 15:42:09,311 INFO  cfg.Environment - hibernate.properties not found
+2010-04-20 15:42:09,314 INFO  cfg.Environment - using CGLIB reflection optimizer
+2010-04-20 15:42:09,316 INFO  cfg.Environment - using JDK 1.4 java.sql.Timestamp handling
+2010-04-20 15:42:09,402 INFO  cfg.Configuration - configuring from resource: /hibernate.cfg.xml
+2010-04-20 15:42:09,402 INFO  cfg.Configuration - Configuration resource: /hibernate.cfg.xml
+2010-04-20 15:42:09,442 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbCluster.hbm.xml
+2010-04-20 15:42:09,637 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbCluster -> tb_cluster
+2010-04-20 15:42:09,671 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbClusterTopic.hbm.xml
+2010-04-20 15:42:09,719 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbClusterTopic -> tb_cluster_topic
+2010-04-20 15:42:09,800 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbHotTopic.hbm.xml
+2010-04-20 15:42:09,831 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbHotTopic -> tb_hot_topic
+2010-04-20 15:42:09,831 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbParserBbs.hbm.xml
+2010-04-20 15:42:09,845 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbParserBbs -> tb_parser_bbs
+2010-04-20 15:42:09,846 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbParserNews.hbm.xml
+2010-04-20 15:42:09,860 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbParserNews -> tb_parser_news
+2010-04-20 15:42:09,861 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbReBbs.hbm.xml
+2010-04-20 15:42:09,872 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbReBbs -> tb_re_bbs
+2010-04-20 15:42:09,873 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbReNews.hbm.xml
+2010-04-20 15:42:09,886 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbReNews -> tb_re_news
+2010-04-20 15:42:09,887 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbSensitiveTopic.hbm.xml
+2010-04-20 15:42:09,901 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbSensitiveTopic -> tb_sensitive_topic
+2010-04-20 15:42:09,901 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbAuRef.hbm.xml
+2010-04-20 15:42:09,911 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbAuRef -> tb_au_ref
+2010-04-20 15:42:09,912 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbUser.hbm.xml
+2010-04-20 15:42:09,921 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbUser -> tb_user
+2010-04-20 15:42:09,921 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbAu.hbm.xml
+2010-04-20 15:42:09,931 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbAu -> tb_au
+2010-04-20 15:42:09,931 INFO  cfg.Configuration - Configured SessionFactory: null
+2010-04-20 15:42:09,934 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbCluster.tbSensitiveTopics -> tb_sensitive_topic
+2010-04-20 15:42:09,935 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbCluster.tbHotTopics -> tb_hot_topic
+2010-04-20 15:42:09,935 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbCluster.tbClusterTopics -> tb_cluster_topic
+2010-04-20 15:42:09,935 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbParserBbs.tbSensitiveTopics -> tb_sensitive_topic
+2010-04-20 15:42:09,935 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbParserBbs.tbClusterTopics -> tb_cluster_topic
+2010-04-20 15:42:09,935 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbParserBbs.tbReBbses -> tb_re_bbs
+2010-04-20 15:42:09,935 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbParserNews.tbClusterTopics -> tb_cluster_topic
+2010-04-20 15:42:09,935 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbParserNews.tbReNewses -> tb_re_news
+2010-04-20 15:42:09,935 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbParserNews.tbSensitiveTopics -> tb_sensitive_topic
+2010-04-20 15:42:09,936 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbReBbs.tbSensitiveTopics -> tb_sensitive_topic
+2010-04-20 15:42:09,936 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbReNews.tbSensitiveTopics -> tb_sensitive_topic
+2010-04-20 15:42:09,936 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbUser.tbAuRefs -> tb_au_ref
+2010-04-20 15:42:09,936 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbAu.tbAuRefs -> tb_au_ref
+2010-04-20 15:42:09,962 INFO  connection.DriverManagerConnectionProvider - Using Hibernate built-in connection pool (not for production use!)
+2010-04-20 15:42:09,962 INFO  connection.DriverManagerConnectionProvider - Hibernate connection pool size: 20
+2010-04-20 15:42:09,962 INFO  connection.DriverManagerConnectionProvider - autocommit mode: false
+2010-04-20 15:42:10,081 INFO  connection.DriverManagerConnectionProvider - using driver: com.mysql.jdbc.Driver at URL: jdbc:mysql://192.168.198.21:3306/yqfx
+2010-04-20 15:42:10,081 INFO  connection.DriverManagerConnectionProvider - connection properties: {user=yqfx, password=****}
+2010-04-20 15:43:22,978 INFO  cfg.Environment - Hibernate 3.1.3
+2010-04-20 15:43:22,982 INFO  cfg.Environment - hibernate.properties not found
+2010-04-20 15:43:22,984 INFO  cfg.Environment - using CGLIB reflection optimizer
+2010-04-20 15:43:22,985 INFO  cfg.Environment - using JDK 1.4 java.sql.Timestamp handling
+2010-04-20 15:43:23,042 INFO  cfg.Configuration - configuring from resource: /hibernate.cfg.xml
+2010-04-20 15:43:23,042 INFO  cfg.Configuration - Configuration resource: /hibernate.cfg.xml
+2010-04-20 15:43:23,070 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbCluster.hbm.xml
+2010-04-20 15:43:23,147 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbCluster -> tb_cluster
+2010-04-20 15:43:23,164 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbClusterTopic.hbm.xml
+2010-04-20 15:43:23,181 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbClusterTopic -> tb_cluster_topic
+2010-04-20 15:43:23,234 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbHotTopic.hbm.xml
+2010-04-20 15:43:23,247 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbHotTopic -> tb_hot_topic
+2010-04-20 15:43:23,247 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbParserBbs.hbm.xml
+2010-04-20 15:43:23,261 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbParserBbs -> tb_parser_bbs
+2010-04-20 15:43:23,262 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbParserNews.hbm.xml
+2010-04-20 15:43:23,275 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbParserNews -> tb_parser_news
+2010-04-20 15:43:23,276 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbReBbs.hbm.xml
+2010-04-20 15:43:23,287 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbReBbs -> tb_re_bbs
+2010-04-20 15:43:23,287 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbReNews.hbm.xml
+2010-04-20 15:43:23,300 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbReNews -> tb_re_news
+2010-04-20 15:43:23,301 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbSensitiveTopic.hbm.xml
+2010-04-20 15:43:23,309 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbSensitiveTopic -> tb_sensitive_topic
+2010-04-20 15:43:23,310 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbAuRef.hbm.xml
+2010-04-20 15:43:23,320 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbAuRef -> tb_au_ref
+2010-04-20 15:43:23,320 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbUser.hbm.xml
+2010-04-20 15:43:23,328 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbUser -> tb_user
+2010-04-20 15:43:23,329 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbAu.hbm.xml
+2010-04-20 15:43:23,337 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbAu -> tb_au
+2010-04-20 15:43:23,337 INFO  cfg.Configuration - Configured SessionFactory: null
+2010-04-20 15:43:23,340 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbCluster.tbSensitiveTopics -> tb_sensitive_topic
+2010-04-20 15:43:23,340 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbCluster.tbHotTopics -> tb_hot_topic
+2010-04-20 15:43:23,340 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbCluster.tbClusterTopics -> tb_cluster_topic
+2010-04-20 15:43:23,341 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbParserBbs.tbSensitiveTopics -> tb_sensitive_topic
+2010-04-20 15:43:23,341 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbParserBbs.tbClusterTopics -> tb_cluster_topic
+2010-04-20 15:43:23,341 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbParserBbs.tbReBbses -> tb_re_bbs
+2010-04-20 15:43:23,341 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbParserNews.tbClusterTopics -> tb_cluster_topic
+2010-04-20 15:43:23,341 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbParserNews.tbReNewses -> tb_re_news
+2010-04-20 15:43:23,341 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbParserNews.tbSensitiveTopics -> tb_sensitive_topic
+2010-04-20 15:43:23,341 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbReBbs.tbSensitiveTopics -> tb_sensitive_topic
+2010-04-20 15:43:23,341 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbReNews.tbSensitiveTopics -> tb_sensitive_topic
+2010-04-20 15:43:23,342 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbUser.tbAuRefs -> tb_au_ref
+2010-04-20 15:43:23,342 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbAu.tbAuRefs -> tb_au_ref
+2010-04-20 15:43:23,350 INFO  connection.DriverManagerConnectionProvider - Using Hibernate built-in connection pool (not for production use!)
+2010-04-20 15:43:23,350 INFO  connection.DriverManagerConnectionProvider - Hibernate connection pool size: 20
+2010-04-20 15:43:23,350 INFO  connection.DriverManagerConnectionProvider - autocommit mode: false
+2010-04-20 15:43:23,357 INFO  connection.DriverManagerConnectionProvider - using driver: com.mysql.jdbc.Driver at URL: jdbc:mysql://192.168.198.21:3306/yqfx
+2010-04-20 15:43:23,357 INFO  connection.DriverManagerConnectionProvider - connection properties: {user=yqfx, password=****}

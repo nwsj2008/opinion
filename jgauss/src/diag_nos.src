@@ -1,0 +1,224 @@
+/*
+ This file is part of the econometric software package JMulTi.
+ Copyright (C) 2000-2005  Rolf Tschernig, Markus Kraetzig
+
+ This program is free software; you can redistribute it and/or
+ modify it under the terms of the GNU General Public License
+ as published by the Free Software Foundation; either version 2
+ of the License, or (at your option) any later version.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, write to the Free Software
+ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ */
+
+#ifos2win 
+/* to be used by library creation, windows only */
+#include extern.dec
+#endif
+
+/**
+ * Plots ydata evaluated at xdata. The axis names are in xname and
+ * yname. isOLS and isNadaraya sets whether linear and nonparametric
+ * estimates should be included. kernel sets estimation method 
+ * of NW nonparametric estimator 0,1,2,3 or 4.
+ */
+proc(4)=crossplot_diagnos(xdata,ydata,xname,yname,isOLS,isNadaraya,kernel);
+local b,stb,rsq,sigma,YY,vnam,m,vc,stderr,cx,resid,dwstat,est,tmp,toplot;
+
+b={};stderr={};rsq={};sigma={};
+
+graphset;
+_plctrl = {-1 0 0 0};
+_pcolor = {2 4 6 8};
+_pltype=6;
+title("Crossplot " $+ yName $+ "(" $+ xName $+ ")");
+xlabel(xName);
+ylabel(yName);
+YY = ydata;
+
+if isOLS;
+  __con=1;
+  __output=0;
+  b=0;
+  { vnam,m,b,stb,vc,stderr,sigma,cx,rsq,resid,dwstat } = ols(0,ydata,xdata);
+  YY = YY~(b[1]+b[2]*xdata);
+endif;
+
+if isNadaraya;
+  {est,tmp,tmp}= nwkernel_wrapper_kernel(xdata,xdata,ydata,0,kernel);
+  YY=YY~est;
+endif;
+toPlot = xdata~YY;
+toPlot = sortc(toPlot,1);
+setGlobalPlot_plot();
+_plegctl=0;
+
+xy(toPlot[.,1],toPlot[.,2:cols(toPlot)]);
+dllcall showLastGraphic;
+
+retp(b,stderr,rsq,sigma);
+endp;
+
+
+
+/* RT, August 1998
+**
+** -------------------------------------------------------------
+**                             PORTMAN.G
+** -------------------------------------------------------------
+**
+** resids: Tx1 data
+** m:	   lags to use for test
+** correction: degrees of freedom correction (p+q if ARIMA model)
+**
+** Ljung-Box statistic (see e.g. Franses (1996, p.9, (2.36))
+** Residuals will be centered
+*/
+
+
+proc(1)=portman_diagnos(resid,m,correction);
+local T,i,r0,rk,bp,lb,prob_chi,prob_chilb;
+
+T           = rows(resid);
+resid       = resid - meanc(resid);
+r0          = resid'resid;
+rk          = zeros(m,1);
+i           = 1;
+do while i <= m;
+  rk[i]   = resid[i+1:T]'resid[1:T-i] / r0;
+  i       = i + 1;
+endo;
+
+bp          = T * sumc( rk^2 );
+lb          = T*(T+2)*sumc( rk^2 ./ (T-seqa(1,1,m)) );
+prob_chi= cdfchic(bp,m-correction);
+prob_chilb= cdfchic(lb,m-correction);
+retp(bp~prob_chi~lb~prob_chilb);
+endp;
+
+/*  Rt, August 1998
+**  --------------------------------------------------------
+**                  F_GODF.G
+**  --------------------------------------------------------
+**
+**  LM-type test for serial correlation.
+**  Based on
+**  Godfrey (1978, Econometrica),
+**  Godfrey (1979, Biometrika),
+**  Breusch (1978, Economic Papers)
+**  see also Johnston, Econometric Methods, 1984, 319-321
+**  for description
+**      
+**  Input:  res         vector of residuals of regression
+**          x           matrix of regressors of original
+**                      regression; 0 if no regressors
+**          r           order of additional lags to test
+**    
+** Output:  Chi         Chi^2 statistic: n R^2
+**          Chi_prob    probability value of Chi-statistic
+**          F           F-statistic to test for r restrictions
+**          F_prob      probability value of F-statistic
+**          b           parameters of auxiliary regression
+**          stderr      standard errors of b
+**    
+** checked with results of Eviews, see also heading of hegy_q1.g;
+
+*/
+
+proc (2) = godfrey_diagnos(res,x,r); 
+  local rlags,Tnew,ylags,yright,
+        b,stderr,m,sigma,rsq,garb,yleft,
+        XX,R1,F,X_cols,prob_F,prob_chi;
+
+
+    rlags   = shiftr((ones(1,r) .*. res)',seqa(1,1,r),0)';
+    Tnew    = rows(rlags);
+
+    if x == 0;
+        yright  = rlags;
+        x_cols  = 0;
+    else;
+        ylags   = x;
+        x_cols  = cols(x);
+        yright  = ylags[rows(ylags)-Tnew+1:rows(ylags),.] ~ rlags;
+    endif;
+
+
+    yleft   = res[rows(res)-Tnew+1:rows(res)];
+
+    __con       = 0;
+    { garb,m,b,garb,garb,stderr,sigma,garb,rsq,garb,garb } =
+                      ols(0,res[rows(res)-Tnew+1:rows(res)],yright );
+    __con   = 1;
+
+    XX      = m[2:rows(m)-1,2:rows(m)-1];
+    if x_cols > 0;
+        R1      = zeros(r,x_cols) ~ eye(r);
+    else;
+        R1      = eye(r);
+    endif;
+    F       = (R1*b)'inv(R1*inv(XX)*R1')*(R1*b) / (r*sigma^2);
+    prob_F  = cdffc(F,r,rows(res)-rows(b));
+    prob_chi= cdfchic(rows(res)*rsq,r);
+
+retp(rows(res)*rsq~prob_chi~F~prob_F,b~stderr); endp;
+
+/* mk@mk-home.de
+** Results of ARCH - LM test (Engle (1982))
+*/
+
+proc (1) = archtest_diagnos(resid,q); 
+  local y,ylags,Tnew,b,sigma,rsq,f,XX,r,prob_chi,prob_F;
+    resid   = resid - meanc(resid);
+    y       = resid^2;
+    ylags   = shiftr((ones(1,q) .*. y)',seqa(1,1,q),-exp(20))';
+    ylags   = delif(ylags,ylags[.,cols(ylags)] .== -exp(20));
+    Tnew    = rows(ylags);
+    y       = y[rows(y)-Tnew+1:rows(y)];
+    ylags   = ones(rows(ylags),1)~ylags;		      
+    b       = inv(ylags'ylags)*ylags'*y;
+    sigma   = (y-ylags*b)'(y-ylags*b)/rows(y);
+    rsq     = 1-sigma/((y - meanc(y))'(y - meanc(y))/rows(y));
+    XX      = ylags'ylags;
+    R       = zeros(q,1) ~ eye(q);
+    F       = (R*b)'inv(R*inv(XX)*R')*(R*b) / (q*sigma);
+    prob_F  = cdffc(F,q,rows(ylags)-rows(b));
+    prob_chi= cdfchic(rows(ylags)*rsq,q);
+retp(rows(ylags)*rsq~prob_chi~F~prob_F);
+endp;
+
+/*  mk&mk-home.de, 2001
+**  ------------------------------------------------
+**                  JAR_BER.G
+**  ------------------------------------------------
+**  
+** univariate Jarque-Bera test to test for normality
+** kurtosis    =  k;
+** skewness    = sk;  
+*/ 
+
+proc (1) = jarber_diagnos(resid);
+local T,m2,m3,m4,sk,k,jb,prob_jb;
+
+
+    resid   = resid - meanc(resid);
+    resid   = resid/(1/rows(resid)  * (resid )'(resid ))^0.5;
+    T       = rows(resid);
+    m3      = sumc(resid^3) /T;
+    m4      = sumc(resid^4) /T;
+
+    sk      = m3 ;
+    k       = m4 ;
+    jb      = T/6*(sk^2 + (k-3)^2 / 4);
+    prob_jb = cdfchic(jb,2);
+
+retp(jb~prob_JB~sk~k);
+endp;
+
+

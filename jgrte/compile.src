@@ -1,0 +1,105 @@
+/* 
+
+
+To be called via 
+
+"compile $PATH/compile.src jgrte.gcg"
+
+with engauss. 
+
+After successful completion, "jgrte.gcg" must be copied to the "jgrte"
+subdirectory.  The name "jgrte.gcg" is set in
+"jgrte/engine_config.xml" as default.
+
+Please adjust the paths to the src directory, as well as in the
+engauss command.
+
+A valid license is required for shipping with the GRTE.
+
+*/
+
+library pgraph;
+
+#include /home/username/jmulti/jgauss/src/jmplot.dec
+#include /home/username/jmulti/jgauss/src/tools.src
+#include /home/username/jmulti/jgauss/src/plot.src
+#include /home/username/jmulti/jgauss/src/jgrte.src
+#include /home/username/jmulti/jgauss/src/ur_tests.src
+#include /home/username/jmulti/jgauss/src/ur_hegy.src
+#include /home/username/jmulti/jgauss/src/ur_stbr.src
+#include /home/username/jmulti/jgauss/src/fil_misc.src
+#include /home/username/jmulti/jgauss/src/fil_kern.src
+#include /home/username/jmulti/jgauss/src/cafp.dec
+#include /home/username/jmulti/jgauss/src/cafp_prc.src
+#include /home/username/jmulti/jgauss/src/cafp_par.src
+#include /home/username/jmulti/jgauss/src/cafp_sel.src
+#include /home/username/jmulti/jgauss/src/cafp_est.src
+#include /home/username/jmulti/jgauss/src/cafp_for.src
+#include /home/username/jmulti/jgauss/src/coi_joh.src
+#include /home/username/jmulti/jgauss/src/coi_sl.src
+#include /home/username/jmulti/jgauss/src/str_grid.src
+#include /home/username/jmulti/jgauss/src/str_lin.src
+#include /home/username/jmulti/jgauss/src/str_est.src
+#include /home/username/jmulti/jgauss/src/str_miss.src
+#include /home/username/jmulti/jgauss/src/str_newt.src
+#include /home/username/jmulti/jgauss/src/svar.dec
+#include /home/username/jmulti/jgauss/src/var.dec
+#include /home/username/jmulti/jgauss/src/var_3sls.src
+#include /home/username/jmulti/jgauss/src/var_v4i.src 
+#include /home/username/jmulti/jgauss/src/var_boot.src
+#include /home/username/jmulti/jgauss/src/var_est.src
+#include /home/username/jmulti/jgauss/src/var_est1.src
+#include /home/username/jmulti/jgauss/src/var_est2.src
+#include /home/username/jmulti/jgauss/src/var_est3.src
+#include /home/username/jmulti/jgauss/src/var_gls.src
+#include /home/username/jmulti/jgauss/src/var_init.src
+#include /home/username/jmulti/jgauss/src/var_ira.src 
+#include /home/username/jmulti/jgauss/src/var_irap.src
+#include /home/username/jmulti/jgauss/src/var_irbo.src
+#include /home/username/jmulti/jgauss/src/var_irc1.src
+#include /home/username/jmulti/jgauss/src/var_irc2.src
+#include /home/username/jmulti/jgauss/src/var_irc3.src
+#include /home/username/jmulti/jgauss/src/var_joh.src
+#include /home/username/jmulti/jgauss/src/var_ls.src
+#include /home/username/jmulti/jgauss/src/var_mx.src
+#include /home/username/jmulti/jgauss/src/var_new.src
+#include /home/username/jmulti/jgauss/src/var_ols.src
+#include /home/username/jmulti/jgauss/src/var_s2s.src
+#include /home/username/jmulti/jgauss/src/var_rest.src
+#include /home/username/jmulti/jgauss/src/var_show.src
+#include /home/username/jmulti/jgauss/src/var_tool.src
+#include /home/username/jmulti/jgauss/src/var_var.src
+#include /home/username/jmulti/jgauss/src/var_svar.src
+#include /home/username/jmulti/jgauss/src/var_svec.src
+#include /home/username/jmulti/jgauss/src/var_sbqu.src
+#include /home/username/jmulti/jgauss/src/var_spec.src
+#include /home/username/jmulti/jgauss/src/var_subs.src
+#include /home/username/jmulti/jgauss/src/var_forc.src
+#include /home/username/jmulti/jgauss/src/vec_est.src
+#include /home/username/jmulti/jgauss/src/vec_rest.src
+#include /home/username/jmulti/jgauss/src/vec_rslt.src
+#include /home/username/jmulti/jgauss/src/vec_scri.src
+#include /home/username/jmulti/jgauss/src/vec_caus.src
+#include /home/username/jmulti/jgauss/src/vec_hlp.src
+#include /home/username/jmulti/jgauss/src/vec_wld.src
+#include /home/username/jmulti/jgauss/src/stab_cho.src
+#include /home/username/jmulti/jgauss/src/stab_cus.src
+#include /home/username/jmulti/jgauss/src/stab_rec.src
+#include /home/username/jmulti/jgauss/src/stab_var.src
+#include /home/username/jmulti/jgauss/src/arch_hlp.src
+#include /home/username/jmulti/jgauss/src/arch_a.src
+#include /home/username/jmulti/jgauss/src/arch_aed.src
+#include /home/username/jmulti/jgauss/src/arch_adi.src
+#include /home/username/jmulti/jgauss/src/arch_g.src
+#include /home/username/jmulti/jgauss/src/arch_ged.src
+#include /home/username/jmulti/jgauss/src/arch_gdi.src
+#include /home/username/jmulti/jgauss/src/arch_t.src
+#include /home/username/jmulti/jgauss/src/arch_ted.src
+#include /home/username/jmulti/jgauss/src/arch_tdi.src
+#include /home/username/jmulti/jgauss/src/arch_mg.src
+#include /home/username/jmulti/jgauss/src/arch_eva.src
+#include /home/username/jmulti/jgauss/src/diag_des.src
+#include /home/username/jmulti/jgauss/src/diag_nos.src
+#include /home/username/jmulti/jgauss/src/diag_res.src
+#include /home/username/jmulti/jgauss/src/diag_inf.src
+#include /home/username/jmulti/jgauss/src/diag_vec.src      

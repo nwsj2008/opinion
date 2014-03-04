@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<dataset source="抵制_家乐福" time="2008-06-03 11:21:46">
+	<dataitems itemname="observation">
+		<dataitem timespan="2008-04-20 04" value="1.0" />
+		<dataitem timespan="2008-04-20 05" value="1.0" />
+		<dataitem timespan="2008-04-20 06" value="1.0" />
+		<dataitem timespan="2008-04-20 07" value="1.0" />
+		<dataitem timespan="2008-04-20 08" value="2.0" />
+		<dataitem timespan="2008-04-20 09" value="7.0" />
+		<dataitem timespan="2008-04-20 10" value="48.0" />
+		<dataitem timespan="2008-04-20 11" value="75.0" />
+		<dataitem timespan="2008-04-20 12" value="75.0" />
+		<dataitem timespan="2008-04-20 13" value="94.0" />
+		<dataitem timespan="2008-04-20 14" value="113.0" />
+		<dataitem timespan="2008-04-20 15" value="121.0" />
+		<dataitem timespan="2008-04-20 16" value="132.0" />
+		<dataitem timespan="2008-04-20 17" value="140.0" />
+		<dataitem timespan="2008-04-20 18" value="147.0" />
+		<dataitem timespan="2008-04-20 19" value="150.0" />
+		<dataitem timespan="2008-04-20 20" value="156.0" />
+		<dataitem timespan="2008-04-20 21" value="167.0" />
+		<dataitem timespan="2008-04-20 22" value="168.0" />
+		<dataitem timespan="2008-04-20 23" value="168.0" />
+		<dataitem timespan="2008-04-21 00" value="170.0" />
+		<dataitem timespan="2008-04-21 01" value="170.0" />
+		<dataitem timespan="2008-04-21 02" value="170.0" />
+		<dataitem timespan="2008-04-21 03" value="170.0" />
+		<dataitem timespan="2008-04-21 04" value="170.0" />
+		<dataitem timespan="2008-04-21 05" value="170.0" />
+		<dataitem timespan="2008-04-21 06" value="170.0" />
+		<dataitem timespan="2008-04-21 07" value="171.0" />
+		<dataitem timespan="2008-04-21 08" value="172.0" />
+		<dataitem timespan="2008-04-21 09" value="176.0" />
+		<dataitem timespan="2008-04-21 10" value="186.0" />
+		<dataitem timespan="2008-04-21 11" value="186.0" />
+		<dataitem timespan="2008-04-21 12" value="186.0" />
+		<dataitem timespan="2008-04-21 13" value="186.0" />
+		<dataitem timespan="2008-04-21 14" value="186.0" />
+		<dataitem timespan="2008-04-21 15" value="186.0" />
+		<dataitem timespan="2008-04-21 16" value="186.0" />
+		<dataitem timespan="2008-04-21 17" value="191.0" />
+		<dataitem timespan="2008-04-21 18" value="207.0" />
+		<dataitem timespan="2008-04-21 19" value="214.0" />
+		<dataitem timespan="2008-04-21 20" value="224.0" />
+		<dataitem timespan="2008-04-21 21" value="226.0" />
+		<dataitem timespan="2008-04-21 22" value="246.0" />
+	</dataitems>
+	<dataitems itemname="forecast">
+		<dataitem timespan="2008-04-21 20" value="224.0" lowerci="224.0"
+			upperci="224.0" />
+		<dataitem timespan="2008-04-21 21" value="234.2564102423587"
+			lowerci="216.05423140274533" upperci="252.45858908197206" />
+		<dataitem timespan="2008-04-21 22" value="244.7692307270761"
+			lowerci="204.06792150309235" upperci="285.47053995105983" />
+		<dataitem timespan="2008-04-21 23" value="255.53846145415218"
+			lowerci="187.4321445435325" upperci="323.64477836477187" />
+		<dataitem timespan="2008-04-22 00" value="266.564102423587"
+			lowerci="166.86666296159248" upperci="366.26154188558144" />
+		<dataitem timespan="2008-04-22 01" value="277.84615363538046"
+			lowerci="142.85518246319515" upperci="412.8371248075658" />
+		<dataitem timespan="2008-04-22 02" value="289.38461508953264"
+			lowerci="115.74689562644065" upperci="463.02233455262467" />
+		<dataitem timespan="2008-04-22 03" value="301.1794867860435"
+			lowerci="85.80840230324301" upperci="516.550571268844" />
+		<dataitem timespan="2008-04-22 04" value="313.2307687249131"
+			lowerci="53.25165387164111" upperci="573.2098835781851" />
+		<dataitem timespan="2008-04-22 05" value="325.5384609061414"
+			lowerci="18.250314966306007" upperci="632.8266068459768" />
+		<dataitem timespan="2008-04-22 06" value="338.10256332972835"
+			lowerci="-19.04997563096333" upperci="695.25510229042" />
+	</dataitems>
+</dataset>

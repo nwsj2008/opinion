@@ -1,0 +1,136 @@
+/*
+ This file is part of the econometric software package JMulTi.
+ Copyright (C) 2000-2005  Alexander Benkwitz, Markus Kraetzig
+
+ This program is free software; you can redistribute it and/or
+ modify it under the terms of the GNU General Public License
+ as published by the Free Software Foundation; either version 2
+ of the License, or (at your option) any later version.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, write to the Free Software
+ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ */
+/*
+** tools.src
+** 
+** procedures:
+**   rndn_tools
+**   TimeAxis_tools
+**   PeriodsBetween_tools
+**   AddPeriods_tools
+*/
+
+proc(1) = rndn_tools(r, c);
+local ret;
+ret=rndn(r,c);
+retp(ret);
+endp;
+
+/*
+** y=TimeAxis_tools(t0,t1,p);
+**
+** INPUT
+**       t0 / (1x1) / matrix / starting point, e.g. t0=1960.1,p=4 for first quarter of 1960
+**       t1 / (1x1) / matrix / end point, e.g. t1=1960.4,p=4 for fourth quarter of 1960
+**       p  / (1x1) / matrix / periodicity, e.g. p=4 for quarterly data
+** OUTPUT
+**       y  / (Tx1) / matrix / timeaxis of form {1960.1,1960.2,...}, starting with
+**                             't0' and ending with 't1'
+**
+*/
+proc TimeAxis_tools(t0,t1,p);
+	local x,l;
+	if p == 1;
+	  t0 = floor(t0);
+	  t1 = floor(t1);
+	endif;
+	l=PeriodsBetween_tools(t0,t1,p);
+	x=zeros(abs(l)+1,1);
+	for i (1,rows(x),1);
+		if l>=0;
+		  if p > 1;
+		    x[i]=AddPeriods_tools(t0,p,i-1);
+		  else;
+		    x[i]=t0+i-1;
+		  endif;
+		else;
+		  if p > 1;
+		    x[i]=AddPeriods_tools(t0,p,-1*(i-1));
+		  else;
+		    x[i]=t0+i-1;
+		  endif;
+		endif;
+	endfor;
+	retp(x);
+endp;
+/* 
+** y=PeriodsBetween_tools(t0,t1,p)
+** 
+** PURPOSE
+**        computes the periodes between two points in time, s and t,
+**        where these points are coded.
+**
+** INPUT
+**        t0  / (1x1) / matrix / time point 0
+**        t1  / (1x1) / matrix / time point 1
+**        p   / (1x1) / matrix / periodicity
+**
+** OUTPUT
+**        y   / (1x1) / matrix / number of periods between t0 and t1, 
+**                               can be negative
+**
+** REMARK
+**        't0' and 't1' must be coded in a special way:
+**        t0=1971.1 and p=4  means 1971 first quarter
+**        t0=1971.1 and p=12 means 1971 January
+**
+** 
+*/
+proc PeriodsBetween_tools(t0,t1,p);
+	local m,temp;
+	{temp,m} = base10(p);
+	m=10^(m+1);
+	retp(round((trunc(t1)-trunc(t0))*p + ((t1-trunc(t1))-(t0-trunc(t0)))*m));
+endp;
+/* 
+** y=AddPeriods_tools(t,p,n)
+**
+** PURPOSE
+**         procedure adds periods to a specified point in time t. 
+**         't'  is coded in a special manner, 'period' gives periodicity,
+**         'n' specifies the periods to be added (might be positive/negative)
+*/
+proc AddPeriods_tools(t,p,n);
+  local temp,m,per,sub_per;
+  
+  {temp,m}=base10(p);
+  m=10^(m+1);
+  per=trunc(t);
+  sub_per=round((t-per)*m);
+  
+  sub_per=sub_per+n;
+  
+  if sub_per<1;
+    sub_per=abs(sub_per);
+    per=per-round((sub_per-(sub_per%p))/p)-1;
+    per=per+(p-(sub_per%p))/m;
+  elseif sub_per>p;
+    per=per+round((sub_per-(sub_per%p))/p);
+    if (sub_per%p)==0;
+      per=per-1+p/m;
+    else;
+      per=per+(sub_per%p)/m;
+    endif;
+  else;
+    per=per+sub_per/m;
+  endif;
+
+  retp(per);
+endp;
+

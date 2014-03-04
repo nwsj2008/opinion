@@ -1,0 +1,460 @@
+/*
+ This file is part of the econometric software package JMulTi.
+ Copyright (C) 2000-2005  Alexander Benkwitz
+
+ This program is free software; you can redistribute it and/or
+ modify it under the terms of the GNU General Public License
+ as published by the Free Software Foundation; either version 2
+ of the License, or (at your option) any later version.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, write to the Free Software
+ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ */
+#ifos2win 
+/* to be used by library creation, windows only */
+#include var.dec
+#endif
+/**
+**
+** PURPOSE
+** Imposes linear restrictions on model parameters.
+** 
+** SYNTAX
+** model = vml_SetRestrictions(model, rx, name);
+**
+** INPUT
+** model    / (Z,1) / data buffer / A VAR or VEC model
+** rx       / (M,N) / matrix / Restriction matrix
+** name     / (1,1) / matrix / name for restriction matrix
+**          / (1,1) / string / name for restriction matrix
+**
+** REMARK
+** Call this procedure after {\tt vml\_InitVAR()}.
+**
+** One can impose linear restrictions of the form $\beta=R\gamma + r$
+** or as a shortcut if one wants to impose subset restrictions one
+** can do so with a matrix of ones and zeros for the respective
+** parameter matrix.
+** 
+**
+** Change in data buffer:\\ 
+** For linear restrictions {\tt +R\_XX[, R\_XX\_C]},\\
+** and for subset restrictions {\tt +S\_XX}
+**
+** SEE
+** vml_InitVAR
+**
+*/
+proc(1)= vml_SetRestrictions(model, rx, name);
+	local idx,restrictionType,variableType,noEq,K,py,px,id,r,c;
+
+	idx             = strindx(name,"_",1);
+	restrictionType = strsect(name,1,idx);
+	variableType    = strsect(name,idx+1,strlen(""$+name));	
+
+	noEq = var__numberOfEquations(model);
+	K    = cols(vml_vread(model,"y"));
+	py   = vml_vread(model,"py"); if not(rows(py)); py=0; endif;
+	px   = vml_vread(model,"px"); if not(rows(px)); px=0; endif;
+	id   = vread(model,"id");
+
+	if variableType$=="A";
+		r = noEq;
+		c = K * py;
+	elseif variableType$=="A0";
+		r = noEq;
+		c = K;
+	elseif variableType$=="alpha";
+		r = noEq;
+		c = vml_getCointRank(model);
+	elseif variableType$=="B";
+		r = noEq;
+		c = cols(vml_vread(model,"x")) * (px+1);
+	elseif variableType$=="beta";
+		if id$=="EC";
+			r = 1;
+		else;
+			r = vml_getCointRank(model);
+		endif;
+		c = K;
+	elseif variableType$=="beta_d";
+		if id$=="EC";
+			r = 1;
+		else;
+			r = vml_getCointRank(model);
+		endif;
+		c = rows(vml_vread(model,"mx_cd2cr"));
+	elseif variableType$=="C_VAR";
+		r = noEq;
+		c = cols(vml_vread(model,"d"));
+	elseif variableType$=="C_VEC";
+		r = noEq;
+		c = cols(vml_vread(model,"d"))-rows(vml_vread(model,"mx_cd2cr"));
+	elseif variableType$=="F_VAR";
+		r = noEq;
+		c = cols(vml_vread(model,"Z"));
+	elseif variableType$=="F_VEC";
+		r = noEq;
+		c = cols(vml_vread(model,"Z"));
+	elseif variableType$=="G0";
+		r = noEq;
+		c = K;
+	elseif variableType$=="G";
+		r = noEq;
+		c = K * maxc(0|(py - 1));
+	else;
+		"";
+		errorlog("Unknown name for restriction matrix: "$+name$+" (I)");
+		retp(model);
+	endif;
+
+
+	if restrictionType$=="S_";
+		if rx==1;
+			retp(vml_vdel(model,name));
+		endif;
+	elseif restrictionType$=="R_";
+		r = r*c;
+		c = cols(rx);
+		if c>r;
+			"";
+			errorlog("Bad dimension of restriction matrix "$+name$+" (I)");
+			retp(model);
+		endif;
+	elseif restrictionType$=="RC_";
+		r = r*c;
+		c = 1;
+	else;
+		"";
+		errorlog("Unknown name for restriction matrix: "$+name$+" (II)");
+		retp(model);
+	endif;
+
+	if rows(rx)==1 and cols(rx)==1;
+		r = minc(1|r);
+   		c = minc(1|c);
+   	elseif rows(rx)==0 and cols(rx)==0;
+   		retp(model);
+	endif;
+   	if rows(rx)==r and cols(rx)==c;
+		retp(vput(model,rx,name));
+	else;
+		"";
+		errorlog("Bad dimension of restriction matrix "$+name$+" (II)");
+		retp(model);
+	endif;
+		
+endp;
+
+
+/**
+** SYNTAX
+** r = vml_GetCointRank(model);
+**
+** PURPOSE
+** Returns the cointegration rank of the model.
+**
+** INPUT
+** model / (M,1) / data buffer / VAR or VECM model 
+**
+** OUTPUT
+** r    /  (1,1) / matrix / cointegration rank
+**
+** REMARK
+** The input argument {\tt model} defines a $K$-dimensional VAR($p$) model.
+** This procedure searches for some indication that a cointegration rank $r$
+** has been set. This could have been done with 
+** {\tt vml\_SetCointRelation()}.
+**
+** Note that if $r=0$
+** $\delta y_t$ has a stable VAR($p-1$) representation and
+** for $r=K$ $y_t$ is a stable VAR($p$). This is considered
+** in the estimation procedure.
+**
+** It is guaranteed that $0\le r \le K$. If for some reason this condition
+** is not satisfied the procedure terminates with an errorlog. This means
+** that it is not necessary to check the returned value for plausibility.
+**
+** SEE
+** vml_InitVAR
+** vml_SetCointRelation
+** 
+*/
+proc(1)= vml_GetCointRank(model);
+	local r,r_x,K;
+
+	K = cols(vread(model,"y"));
+	r = -1;
+	r_x = rows(vml_vread(model,"beta_x"));
+	if rows(vml_vread(model,"cir"));
+		r = 1;
+	elseif rows(vml_vread(model,"idx_equa"));
+		r = 1;
+	elseif rows(vml_vread(model,"r_est"));
+		r = vread(model,"r_est");
+	endif;
+	
+	if r_x>0;
+		if r<0;
+			r = r_x;
+		else;
+			r = r + r_x;
+		endif;
+	else;
+		if r<0;
+			r = K;
+		endif;
+	endif;
+	
+	if r<0;
+		"";
+		errorlog("The cointegration rank is smaller than zero!?!");
+		" cointegration rank : " r;
+		"  process dimension : " K;
+		retp(model);
+	endif;
+	if r>K;
+		"";
+		errorlog("The cointegration rank is greater than the dimension of the defined model!?!");
+		" cointegration rank : " r;
+		"  process dimension : " K;
+		retp(model);
+	endif;
+
+	retp(r);
+endp;
+
+/**
+**
+** SYNTAX
+** var  = vml_SetCointRelation(var, beta, beta_d);
+**
+** PURPOSE
+** Sets $r$ cointegration relation(s) and implicitly the cointegration rank.
+**
+** INPUT
+** model / (N,1) / data buffer /
+** beta  / (r,K) / matrix      / cointegration vector(s)
+** beta_d/ (r,M) / matrix      / parameters for deterministic variables entering $\beta$
+**
+** REMARK
+**
+** +beta\_x[, beta\_d\_x] 
+*/
+proc(1)=vml_SetCointRelation(model, beta, beta_d);
+	if rows(beta);
+		local K,tmp;
+		K = cols(vml_vread(model,"y"));
+
+		if cols(beta)>0 and cols(beta)/=K;
+			"";
+			errorlog("Bad cointegration vector!");
+			retp(model);
+		endif;	
+	
+		tmp = rows(vml_vread(model,"mx_cd2cr"));
+		if rows(beta_d)/=rows(beta) and tmp/=cols(beta_d);
+			"";
+			errorlog("Bad cointegration vector for deterministic part!");
+			  retp(model);
+		endif;
+
+		model = vml_vput( model, beta  , "beta_x"  );
+   		model = vml_vput( model, beta_d, "beta_d_x");
+
+		tmp   = vml_GetCointRank(model);
+	else;
+		model = vml_vdel( model , "beta_x"$|"beta_d_x");
+	endif;
+	retp(model);
+endp;
+
+/**
+**
+** SYNTAX
+** var  = vml_SetCointRelationEstimation(model, cir, idx_equa, idx_norm, r_est);
+**
+** PURPOSE
+** Sets $r$ cointegration relation(s) and implicitly the cointegration rank.
+**
+** INPUT
+** model / (N,1) / data buffer /
+**
+** REMARK
+**
+*/
+proc(1)=vml_SetCointRelationEstimation(model, cir, idx_equa, idx_norm, r_est);
+	local K,trash;
+
+/* 	model = vml_vdel(model, "cir"$|"idx_equa"$|"idx_norm"$|"r_est"); */
+	model = vml_vdel(model,"cir,idx_equa,idx_norm,r_est");
+
+	K = cols(vml_vread(model,"y"));
+	if rows(cir);
+	  model = vput(model,cir,"cir");
+	elseif rows(idx_equa);
+	  if 1<=idx_equa<=K;
+	    model = vput(model,idx_equa,"idx_equa");
+	    if rows(idx_norm);
+	      if 1<=idx_norm<=K;
+		model = vput(model,idx_norm,"idx_norm");
+	      endif;
+	    endif;
+	  else;
+	    "";
+	    errorlog("Bad equation index for estimating cointegration relation!");
+	      retp(model);
+	    endif;
+	  elseif rows(r_est);
+	    model = vput(model,r_est,"r_est");
+	  else;
+	    model = vml_vdel(model, "cir"$|"idx_equa"$|"idx_norm"$|"r_est"); 
+/* 	    model = vml_vdel(model,"cir,idx_equa,idx_norm,r_est"); */
+	  endif;	
+	  trash   = vml_GetCointRank(model);
+	  
+	  retp(model);
+endp;
+
+/*
+**
+** SYNTAX   
+** y = vml_RestrictDetsToCoint(model, mx_cd2cr);
+**
+** PURPOSE 
+** Restricts some or all deterministic variables to the cointegration
+** relation.
+** 
+** INPUT
+** model    / (N,1)   / data buffer / VECM model
+** mx_cd2cr / (O,1)   / matrix      / 
+**
+** OUTPUT 
+** model / (M,1) / data buffer / VECM model with respective restriction.
+**
+** REMARKS 
+** The procedure simply adds the correct specified restriction to the 
+** VECM model. The estimation and display procedures must take into account
+** this restriction.
+**
+** Change in data buffer:\\ 
+** {\tt + mx\_cd2cr}
+**
+** SEE
+** vml_InitVAR
+** var__splitDeterministicsNames
+** 
+*/
+proc(1)=vml_RestrictDetsToCoint(model, mx_cd2cr);
+	if rows(mx_cd2cr);
+		local Nd;
+		Nd = vml__createDeterministicNames(cols(vml_vread(model,"d")));
+		call var__splitDeterministicsNames(Nd, mx_cd2cr);
+		model = vml_vput(model,mx_cd2cr,"mx_cd2cr");
+	else;
+		model = vml_vdel(model, "mx_cd2cr");
+	endif;
+	retp(model);
+endp;
+
+/*
+**
+** SYNTAX   
+** y = vml__subsetToGeneralRestriction(x);
+**
+** PURPOSE 
+** Transforms subset restriction matrix to general linear restriction matrix.
+** 
+** INPUT
+** x / (K,L)   / matrix / subset restriction matrix
+**
+** OUTPUT 
+** y / (K*L,M) / matrix / 
+**
+** REMARKS 
+** A subset restriction matrix is defined as a matrix of ones and zeros. It has the 
+** same dimension as the associated parameter matrix $A$. A zero element in the subset
+** restriction matrix indicates that the respective parameter in the parameter matrix
+** is set to zero in the estimation procedure (the respective variable drops out
+** of the regression model).
+**
+** A general linear restriction matrix $R$ is defined in the equation
+** \[
+** vec(A) = R \gamma + r
+** \]
+**
+** SEE
+*/
+proc(1)=vml__subsetToGeneralRestriction(x);
+	local y;
+	if not((x.==1)==x);
+   		print "";
+	   	errorlog("Subset restriction matrix required!");
+		retp(-10);
+	endif;
+
+	x=vec(x);
+	y=diagrv(zeros(rows(x),rows(x)),x)';
+	y=selif(y,x)';
+	if scalmiss(y); y=0; endif;
+	retp(y);
+endp;
+
+/*
+** SYNTAX  {tmp1,tmp2,tmp3} = var__mergeLinearConstraints(model,tmp,tmp1,1);
+**
+** INPUT
+** model / (N,1) / data buffer /
+** cm    / (M,1) / character matrix / names of coefficient matrices
+** n     / (M,1) / matrix           / number of variables in each equation
+** K     / (1,1) / matrix           / number of equations
+**
+** OUTPUT
+** S     / 
+** R     /
+** RC    /
+*/
+proc(3)=var__mergeLinearConstraints(model,cm,n,K);
+	local S,R,RC,
+	      S1,R1,RC1,S2,R2,RC2;
+/*
+	preFix = "S_"$|"R_"$|"RC_";
+
+	if rows(cm)>1;
+		tmp = preFix$+cm[1];
+		tmp = 0$+tmp;
+
+
+   	let tmp = {"S1" "B","beta","beta_d","cv_B","cv_beta","cv_bet_d","cvRes","u",
+			           "em_exe"};
+			for i(1,rows(tmp),1);
+		   		if not scalmiss(var_indcv( tmp[i], elementNames));
+					model = vput(model, vread(var,tmp[i]), tmp[i]);
+   				endif;   
+			endfor;
+*/
+
+	S = {};
+	R = {};
+	RC= {};
+	retp(S,R,RC);
+endp;
+
+
+
+
+
+
+
+
+
+
+
+
+

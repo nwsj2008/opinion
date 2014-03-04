@@ -1,0 +1,311 @@
+/*
+ This file is part of the econometric software package JMulTi.
+ Copyright (C) 2000-2005  Alexander Benkwitz, Markus Kraetzig
+
+ This program is free software; you can redistribute it and/or
+ modify it under the terms of the GNU General Public License
+ as published by the Free Software Foundation; either version 2
+ of the License, or (at your option) any later version.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, write to the Free Software
+ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ */
+
+/* Markus Kraetzig 2003 */
+
+
+/* Helper that gets a mat that has full column rank or an empty mat, when not possible.
+   It removes linearly dependent columns from mat, like zero cols.
+
+*/
+
+
+proc(3) = vec_getFullRankMat(mat, origSubsetRes, checkLag);
+
+local resultMat, rankTest,colMat,vecOfExclusionIndices, adjSubsetRes,T,matToTest;
+/* check whether deterministics have full column rank */
+
+vecOfExclusionIndices = zeros(cols(mat),1);
+adjSubsetRes = {};
+resultMat = {};
+if mat == 0;
+  retp(resultMat,vecOfExclusionIndices,adjSubsetRes);
+endif;
+T = rows(mat);
+matToTest = mat[1:T-checkLag,.];
+if T;  
+  trap 1;
+  rankTest = rank(matToTest);
+  trap 0;
+  if  not _svderr AND rankTest == cols(mat)+1;
+    retp(mat,vecOfExclusionIndices,origSubsetRes);
+  endif;
+  
+  for i (cols(mat),1,-1);
+    colMat =  matToTest[.,i];
+    if colMat == 0;
+      vecOfExclusionIndices[i] = 1;
+      continue;
+    endif;
+    if rows(resultMat) == 0;
+      resultMat =  mat[.,i];
+      if rows(origSubsetRes); 
+	adjSubsetRes =  origSubsetRes[.,i]~adjSubsetRes; 
+      endif; 
+      continue;
+    endif;
+    trap 1;
+    rankTest = rank(resultMat[1:T-checkLag,.] ~ colMat);
+    trap 0;
+    if  not _svderr AND rankTest == cols(resultMat)+1;
+      resultMat = mat[.,i] ~ resultMat;	 
+      if rows(origSubsetRes); 
+	adjSubsetRes =  origSubsetRes[.,i]~adjSubsetRes; 
+      endif;       
+    else;
+      vecOfExclusionIndices[i] = 1;
+    endif;
+  endfor;
+endif;
+
+retp(resultMat,vecOfExclusionIndices,adjSubsetRes);
+endp;
+
+/**
+ * Computes different representations of the EC term.
+ * 
+ * input:
+ * y - original dependent variables, not lag truncated (py+T)xK
+ * py - number of lags in underlying VAR (VECM lags + 1)
+ * x -  exogenous variables, not lag truncated (px+T)xL
+ * px - number of exogenous lags (levels)
+ * d - array with all deterministic variables, not lag truncated
+ * mx_cd2cr - cols(d) x 1 index vector defining which columns of d 
+ *            are restricted to the EC term 
+ *            (1 restricted, 0 appears unrestricted)
+ * beta - beta coefficients corresponding to y(t-1)
+ * beta_d - beta coefficients corresponding to d(t)
+ *
+ * output:
+ * 
+ * ec1 - beta'*y(t-1)
+ * ec2 - beta'*y(t-1) + beta_d'*d(t-1)
+ * ec3 - beta'*y(t-1)*M
+ * ec4 - beta'*y(t-1)*M  + beta_d'*d(t-1)
+ */
+proc(1)=vec_getECTerm(y,py,x,px,d,mx_cd2cr,beta,beta_d);
+local tmp,d_ec,d_vec,Z_0,Z_1,Z_2,Z_dy,Z_x,M,T,Y_t_1,det_ec,ec1,ec2,ec3,ec4;
+
+d_ec={};
+d_vec=d;
+T = rows(y) - py;
+
+if rows(mx_cd2cr);
+  if sumc(mx_cd2cr) == 0;
+    mx_cd2cr = {};
+  else;
+    mx_cd2cr = selif(seqa(1,1,rows(mx_cd2cr)),mx_cd2cr);
+  endif;
+endif;
+
+
+if rows(mx_cd2cr) and rows(d);
+  {d_vec,d_ec}=var__splitDeterministics(d,mx_cd2cr);
+endif;
+if cols(d_ec); /* lag d_ec */
+  d_ec  = d_ec[py:py+T-1,.];
+  if rank(d_ec) < cols(d_ec);
+    errorlog("Restricted deterministics have not full column rank.");
+    retp(0);
+  endif;		  
+endif;
+if cols(d_vec);
+  d_vec = d_vec[py+1:py+T,.];
+  if rank(d_vec) < cols(d_vec);
+    errorlog("Unrestricted deterministics have not full column rank.");
+    retp(0);
+  endif;		  
+endif;
+
+Z_x={};
+Y_t_1 = y[py:py+T-1,.];	
+Z_0 = y[py+1:py+T,.]-Y_t_1;
+Z_1 = Y_t_1~d_ec;
+Z_dy = vml__lagObservations(y[2:py+T,.]-y[1:py+T-1,.], py-1, 1, py-1); 
+
+if rows(x);
+  Z_x = vml__lagObservations(x, px, 0, px); 
+endif;
+
+Z_2  = Z_dy~d_vec~Z_x;
+M=diagrv(zeros(T,T),ones(T,1)); /* eye(T) because of Gauss 3.2 bug */
+if cols(Z_2);
+  M = M-Z_2*(inv(Z_2'*Z_2))*Z_2';
+endif;
+
+det_ec={};
+if rows(d_ec);
+  det_ec=d_ec*beta_d';
+endif;
+ec1=Y_t_1*beta';
+if rows(det_ec);
+  ec2=ec1+det_ec;
+else;
+  ec2=ec1;
+endif;
+ec3=M*Y_t_1*beta';
+
+if rows(det_ec);
+  ec4=ec3+M*det_ec;
+else;
+  ec4=ec3;
+endif;
+retp(ec1~ec2~ec3~ec4);
+endp;
+
+
+
+/**
+ * Create S2S Data Buffer 
+ */
+proc(1) = vec_CreateS2SVECM(y,x,d,py,px,Ny,Nx,Nd,r,mx_cd2cr,hmat,freeparamindex,h);
+local    s2sDatBuff,tmp;
+
+/* change the indexing of the determnistic variables restricted to EC */
+if rows(mx_cd2cr);
+  if sumc(mx_cd2cr) == 0;
+    mx_cd2cr = {};
+  else;
+    mx_cd2cr = selif(seqa(1,1,rows(mx_cd2cr)),mx_cd2cr);
+  endif;
+endif;
+
+/* this is the same as with Johanson */
+s2sDatBuff = vec_initBufferForS2SProc( y,py,Ny,x,px,Nx,d,Nd,
+                                            mx_cd2cr,r,hmat,freeparamindex,h);
+
+retp(s2sDatBuff);
+endp;
+
+/**
+ * Create Johansen Data Buffer 
+ */
+proc(1) = vec_CreateJohansenVECM(y,x,d,py,px,Ny,Nx,Nd,r,mx_cd2cr);
+local    johDatBuff,tmp;
+
+/* change the indexing of the determnistic variables restricted to EC */
+if rows(mx_cd2cr);
+  if sumc(mx_cd2cr) == 0;
+    mx_cd2cr = {};
+  else;
+    mx_cd2cr = selif(seqa(1,1,rows(mx_cd2cr)),mx_cd2cr);
+  endif;
+endif;
+
+johDatBuff = vec_initBufferForJohansenProc( y,py,Ny,x,px,Nx,d,Nd,
+                                            mx_cd2cr,r);
+
+retp(johDatBuff);
+endp;
+
+/**
+ * Create 2-Stage Data Buffer.
+ */
+proc(1) = vec_CreateTwoStageVECM(y,x,d,py,px,Ny,Nx,Nd,r,mx_cd2cr,
+firstStage_equaIdx,firstStageByVECMEquation,firstStageByJohansen,firstStageByS2S,firstStage_crJoh,
+beta_x,beta_d_x,sndstage_method,S_G0,S_G,S_alpha,S_beta,S_beta_d,S_B,S_C_VEC,
+hmat,freeparamindex,h);
+
+local  vecModel,ecModel,emptyMatrix,idx_norm,firstWithExtraSR,S_F_VEC;
+
+/*  not used actually */
+firstWithExtraSR={};
+S_F_VEC={};
+
+/* change the indexing of the determnistic variables restricted to EC */
+if rows(mx_cd2cr);
+  if sumc(mx_cd2cr) == 0;
+    mx_cd2cr = {};
+  else;
+    mx_cd2cr = selif(seqa(1,1,rows(mx_cd2cr)),mx_cd2cr);
+  endif;
+endif;
+
+/************************************** CreateECM ************************************/
+idx_norm=1;
+
+if rows(firstWithExtraSR);
+  ecModel= vec_CreateEstimationProblemEC(y,py,Ny,x,px,Nx,d,Nd,mx_cd2cr,firstStage_equaIdx,idx_norm);
+else;
+  ecModel = {};
+endif;
+
+/************************************ createVECM **************************************/
+
+emptyMatrix = {};
+
+
+if rows(firstStageByS2S) and firstStageByS2S;
+   vecModel = vec_initBufferForS2SProc( y,py,Ny,x,px,Nx,d,Nd,
+   mx_cd2cr,r,hmat,freeparamindex,h);
+   /* remove previously set estimation method, because it is two stage */
+   vecModel = var_SetEstimationMethod(vecModel, "none");
+   vecModel = vml_vput(vecModel,1,"s2s_1st");
+
+ else;
+   
+   if firstStageByVECMEquation;
+     firstStageByVECMEquation=firstStage_equaIdx;
+   else;
+     firstStageByVECMEquation={};
+   endif;
+   
+   if firstStageByJohansen;
+     firstStageByJohansen=firstStage_crJoh;
+   else;
+     firstStageByJohansen={};
+   endif;
+   vecModel = vec_CreateEstimationProblemVEC(y,py,Ny,x,px,Nx,d,Nd,mx_cd2cr,
+   ecModel,firstStageByVECMEquation,idx_norm,firstStageByJohansen,beta_x,beta_d_x);
+endif;
+
+/************************************ subsetRestrictionsVECM **************************/
+
+vecModel=vec_SubsetRestrictions_VEC(vecModel,S_G0,S_G,S_alpha,S_beta,S_beta_d,S_B,S_C_VEC,S_F_VEC);
+	
+
+if sndstage_method$/="Automatic";
+  vecModel = var_SetEstimationMethod(vecModel,sndstage_method);
+endif;
+
+
+retp(vecModel);
+endp;
+
+/**
+ * Create VAR Data Buffer 
+ */
+proc(1) = vec_CreateVAR(y,x,d,py,px,Ny,Nx,Nd,Cy,Cx,Cd);
+local  var;
+
+var =  vml_InitVAR(y,py,Ny,x,px,Nx,d,Nd);
+	if rows(Cy);
+	   	var = vml_SetRestrictions(var, Cy, "S_A");
+	endif;
+   	if rows(Cx);
+	   	var = vml_SetRestrictions(var, Cx, "S_B");
+	endif;
+   	if rows(Cd);
+	        var = vml_SetRestrictions(var, Cd, "S_C_VAR");
+	endif;
+retp(var);
+endp;
+
+
+

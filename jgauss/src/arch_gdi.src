@@ -1,0 +1,413 @@
+/*
+ This file is part of the econometric software package JMulTi.
+ Copyright (C) 2000-2005  Helmut Herwartz, Christian Kascha, Markus Kraetzig
+
+ This program is free software; you can redistribute it and/or
+ modify it under the terms of the GNU General Public License
+ as published by the Free Software Foundation; either version 2
+ of the License, or (at your option) any later version.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, write to the Free Software
+ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ */
+/**
+ * Procedures Estimation of GARCH with t-distributed errors
+ */
+
+/**
+ * AUTHORS      
+ * PD Dr. Helmut Herwartz     helmut@wiwi.hu-berlin.de
+ * Christian Kascha       christian_kascha@gmx.de
+ *
+ * Chair of Econometrics
+ * Humboldt University Berlin
+ * Spandauer Str. 1
+ * 10178 Berlin
+ * ise.wiwi.hu-berlin.de/oekonometrie/engl/indexeng.html        
+ * Berlin, January 2003
+ */
+
+ /**
+ * output:
+ * g = intercept | q parameters | p parameters | likelihood | degfree  
+ * S = variance covariance mat
+ * tvalues = intercept | q parameters | p parameters 
+ * psi = residuals
+ * ivar = variance process
+ */
+ proc(5)=garchtdi_wrapper_arch(r,q,p);
+ 
+ local T,r2,e2,Z,theta,ucvar,g,s1,s,sh,tvalues,z0,ivar,istd,psi;
+ 
+T=rows(r);
+r2=r.*r; 
+e2=r2[q+1:T,.]; 
+Z=genZ_garch_arch(r2,q);
+
+theta=(ones(q+1,1)*(0.05/q))|(ones(p,1)*(0.9/p));    /* ***** Initial Parameters *****/
+theta=8|theta;
+ucvar=sumc(r2)/(T-q-p);             /* ***** Unconditional Variance *********** */
+theta[2,1]=ucvar*(1-0.95);           /* ***** initial value constant term **** */
+
+g=BHHH_garchtdi_arch(r2,q,p,ucvar,theta,e2,Z,T); 
+
+theta=g[1:(q+p+2),.];
+S1=Ableit_garchtdi_arch(e2,r2,q,p,ucvar,T,Z,theta);
+S=(S1*S1')/(T-q);
+S=inv(S)/(T-q);             /* ***** Variance-Covariance Matrix ****** */
+SH=diag(S);
+SH=sqrt(SH);
+tvalues=theta./SH;
+/* Reordering degfree to the end */
+tvalues=tvalues[2:rows(tvalues),.]|tvalues[1,.];
+
+Z0=genZ0_garchtdi_arch(r2,T,q,ucvar);
+Z0=Z0|Z;
+ivar=greatZ0_garchtdi_arch(T,Z0,q,p,ucvar,theta);                                       
+istd=sqrt(ivar);    /* Vector of implied standard deviations */ 
+psi=r./istd;            /* ***** Residuals ***** */
+
+g=g[2:rows(g)]|g[1];
+
+retp(g,S,tvalues,psi,ivar);
+endp;
+
+
+/* ******************************************************************************* */
+/* ** Estimation of GARCH with t-distributed errors using  BHHH-Algorithm **** */
+/*     
+INPUT 
+            r    (T x 1)        Vector of Residuals
+
+PARAMETERS 
+
+            q  (1 x 1)          ARCH - Order, 1=<q<=2
+            p  (1 x 1)          numer of lags in variances 1=<p<=2
+
+OUTPUT 
+            g ((q+p3) x 1)      Vector of Parameters starting with the degrees of 
+                            freedom, then the constant term
+                            continuing with the arch-parameter followed by the 
+                            lag-parameter plus value of log-likelihood 
+                            at the end
+
+            S ((q+p+2)x(q+p+2)) Variance-Covariance Matrix
+
+            tvalues ((q+p+2)x1)  tvalues of parameters
+
+AUTHORS     PD Dr. Helmut Herwartz  helmut@wiwi.hu-berlin.de
+            Christian Kascha        christian_kascha@gmx.de
+
+            Chair of Econometrics
+            Humboldt University Berlin
+            Spandauer Str. 1
+            10178 Berlin
+            
+            ise.wiwi.hu-berlin.de/oekonometrie/engl/indexeng.html           
+
+            Berlin, January 2003
+*/
+/* ******************************************************************************** */ 
+/* ******************************************************************************** */
+
+
+
+/* ******************************************************************************* */
+/* ***************** Calculation of Gamma Functions ****************************** */
+/*
+OUTPUT
+        z   values of resp. Gamma Functions(1 x 1)
+            This is done in order to evaluate numerically the derivatives
+            of the Gamma Functions in the pdf. 
+*/
+/* ******************************************************************************* */
+
+proc(1)=gam1_garchtdi_arch(z);
+local zz;
+
+zz=gamma((z+1)/2);
+
+retp(zz);
+endp;
+
+proc(1)=gam2_garchtdi_arch(z2);
+local zz;
+
+zz=gamma(z2/2);
+
+retp(zz);
+endp;
+
+
+/* ******************************************************************************* */
+/* ***************** Calculation of T-Distribution log-likelihood **************** */
+/*
+OUTPUT
+        loglik  negative Log-likelihood (1 x 1)
+*/
+/* ******************************************************************************* */
+proc(1)=LIK_garchtdi_arch(r2,Z,T,q,p,ucvar,theta,e2);           
+                
+local loglik,b,bb,izv, zv,ga,gaga,bb1,c,v;
+
+v=theta[1,1];
+ga=gamma((v+1)/2);
+gaga=gamma(v/2);
+
+zv=greatZ_garchtdi_arch(r2,T,Z,q,p,ucvar,theta);
+bb=ln(zv*(v-2)/v);
+b=e2./zv;
+bb1=v+b*v/(v-2);
+bb1=ln(bb1);
+bb1=sumc(bb1);
+
+c=ln((v^(v/2)*ga)/(sqrt(pi)*gaga));
+
+loglik=(T-q)*(c)-0.5*sumc(bb)-((v+1)/2)*bb1;
+loglik=(-1)*loglik;
+
+if imag(loglik) ne 0;
+loglik=0;
+endif;
+
+retp(loglik);
+endp;                    
+
+/* ******************************************************************************* */
+/* ********* Calculation of Derivative of T-Distribution Log-likelihood ********* */
+/*
+OUTPUT
+        ltv     Matrix of Derivatives  ((q+p+2) x (T-q))
+*/
+/* ******************************************************************************* */
+proc(1)=Ableit_garchtdi_arch(e2,r2,q,p,ucvar,T,Z,theta);    
+            
+ local the,ltv,ltvv,siggi1,siggi2,ga,gaga,gagr,gagagr,ga1,v,
+    vvec,vvec1,abluc,abluc2,vvec2,gz,vabl,g,e,b,b2,b3,vz;
+
+vvec=greatZ_garchtdi_arch(r2,T,Z,q,p,ucvar,theta);
+
+v=theta[1,1];
+
+/* ********************************************************** */
+/* ******** Iterative Computation of Derivatives ********** */
+/* ********************************************************** */
+vvec2=ucvar|ucvar|vvec;
+vvec2=vvec2[1:(T-q),.];
+vvec1= ucvar|vvec;
+vvec1=vvec1[1:(T-q),.];
+
+
+abluc=ucvar/(1-theta[q+3:rows(theta),.]'*ones((rows(theta)-q-2),1));
+abluc2=1/(1-theta[q+3:rows(theta),.]'*ones((rows(theta)-q-2),1));
+gz=Z~vvec1~vvec2;
+g=rows(theta)-1;
+
+
+gz=gz[.,1:g];
+
+
+vabl=zeros((T-q),g);
+
+
+e=abluc*ones(p,g);
+e[.,1]=abluc2*ones(p,1);
+
+vabl=e|vabl;
+
+for i ((p+1),(T-q+p),1);
+
+b=vabl[(i-p):(i-1),.];
+b=rev(b);
+b=theta[(q+3):(g+1),.].*b;
+b=sumc(b);
+b=b';
+
+vabl[i,.]=gz[(i-p),.]+b;
+endfor;
+
+vabl=vabl[(p+1):(T-q+p),.];
+
+/* ********************************************************** */
+
+vz=vvec;
+siggi1=vz^(-1);
+siggi2=vz^(-2);
+siggi1=siggi1.*vabl;
+siggi2=siggi2.*vabl;
+
+gagr=gradp(&gam1_garchtdi_arch,v);
+gagagr=gradp(&gam2_garchtdi_arch,v);
+ga=gamma((v+1)/2);
+ga=ga^(-1);
+gaga=gamma(v/2);
+gaga=gaga^(-1);
+b=v/(v-2);
+b2=v+b*e2./vz;
+
+ltvv=0.5*(ln(v)+1-1/(v-2)+1/v)+ga*gagr-gaga*gagagr;
+
+ltvv=ltvv-0.5*ln(b2)-((v+1)/2)*(b2^(-1)).*(1-2/((v-2)^(2))*e2./vz); 
+
+ltv=0.5*(-siggi1+(v+1)*((b2)^(-1)).*b.*(e2.*siggi2));
+
+ltv=ltvv~ltv; 
+ltv=ltv';
+
+retp(ltv);
+endp;
+
+/* ******************************************************************************* */
+/* ********* Estimation of Parameters using the BHHH - Algorithm *********** */
+/*
+OUTPUT
+        g       Parameters plus (negative) loglikelihood ((q+p+3) x 1)
+*/
+/* ******************************************************************************* */
+proc(1)=BHHH_garchtdi_arch(r2,q,p,ucvar,theta,e2,Z,T);
+local stelle,th,steps,ende2,step,temp,maxIter,
+    sig,iterat,ab1,theta1,j,abl,abl2,liks,ab11,ab2t,ende;
+
+maxIter = 10000;    
+    
+th=theta;
+steps=0.5~0.1~0.01~0.005~0;
+step=2;
+stelle=0;
+ende2=0;
+
+iterat=1;
+do until ende2 == 1 or iterat > maxIter;
+
+  theta=th;
+  
+  theta1=zeros(rows(theta),5);
+  
+  abl=Ableit_garchtdi_arch(e2,r2,q,p,ucvar,T,Z,theta);  
+  
+  abl2=abl*abl';
+  abl=sumc(abl');
+  
+  
+  j=1;
+  do until j>5;
+    temp=th+step*steps[.,j]*inv(abl2)*abl;
+    
+    theta1[.,j]=temp;
+    
+    j=j+1;
+  endo;
+  
+  theta1=abs(theta1); 
+  
+  ab11=zeros(5,1);
+  ab11[5,.]=LIK_garchtdi_arch(r2,Z,T,q,p,ucvar,th,e2);  
+  
+  ende=0;
+  j=4;
+  do until (j<1) or (ende == 1);
+    liks=LIK_garchtdi_arch(r2,Z,T,q,p,ucvar,theta1[.,j],e2);    
+    
+    ab11[j,.]=liks;
+    if ab11[j+1,.] lt ab11[j,.];
+      ende=1;
+    endif;
+    j=j-1;
+  endo; 
+  
+  stelle=minindc(ab11[(j+1):rows(ab11),.])+j;
+  
+  ab1=ab11[stelle,.];
+  if ((ab1-ab11[5,.])^2/abs(ab11[5,.])) lt 0.00000001;
+    ende2=1;
+  endif;
+  th=theta1[.,stelle];
+  iterat=iterat+1;
+endo;
+
+liks=LIK_garchtdi_arch(r2,Z,T,q,p,ucvar,th,e2); 
+
+
+retp(th|liks);
+endp;  
+
+proc(1)=genZ0_garchtdi_arch(r2,T,q,ucvar);
+local a,b,g,ger;
+a=r2[1:T-1,1];
+b=r2[1:T-2,1];
+
+a=ucvar|a;
+b=ucvar|ucvar|b;
+
+ger=ones(T,1)~a~b;
+g=q+1;
+
+ger=ger[1:q,1:g];
+
+retp(ger);
+endp;
+/* ******************************************************************************* */
+/* ********* Generation of Vector of Variances ********************************* */
+/*
+OUTPUT
+        vvec          vector of variances (1 x (T-q))
+                        
+*/
+/* ******************************************************************************* */
+proc(1)=greatZ_garchtdi_arch(r2,T,Z,q,p,ucvar,theta);  
+local i,j,vvec,gz,g,e,b;                    
+
+vvec=zeros(T-q,1);
+
+e=ucvar*ones(p,1);
+
+vvec=e|vvec;                                          
+g=rows(theta);
+
+for i ((p+1),(T-q+p),1);
+b=vvec[(i-p):(i-1),1];
+b=rev(b);
+b=theta[(q+3):g,1].*b;
+b=sumc(b);
+
+vvec[i,1]=Z[i-p,.]*theta[2:(q+2),1]+b; 
+
+endfor;
+
+vvec=vvec[p+1:T-q+p,.];
+            
+retp(vvec);
+endp;
+
+proc(1)=greatZ0_garchtdi_arch(T,Z0,q,p,ucvar,theta);  
+local i,j,vvec,gz,g,e,b;                    
+
+vvec=zeros(T,1);
+
+e=ucvar*ones(p,1);
+
+vvec=e|vvec;   
+
+g=rows(theta);
+
+for i ((p+1),(T+p),1);
+
+b=vvec[(i-p):(i-1),1];
+b=rev(b);
+b=theta[(q+3):g,1].*b;
+b=sumc(b);
+
+vvec[i,1]=Z0[i-p,.]*theta[2:(q+2),1]+b; 
+
+endfor;
+
+vvec=vvec[(p+1):(T+p),.];
+            
+retp(vvec);
+endp;

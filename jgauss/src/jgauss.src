@@ -1,0 +1,94 @@
+/*
+ This file is part of the econometric software package JMulTi.
+ Copyright (C) 2000-2005  Alexander Benkwitz, Markus Kraetzig
+
+ This program is free software; you can redistribute it and/or
+ modify it under the terms of the GNU General Public License
+ as published by the Free Software Foundation; either version 2
+ of the License, or (at your option) any later version.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, write to the Free Software
+ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ */
+/**************
+library xlm
+**************/
+declare matrix __xlm_r = 0;
+declare matrix __xlm_c = 0;
+declare matrix __xlm_s = 0;
+declare matrix __xlm_t = 0;
+declare string __xlm_swap_file = "swap.out";
+declare matrix __xlm_swap_var  = 0;
+
+/*
+**
+** INPUT : buffer / (1x1) / string /
+**         s      / (1x1) / matrix / buffer size
+**         r      / (1x1) / matrix / number of rows
+**         c      / (1x1) / matrix / number of cols
+*/
+proc readstringarray(buffer,s,r,c);
+	local stringArray,n,idx,idxStart,idxStop,count, __xlm_r, __xlm_c;
+        dllcall readString(buffer,r,c);
+	n=vals(buffer);
+	idx=selif(seqa(1,1,rows(n)),n.==0);
+	if scalmiss(idx);
+    	stringArray=buffer;
+	else;
+		stringArray=""$+zeros(r,c);
+		idxStart=1|(idx+1);
+		idxStop=(idx-1)|rows(n);
+		count=1;
+		for i (1,r,1);
+			for j (1,c,1);
+
+			  if rows(n) >= idxStop[count] and idxStop[count] >= idxStart[count] and idxStart[count] > 0;
+			    stringArray[i,j]=chrs(n[idxStart[count]:idxStop[count]]);
+			  endif;
+			  count=count+1;
+			endfor;
+		endfor;
+	endif;
+	retp(stringArray);
+endp;
+/*
+**
+** INPUT : s      / (MxN) / string array /
+**
+** OUTPUT: none
+**
+** REMARK: possible errors (a) symbol 's' is not of type string or string array,
+**         (b) the dllcall returns with error
+*/
+proc(0)=writestringarray(s);
+	local str;
+	if not( (type(s)==13) or (type(s)==15) );
+		errorlog("writeStringArray: input argument must be string or string array.");
+	endif;
+
+	str="";
+	s=s$+"\0";
+	for i (1,rows(s),1);
+		for j (1,cols(s),1);
+			str=strput(s[i,j],str,strlen(str)+1);
+		endfor;
+	endfor;
+
+	__xlm_s=strlen(str);
+	__xlm_r=rows(s);
+	__xlm_c=cols(s);
+	__xlm_t=type(s);
+	dllcall writeStringMatrix(str,__xlm_s,__xlm_r, __xlm_c, __xlm_t);
+	if __xlm_s==0;
+		errorlog("writeStringArray: Error while writing string from Gauss.");
+	endif;
+
+endp;
+
+

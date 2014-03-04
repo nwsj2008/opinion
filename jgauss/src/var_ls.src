@@ -1,0 +1,525 @@
+/*
+ This file is part of the econometric software package JMulTi.
+ Copyright (C) 2000-2005  Alexander Benkwitz
+
+ This program is free software; you can redistribute it and/or
+ modify it under the terms of the GNU General Public License
+ as published by the Free Software Foundation; either version 2
+ of the License, or (at your option) any later version.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, write to the Free Software
+ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ */
+#ifos2win 
+/* to be used by library creation, windows only */
+#include var.dec
+#endif
+/*
+**
+** PURPOSE
+** Helper method for estimation procedures.
+**
+** SYNTAX 
+** y = vml__lagObservations(x,px,startLag,endLag);
+**
+** INPUT 
+** x        / (px+T,K) / matrix /
+** px       / (1,1)    / matrix /
+** startLag / (1,1)    / matrix /
+** endLag   / (1,1)    / matrix /
+**
+** OUTPUT
+** y / (T,(endLag-startLag+1)*K) / matrix /
+**
+*/
+proc(1)=vml__lagObservations(x,px,startLag,endLag);
+	local obs;
+	if rows(x)<1 or endLag<startLag;
+		obs = {};
+	else;
+		if px<endlag;
+			"";
+			errorlog("Bad arguments");
+			retp(-10);
+		endif;
+		local K,T,lastIdx;
+		K   = cols(x);
+		T   = rows(x)-px;
+	   	obs = zeros(T,(endLag-startLag+1)*K);
+		lastIdx = 0;
+   		for i(startLag,endLag,1);
+	   		obs[.,lastIdx+1:lastIdx+K]=x[px+1-i:px+T-i,.];
+			lastIdx = lastIdx + K;
+   		endfor;
+	endif;
+	retp(obs);
+endp;
+
+/*
+** SYNTAX
+** y = vml__syncSRMatrix(x,K,n);
+**
+** PURPOSE
+** Synchronizes subset restriction matrix.
+**
+** INPUT
+** x / (K,n) / matrix / proposed subsetrestriction matrix
+**   / (1,1) / matrix / {\tt x=0} or {\tt x=1}
+**   / (0,0) / matrix / equal to {\tt x=1}
+** K / (1,1) / matrix / number of equations
+** n / (1,1) / matrix / number of variables in each equation
+**
+** OUTPUT
+** x / (K,n) / matrix / subset restriction matrix
+**
+** REMARK
+** It is guaranteed that the returned matrix has the correct dimension.
+**
+*/
+proc(1)=vml__syncSRMatrix(x,K,n);
+	if K<1 or n<1;
+		x={};
+	      elseif (K>1 and rows(x)==1) or (n>1 and cols(x)==1);
+		if rows(x);
+			x=ones(K,n);
+		else;
+			x=zeros(K,n);
+		endif;
+	elseif rows(x)<1 and K;
+		x=ones(K,n);
+	else;
+		if not(rows(x)==K and cols(x)==n);
+			"";
+			errorlog("Cannot synchronize subset restriction matrix!");
+			"your SR is of dimension " vml_showDim(x);
+			"the code requires rows  " K;
+			"                  cols  " n;
+			retp(-10);
+		endif;
+	endif;
+	retp(x);
+endp;
+
+
+/*
+** SYNTAX  {y,x,R,R_c} = vml__prepareLS(y,x,d, py,px, Ry,Ry_c, Rx,Rx_c, Rd,Rd_c);
+**
+** PURPOSE Prepare OLS or GLS estimation.
+**
+** INPUT    y    / (py+T,K)       / observations for endogenous variables
+**          x    / (px+T,L)       / observations for predetermined variables
+**                                  that enter the model with lags (see {\tt px})
+**               / (0,0)          / if model does not include such variables
+**                                  {\tt x=\{\}}
+**          d    / (T,M)          / observations for predetermined variables that 
+**                                  do not enter the model with lags
+**               / (0,0)          / if model does not include such variables
+**                                  {\tt d=\{\}}
+**          py   / (1,1)          / number of presample values in {\tt y} and 
+**                                  lag number for endogenous variables
+**          px   / (1,1)          / number of presample values in {\tt x} and 
+**                                  lag number for this variable
+**          Ry   / (K*K*py,M)     / 
+**               / (0,0)          / if none
+**          Ry_c / (K*K*py,1)     /
+**               / (0,0)          / if none
+**          Rx   / (L*K*(px+1),N) /
+**               / (0,0)          / if none
+**          Rx_c / (L*K*(px+1),1) /
+**               / (0,0)          / if none
+**          Rd   / (M*K,O)        /
+**               / (0,0)          / if none
+**          Rd_c / (M*K,1)        /
+**               / (0,0)          / if none
+**
+** OUTPUT   
+** y     / (T,K)                   / The lhs observations (regressand)
+** x     / (T,K*py+L*(px+1)+M)     / The regressor matrix. This matrix might be empty
+**                                   ({\tt x=\{\}}) if the specification excludes
+**                                   predetermined variables.
+** R     / (K*(K*py+L*(px+1)+M),N) /
+** R_c   / (K*(K*py+L*(px+1)+M),K) /
+**
+** SEE
+** vml__ols
+** vml__gls
+**
+*/
+proc(4)=vml__prepareLS(y,x,d,py,px, Ry,Ry_c, Rx,Rx_c, Rd,Rd_c);
+	local T,K,y_lhs, n1,n2,n3,n, R, R_c, Z;
+
+	T = rows(y) - py;
+	K = cols(y);
+	if cols(x)==0; px = 0; endif;
+	py = maxc(py|0);
+
+	@ left hand side @
+		y_lhs = y[py+1:py+T,.];
+	
+	@ 'n' is number of variables in the urestricted model @
+		n1 = py*K;
+		n2 = cols(x)*(px+1);
+		n3 = cols(d);
+		n  = n1+n2+n3;
+
+	@ now make from Ry,Rx,Rd the combined R matrix @
+	{R,R_C} = vml__mergeRConstraints(    K*n1 , K*n2, Ry,Ry_c, Rx,Rx_c);
+	{R,R_C} = vml__mergeRConstraints(K*(n1+n2), K*n3, R , R_C, Rd,Rd_c);
+
+   	@ Build the Z matrix @
+	if n==0; 
+		@ white noise model @
+		Z = {};
+	else;
+   		Z = vml__getRegMatrix(y,x,d,py,px);
+	endif;
+
+	retp(y_lhs, Z, R, R_c);
+endp;
+
+/*
+** SYNTAX  
+** {R,R_c} = vml__mergeRConstraints(ny,nx, Ry,Ry_c, Rx,Rx_c);
+**
+** PURPOSE 
+** Merges linear constraints in R-form of two variable groups.
+**
+** INPUT    
+**  ny   / (1,1)  / number of parameters in unrestricted model for that variable 
+**  nx   / (1,1)  / number of parameters in unrestricted model for that variable 
+**  Ry   / (ny,M) / 
+**       / (0,0)  / if none
+**  Ry_c / (ny,1) /
+**       / (0,0)  / if none
+**  Rx   / (nx,N) /
+**       / (0,0)  / if none
+**  Rx_c / (nx,1) /
+**       / (0,0)  / if none
+**
+** OUTPUT   
+** R     / (ny+nx,M+N) /
+** R_c   / (ny+nx,1)   /
+**
+** SEE
+** vml__ols
+** vml__gls
+**
+*/
+proc(2)=vml__mergeRConstraints(ny,nx, Ry,Ry_c, Rx,Rx_c);
+	local R, R_c;
+
+	@ check for consistent restriction matrices @
+		if ny==0;  
+			Ry   = {}; 
+			Ry_c = {}; 
+		else; 	
+			if rows(Ry)==0; 
+				Ry = 1;
+			endif;
+		endif;
+		if nx==0;  
+			Rx   = {}; 
+			Rx_c = {}; 
+		else; 	
+			if rows(Rx)==0; 
+				Rx = 1;
+			endif;
+		endif;
+
+	@ now make from Ry,Rx the combined R matrix @
+		if ny == 0;
+			R   = Rx;
+			R_c = Rx_c;
+		elseif nx == 0;
+			R   = Ry;
+			R_c = Ry_c;
+		else;
+			R={};
+			if rows(Ry)==1 and rows(Rx)==1;
+				if Ry==Rx;
+	   				R=Ry;
+				endif;
+	   		endif;
+			if rows(R)<1;
+				if rows(Ry)==1;
+					if Ry==0;
+						Ry={};
+					else; 
+						Ry=Ry*eye(ny);
+					endif;
+				endif;
+				if rows(Rx)==1;
+					if Rx==0;
+						Rx={};
+					else; 
+						Rx=Rx*eye(nx);
+					endif;
+				endif;
+
+				R=zeros(ny+nx,cols(Ry)+cols(Rx));
+				if rows(Ry);
+					R[1:ny,1:cols(Ry)]=Ry;
+				endif;
+				if rows(Rx);
+					R[ny+1:ny+nx,cols(Ry)+1:cols(Ry)+cols(Rx)]=Rx;
+				endif;
+			endif;
+			R_c = {};
+			if rows(Ry_c) or rows(Rx_c);
+				R_c = zeros(ny+nx,1);
+				if rows(Ry_c);
+					if rows(Ry_c)==1 and ny>1;
+						Ry_c = Ry_c*ones(ny,1);
+					endif;
+					R_c[1:ny]=Ry_c;
+				endif;
+				if rows(Rx_c);
+					if rows(Rx_c)==1 and nx>1;
+						Rx_c = Rx_c*ones(nx,1);
+					endif;
+					R_c[ny+1:ny+nx]=Rx_c;
+				endif;
+			endif;
+		endif;
+
+	retp(R, R_c);
+endp;
+
+/*
+**
+** SYNTAX
+** Z = vml__getRegMatrix(y,x,d,py,px);
+**
+** PURPOSE
+** Generates regression matrix from endogenous, exogenous and deterministic variables.
+**
+** INPUT
+** y   / (py+T,K) / matrix /
+** x   / (px+T,M) / matrix /
+** d   / (T,N)    / matrix /
+** py  / (1,1)    / matrix /
+** px  / (1,1)    / matrix /
+**
+** OUTPUT
+** Z   / (T,py*K+(px+1)*M+N) / matrix / 
+**
+** REMARK
+** It can be the case that {\tt Z = \{\}}.
+**
+*/
+proc(1)=vml__getRegMatrix(y,x,d,py,px);
+	local T,K, n1,n2,n3,n, Z, lastIndex;
+
+	T = rows(y) - py;
+	K = cols(y);
+	if cols(x)==0; px = 0; endif;
+	py = maxc(py|0);
+
+	@ 'n' is number of variables in the urestricted model @
+		n1 = py*K;
+		n2 = cols(x)*(px+1);
+		n3 = cols(d);
+		n  = n1+n2+n3;
+
+	@ right hand side @
+		if n==0; 
+			@ white noise model @
+				Z = {};
+		else;
+			@ Build the Z matrix @
+				Z = zeros(T,n);
+				lastIndex = 0;
+				if n1;
+					Z[.,1:n1] = vml__lagObservations(y,py,1,py);
+					lastIndex = lastIndex + n1;
+				endif;
+				if n2;	
+					Z[.,lastIndex+1:lastIndex+n2] = vml__lagObservations(x,px,0,px);
+					lastIndex = lastIndex+n2;
+   				endif;
+				if n3;
+					Z[.,lastIndex+1:lastIndex+n3] = d;
+				endif;
+		endif;
+
+	retp(Z);
+endp;
+
+/**
+**
+** SYNTAX
+** {d_vec,d_ec} = var__splitDeterministics(d,idx_l);
+**
+** PURPOSE
+** Split deterministic observations to a part entering the cointegration relation
+** and a part entering the VEC-System.
+**
+** INPUT
+** d       / (T,M) / matrix / deterministic variables, can be empty
+** idx_l   / (N,1) / matrix / indizes of deterministic variables that enter the
+**                            cointegration relation with lagged values
+**
+** OUTPUT
+** d_vec  / (T,M-N) / matrix / deterministic variables, that enter system estimation
+** d_ec   / (T,N+O) / matrix / deterministic variables restricted to cointegration relation (not lagged yet!)
+**
+** REMARK
+** {\tt idx\_c} and {\tt idx\_l} must be mutually exclusive!
+**
+** The variables referenced by {\tt idx\_l} are written as
+** \[
+** y_t = y_t - y_{t-1} + y_{t-1} = \dy_t + y_{t-1}
+** \]
+** where $\dy_t$ is kept in the block of deterministic variables for system estimation
+** and $y_{t-1}$ goes to the block of deterministic variables for estimating the 
+** cointegration relation.
+**
+** SEE
+** var__splitDeterministicsNames
+*/
+proc(2)=var__splitDeterministics(d, idx_l);
+	local tmp,d_vec,d_ec;
+	d_vec = {};
+	d_ec  = {};
+	if rows(d);
+
+		d_vec = d;
+		if rows(idx_l);
+			idx_l = sortc(idx_l,1);
+			tmp = setdif(seqa(1,1,cols(d)),idx_l,1);
+			if scalmiss(tmp);
+				d_vec = {};
+			else;
+				d_vec = d_vec[.,tmp];
+			endif;
+			d_ec = d_ec~d[.,idx_l];
+		endif;
+
+		if rows(idx_l);
+			tmp = sortc(idx_l~(d_ec'),1);
+			d_ec = tmp[.,2:cols(tmp)]';
+		endif;
+
+	endif;
+	retp(d_vec,d_ec);
+endp;
+
+/**
+**
+** SYNTAX
+** {Nd_vec,Nd_ec} = var__splitDeterministicsNames(Nd,idx_l);
+**
+** PURPOSE
+** Creates names for deterministic variables according to the restriction rule.
+**
+** INPUT
+** Nd      / (M,1) / character matrix / Names for deterministic variables, can be empty
+**         /       / string array
+** idx_l   / (N,1) / matrix / indizes of deterministic variables that enter the
+**                            cointegration relation with lagged values
+**
+** OUTPUT
+** Nd_vec  / (M-N,1) / string array / Names of deterministic variables 
+**                                    that enter system estimation
+** Nd_ec   / (N+O,1) / string array / Names of deterministic variables 
+**                                    restricted to cointegration relation (with (t-1))
+**
+** REMARK
+** {\tt idx\_c} and {\tt idx\_l} must be mutually exclusive!
+**
+** SEE
+** var__splitDeterministics
+*/
+proc(2)=var__splitDeterministicsNames(Nd,idx_l);
+	local tmp,Nd_vec,Nd_ec,CONST;
+	CONST  = "CONST";
+	Nd_vec = {};
+	Nd_ec  = {};
+	if rows(Nd);
+
+		Nd = ""$+Nd;
+		Nd_vec = Nd;
+
+		if rows(idx_l);
+			idx_l = sortc(idx_l,1);
+			tmp = setdif(seqa(1,1,rows(Nd)),idx_l,1);
+			if scalmiss(tmp);
+				Nd_vec = {};
+			else;
+				Nd_vec = Nd_vec[tmp];
+			endif;
+			if rows(Nd_ec);
+				Nd_ec = Nd_ec$|var__appendSuffix(Nd[idx_l], "(t-1)", CONST);
+			else;
+				Nd_ec = var__appendSuffix(Nd[idx_l], "(t-1)", CONST);
+			endif;
+		endif;
+
+		if rows(idx_l);
+			tmp = sortc(idx_l~seqa(1,1,rows(idx_l)),1);
+			Nd_ec = Nd_ec[tmp[.,2]];
+		endif;
+
+	endif;
+	retp(Nd_vec,Nd_ec);
+endp;
+
+proc(1)=var__appendSuffix(sa,idx,str);
+	if type(sa)==6;
+		sa=""$+sa;
+	endif;
+	if type(idx)/=13 OR type(str)/=13;
+		errorlog("Wrong argument type. must be string!");
+		retp(-10);
+	endif;
+	for i(1,rows(sa),1);
+		if sa[i]$/=str;
+			sa[i]=sa[i]$+idx;
+		endif;
+	endfor;
+	retp(sa);
+endp;
+
+/*
+**
+** PURPOSE
+** Helper method for estimation procedures.
+**
+** SYNTAX 
+** noEq = var__numberOfEquations(model);
+**
+** INPUT 
+**
+** OUTPUT
+** noEq / (1,1) / matrix / number of equations.
+**
+*/
+proc(1)=var__numberOfEquations(model);
+	local K, idNam;
+	
+	idNam =  vread(model,"id");
+   	if strsect(idNam,1,2)$=="EC";
+	   	K = 1;
+	else;
+		K = cols(vread(model,"y"));
+   	endif;
+	retp(K);
+endp;
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,102 @@
+/*
+ This file is part of the econometric software package JMulTi.
+ Copyright (C) 2000-2005  Alexander Benkwitz
+
+ This program is free software; you can redistribute it and/or
+ modify it under the terms of the GNU General Public License
+ as published by the Free Software Foundation; either version 2
+ of the License, or (at your option) any later version.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, write to the Free Software
+ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ */
+#ifos2win 
+/* to be used by library creation, windows only */
+#include var.dec
+#endif
+/*
+**
+*/
+proc(1)=vml__createEndogenousNames(n);
+	if n<1;
+		n={};
+		retp(n);
+	else;
+		retp(0$+("y"$+ftocv(seqa(1,1,n),1,0)));
+	endif;
+endp;
+/*
+**
+*/
+proc(1)=vml__createExogenousNames(n);
+	if n<1;
+		n={};
+		retp(n);
+	else;
+		retp(0$+("x"$+ftocv(seqa(1,1,n),1,0)));
+	endif;
+endp;
+/*
+**
+*/
+proc(1)=vml__createDeterministicNames(n);
+	if n<1;
+		n={};
+		retp(n);
+	else;
+		retp(0$+("d"$+ftocv(seqa(1,1,n),1,0)));
+	endif;
+endp;
+/*
+**
+*/
+proc(1)=vml__createMixedNames(n);
+	retp(0$+("z"$+ftocv(seqa(1,1,n),1,0)));
+endp;
+/*
+**
+*/
+proc(1)=vml__createErrorCorrectionNames(n);
+	if n<1;
+		n={};
+		retp(n);
+	else;
+		retp(0$+("ec"$+ftocv(seqa(1,1,n),1,0)));
+	endif;
+endp;
+/*
+**
+** INPUT
+** n / (M,N) / string array /
+**
+** OUTPUT
+** r / (M,N) / string array /
+**
+*/
+proc(1)=vml__lagNames(n,lag);
+	local tmp,shift;
+	{tmp,shift}=base10(lag);
+	shift=shift+1+1;
+	if lag==0; shift=0; endif;
+	if shift>7;
+		errorlog("Cannot reduce variable name to nothing.");
+		retp(-10);
+	endif;
+	for i(1,rows(n),1);
+		for j(1,cols(n),1);
+			if strlen(""$+n[i,j])>(8-shift);
+				n[i,j] = strsect(n[i,j],1,(8-shift));
+			endif;
+		endfor;
+	endfor;
+	if lag/=0;
+		n=n$+"_"$+ftocv(lag,1,0);
+	endif;
+	retp(n);
+endp;

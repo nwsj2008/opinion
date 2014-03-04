@@ -1,0 +1,154 @@
+/*
+ This file is part of the econometric software package JMulTi.
+ Copyright (C) 2000-2005  Markus Kraetzig
+
+ This program is free software; you can redistribute it and/or
+ modify it under the terms of the GNU General Public License
+ as published by the Free Software Foundation; either version 2
+ of the License, or (at your option) any later version.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, write to the Free Software
+ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ */
+/*
+
+arch_eva.src contains a set of tests applied to GARCH models that have been 
+suggested by 
+
+S. Lundbergh, T. Teraesvirta, Journal of Econometrics 110 (2002), 417-435
+
+
+
+*/
+
+
+
+/*
+Test of no remaining ARCH, it is always assumed that the additional ARCH component
+is ARCH(1), such that v_t = e_(t-1)^2/h_(t-1). This is the robustified version of 
+the tests allowing a nonstandard error distribution.
+
+input:
+
+u     residuals
+h     estimated variance function
+param estimated parameters of garch model (alpha_0,alpha_1...beta_1, beta_2...)
+q
+p
+m     order of additional ARCH to test against >= 1
+
+output: 
+
+Fstat|p_value|df1|df2
+
+*/
+
+proc(1)=Robnoarch_arch(u,h,param,q,p,m);
+local alfa0,beta,alfa,z,v,x,nuobs,Y,XX,res,theta,F,SSR0,SSR1,Fprob,df1,df2,tmp,i,u2,m_u2;
+
+/* local a,b,c,d; */
+/* {a,b,c,d}=gradientAC(param, u); */
+/* h=b; */
+
+u2 = u^2;
+
+alfa0	= param[1];       /* Relevant GARCH-parameters */
+if q > 0;
+  alfa	= param[2:2+q];
+endif;
+if p > 0;
+  beta	= param[2+p:rows(param)];
+endif;
+  
+nuobs	= rows(u2);
+
+z	= zeros(nuobs,1+p+q);
+v	= zeros(nuobs,m);	@ alternative 	@
+x       = zeros(nuobs,cols(z));
+
+m_u2 = meanc(u2);
+
+i=1;
+do until i > nuobs;
+	tmp = 1; /* dh/dparam */
+	for j(1,q,1);
+	  if i-j < 1;
+	    tmp = tmp~m_u2;
+	  else;
+	    tmp = tmp~u2[i-j];
+	  endif;
+	endfor;
+	for j(1,p,1);
+	  if i-j < 1;
+	    tmp = tmp~m_u2;
+	  else;
+	    tmp = tmp~h[i-j];
+	  endif;
+	endfor;
+	z[i,.] = tmp;
+
+	tmp = {};
+	for j(1,m,1);
+	  if i-j < 1;
+	    tmp = tmp~0;
+	  else;
+	    tmp = tmp~((u2[i-j,1])/h[i-j,1]);
+	  endif;
+	endfor;
+	v[i,.]	= tmp;
+	
+	i=i+1;
+endo;
+/* compute first derivative dh / deta */
+i=1;
+do until i > nuobs;
+  if i > p;
+    x[i,.] = z[i,.];
+  else;
+    x[i,.] = zeros(1,cols(z));
+  endif;
+  for j(1,p,1);
+    if i-j >= 1;
+      x[i,.] = x[i,.] + beta[j]*x[i-j,.];
+    endif;
+  endfor;
+  i=i+1;
+endo;
+
+x=x./h;      
+
+theta=(u2./h)-1;
+
+SSR0=rows(theta);
+
+Y=v;
+XX=x;
+trap 1;
+tmp = invpd(XX'XX);
+trap 0;
+if scalerr(tmp);
+  retp(miss(ones(4,1),ones(4,1)));	
+endif;
+
+res=Y-XX*tmp*XX'Y;
+
+Y=ones(rows(Y),1);
+XX=res.*theta;
+
+SSR1=Y'Y-Y'XX*invpd(XX'XX)*XX'Y;
+
+df1=cols(v);
+df2=rows(XX)-cols(XX);
+F=((SSR0-SSR1)/df1)/(SSR1/df2);
+Fprob=cdffc(F,df1,df2);
+
+retp(F|Fprob|df1|df2);
+endp;
+
+

@@ -1,0 +1,248 @@
+/*
+ This file is part of the econometric software package JMulTi.
+ Copyright (C) 2000-2005  Alexander Benkwitz
+
+ This program is free software; you can redistribute it and/or
+ modify it under the terms of the GNU General Public License
+ as published by the Free Software Foundation; either version 2
+ of the License, or (at your option) any later version.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, write to the Free Software
+ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ */
+#ifos2win 
+/* to be used by library creation, windows only */
+#include var.dec
+#endif
+/*
+** SYNTAX 
+** {alpha,beta,beta_d,G,C,u,cvu,cv_P,cv_alpha,cv_beta,cv_beta_d,cv_G,cv_C} 
+**            = vml__johansenApproach(y,pdy,d_ec,d_vec,r);
+**
+*/
+proc(13)=vml__johansenApproach(y,py,d_ec,d_vec,r);
+	local alpha,beta,beta_d,G,C_VEC,u,
+	      omega, Psi, beta_c,
+	      T, K, Z_0,Z_1, Z_2, Z, Z_dy, 
+	      cv_z, cv_G, cv_alpha, cv_P, cv_BetaBeta,cv_beta,cv_beta_d,cv_C,y_1, 
+	      M_00,M_01,M_02,M_10,M_11,M_12,M_20,M_21,M_22,
+	      S_00, S_01, S_10, S_11,
+	      NG, eva, eve, idx, tmp,tmp1,M;
+
+	      
+	K = cols(y);
+	T = rows(y) - py;
+	if py<1;
+		"";
+		errorlog("Johansen approach needs at least one presample value");
+		retp(-10,-10,-10,-10,-10,-10,-10,-10,-10,-10,-10,-10,-10);
+
+	endif;
+	if rows(r)<1 or r<1 or r>=K;
+		"";
+		if rows(r)<1;
+			errorlog("Johansen approach: Cointegration rank not specified.");
+		else;
+			errorlog("Johansen approach: Cointegration rank is r="$+ftocv(r,1,0));
+		endif;
+		r = 1;
+		errorlog("(must be 0<r<"$+ftocv(K,1,0)$+" .... set to "$+ftocv(r,1,0)$+")");
+	endif;
+
+	G={};C_VEC={};u={};
+	if cols(d_vec);
+		d_vec = d_vec[py+1:py+T,.];
+		if rank(d_vec) < cols(d_vec);
+		  errorlog("Unrestricted deterministics have not full column rank. Check your dummy specification.");
+		  retp(-10,-10,-10,-10,-10,-10,-10,-10,-10,-10,-10,-10,-10);
+		endif;		  
+	endif;
+	if cols(d_ec);
+		d_ec  = d_ec[py:py+T-1,.];
+		if rank(d_ec) < cols(d_ec);
+		  errorlog("Restricted deterministics have not full column rank. Check your dummy specification.");
+		  retp(-10,-10,-10,-10,-10,-10,-10,-10,-10,-10,-10,-10,-10);
+
+		endif;
+	endif;
+	Z_0 = y[py+1:py+T,.]-y[py:py+T-1,.];
+	Z_1 = y[py:py+T-1,.]~d_ec;
+	Z_dy = vml__lagObservations( y[2:py+T,.]-y[1:py+T-1,.], py-1, 1, py-1);
+	Z_2  = Z_dy~d_vec;
+	M_00 = Z_0'*Z_0/T;
+	M_01 = Z_0'*Z_1/T;
+	M_10 = Z_1'*Z_0/T;
+	M_11 = Z_1'*Z_1/T;
+	if cols(Z_2);
+
+		M_02 = Z_0'*Z_2/T;
+		M_12 = Z_1'*Z_2/T;
+		M_20 = Z_2'*Z_0/T;
+		M_21 = Z_2'*Z_1/T;
+		M_22 = Z_2'*Z_2/T;
+		/*
+		R_0 = Z_0 - (M_02*M_22_i*Z_2')';  	/* (6.6) */
+		R_1 = Z_1 - (M_12*M_22_i*Z_2')';    /* (6.7) */
+		*/
+		tmp = solpd(M_20,M_22);
+		tmp1 = solpd(M_21,M_22);
+		S_00 = M_00 - M_02*tmp; /* (6.10) */
+		S_01 = M_01 - M_02*tmp1; /* (6.10) */
+		S_10 = M_10 - M_12*tmp; /* (6.10) */
+		S_11 = M_11 - M_12*tmp1;  /* (6.10) */
+
+   		
+	else;
+		S_00 = M_00; /* (6.10) */
+		S_01 = M_01; /* (6.10) */
+		S_10 = M_10; /* (6.10) */
+		S_11 = M_11; /* (6.10) */
+	endif;
+   
+	/* solving the eigenvalue problem */
+	NG=inv(chol(S_11)'); 
+	trap(1);   
+	{eva,eve}=eigv(NG*real(S_10)*inv(real(S_00))*real(S_01)*NG');
+	idx=scalerr(eva[1]);
+	trap(0);
+	if idx; /* eigenvalues cannot all be determined */
+		if K-idx<r;
+			errorlog("Cannot determine enough eigenvalues");
+			retp(-10,-10,-10,-10,-10,-10,-10,-10,-10,-10,-10,-10,-10);
+		endif;
+		eva=eva[idx+1:K];
+		eve=eve[.,idx+1:K];
+	endif;
+
+	/* 22-03-02 -> */
+	/*
+	idx = rankindx(eva,1);
+	idx = rows(idx)+1-idx;
+	
+	eva[idx] = eva;
+	eve[.,idx] = eve;
+	*/
+	eva=rev(sortc(eva~eve',1));
+	eve=eva[.,2:cols(eva)]';
+	eva=eva[.,1];
+	/* 22-03-02 <- */
+
+	eve=eve./sqrt(sumc(eve^2))';
+	beta = NG'*eve[.,1:r];
+
+	/* beta_c - normalization */
+	beta_c = (eye(r)~(inv(beta[1:r,.]')*beta[r+1:rows(beta),.]'))';
+	beta   = beta_c;
+
+	tmp = Z_1*beta;
+	tmp = tmp-meanc(tmp)';
+	
+	cv_BetaBeta = beta'*S_11*beta;
+	alpha = S_01*solpd(beta',cv_BetaBeta')';          /* (6.11) */
+	omega = S_00 - alpha*cv_BetaBeta*alpha';   /* (6.12) */
+	G = {}; C_VEC={};
+	if cols(Z_2);
+		Psi   = solpd((M_02 - alpha*beta'*M_12)',M_22')';        /* (6.5) */
+		if cols(Z_dy);
+			G = Psi[.,1:cols(Z_dy)];
+		endif;
+		if cols(d_vec);
+			C_VEC = Psi[.,cols(Z_dy)+1:cols(Z_dy)+cols(d_vec)];
+		endif;
+	endif;
+	cv_beta = {};cv_beta_d = {};
+	y_1 = y[py:rows(y)-1,r+1:cols(y)]~d_ec;	
+	
+	M=diagrv(zeros(T,T),ones(T,1)); /* because of 3.2 bug */
+	if cols(z_2);
+	  M = M-Z_2*solpd(Z_2', Z_2'*Z_2);
+	endif;
+	alpha = real(alpha);
+	omega = real(omega); 
+	tmp = invpd(y_1'*M*y_1).*.invpd(alpha'solpd(alpha, omega))*rows(y_1);
+	cv_beta = tmp[1:rows(tmp)-cols(d_ec),1:cols(tmp)-cols(d_ec)];
+
+	/* append zeros as first r rows and cols */
+	cv_beta = zeros(rows(cv_beta),r^2)~cv_beta;
+	cv_beta = zeros(r^2,cols(cv_beta))|cv_beta;
+
+	if cols(d_ec);
+	  cv_beta_d = tmp[rows(tmp)-cols(d_ec)*r+1:rows(tmp),cols(tmp)-cols(d_ec)*r+1:cols(tmp)];
+	endif;
+	
+	/* Theorem 13.3: */
+	cv_alpha = inv(cv_BetaBeta).*.omega;
+	cv_G = {};cv_C = {};
+
+	/* Theorem 13.5: */
+	Z = (Z_1*beta)~Z_2; 
+	/* 		Z = (Z_1*beta)~Z_dy; */
+	/* 		Z = Z - meanc(Z)';  */
+	cv_z = Z'*Z/T;
+
+	tmp = inv(cv_z).*.omega;   /* Covariance of vec(G) = vec(alpha:G) */
+	if cols(Z_dy); 
+	  cv_G = tmp[r*K+1:rows(tmp)-cols(d_vec)*k,r*K+1:cols(tmp)-cols(d_vec)*k];
+	endif;
+	if cols(d_vec);
+	  cv_C = tmp[rows(tmp)-cols(d_vec)*k+1:rows(tmp),cols(tmp)-cols(d_vec)*k+1:cols(tmp)];
+	endif;
+	
+	/* Theorem 13.7 */
+	cv_P = (beta*solpd(beta', cv_BetaBeta)).*.omega;  /* Covariance of PI-matrix */
+
+	/* prepare return values */
+	beta_d = {};
+	if cols(d_ec);
+	  beta_d = beta[K+1:K+cols(d_ec),.];
+	  beta   = beta[1:K,.];
+	endif;
+
+
+	alpha    = var__johansenApproach_CPLX(alpha   ,"alpha");
+	beta     = var__johansenApproach_CPLX(beta    ,"beta");
+	beta_d   = var__johansenApproach_CPLX(beta_d  ,"beta_d");
+	G        = var__johansenApproach_CPLX(G       ,"GAMMA");
+	C_VEC    = var__johansenApproach_CPLX(C_VEC   ,"C_VEC");
+/*	u        = var__johansenApproach_CPLX(u       ,"Residuals"); */
+	omega    = var__johansenApproach_CPLX(omega   ,"Residual covariance matrix");
+	cv_P     = var__johansenApproach_CPLX(cv_P    ,"PI covariance matrix");
+	cv_alpha = var__johansenApproach_CPLX(cv_alpha,"alpha covariance matrix");
+	cv_G     = var__johansenApproach_CPLX(cv_G    ,"GAMMA covariance matrix");
+	/* computing residuals */
+	
+	@ u = Z_0 - (Z_1 * (alpha*(beta'~beta_d'))' + Z_dy * G' + d_vec * C_VEC'); @
+	u = Z_0 - Z_1 * (alpha*(beta'~beta_d'))';
+
+	if rows(Z_dy);
+	  u = u - Z_dy * G';
+	endif;
+
+	 if rows(d_vec);
+	   u = u - d_vec * C_VEC';
+	 endif;
+	retp(alpha,beta,beta_d,G,C_vec,u,omega,cv_P,cv_alpha,cv_beta,cv_beta_d,cv_G,cv_C);
+endp;
+
+/*
+**
+*/
+proc(1)=var__johansenApproach_CPLX(x,name);
+	if rows(x);
+		if hasimag(x);
+			"Johansen approach: Complex "$+name$+" estimated.";
+		else;
+			x = real(x);
+		endif;
+	endif;
+	retp(x);
+endp;
+
+
+

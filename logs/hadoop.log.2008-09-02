@@ -1,0 +1,31 @@
+2008-09-02 17:00:53,566 INFO  startup.Embedded - Starting tomcat server
+2008-09-02 17:00:54,332 INFO  core.StandardEngine - Starting Servlet Engine: Apache Tomcat/5.0.28
+2008-09-02 17:00:54,379 INFO  core.StandardHost - XML validation disabled
+2008-09-02 17:00:54,426 INFO  core.StandardHost - Create Host deployer for direct deployment ( non-jmx ) 
+2008-09-02 17:00:54,457 INFO  core.StandardHostDeployer - Installing web application at context path  from URL file:D:\ch\java\workspace\opinion\tomcat\webapps\ROOT
+2008-09-02 17:00:56,020 INFO  http11.Http11Protocol - Initializing Coyote HTTP/1.1 on http-8888
+2008-09-02 17:00:56,145 INFO  http11.Http11Protocol - Starting Coyote HTTP/1.1 on http-8888
+2008-09-02 17:02:53,738 ERROR core.ContainerBase - Exception invoking periodic operation: 
+java.lang.OutOfMemoryError: Java heap space
+	at java.util.Arrays.copyOf(Arrays.java:2882)
+	at java.lang.String.<init>(String.java:179)
+	at java.io.Win32FileSystem.resolve(Win32FileSystem.java:241)
+	at java.io.File.<init>(File.java:312)
+	at org.apache.naming.resources.FileDirContext.file(FileDirContext.java:825)
+	at org.apache.naming.resources.FileDirContext.getAttributes(FileDirContext.java:432)
+	at org.apache.naming.resources.BaseDirContext.getAttributes(BaseDirContext.java:748)
+	at org.apache.naming.resources.ProxyDirContext.revalidate(ProxyDirContext.java:1448)
+	at org.apache.naming.resources.ProxyDirContext.cacheLookup(ProxyDirContext.java:1401)
+	at org.apache.naming.resources.ProxyDirContext.getAttributes(ProxyDirContext.java:818)
+	at org.apache.catalina.startup.HostConfig.checkContextLastModified(HostConfig.java:743)
+	at org.apache.catalina.startup.HostConfig.check(HostConfig.java:1085)
+	at org.apache.catalina.startup.HostConfig.lifecycleEvent(HostConfig.java:327)
+	at org.apache.catalina.util.LifecycleSupport.fireLifecycleEvent(LifecycleSupport.java:119)
+	at org.apache.catalina.core.StandardHost.backgroundProcess(StandardHost.java:800)
+	at org.apache.catalina.core.ContainerBase$ContainerBackgroundProcessor.processChildren(ContainerBase.java:1619)
+	at org.apache.catalina.core.ContainerBase$ContainerBackgroundProcessor.processChildren(ContainerBase.java:1628)
+	at org.apache.catalina.core.ContainerBase$ContainerBackgroundProcessor.run(ContainerBase.java:1608)
+	at java.lang.Thread.run(Thread.java:619)
+2008-09-02 17:05:58,816 INFO  http11.Http11Protocol - Stopping Coyote HTTP/1.1 on http-8888
+2008-09-02 17:05:58,879 INFO  core.StandardHostDeployer - Removing web application at context path 
+2008-09-02 17:05:58,910 INFO  logger.LoggerBase - unregistering logger gwt:type=Logger

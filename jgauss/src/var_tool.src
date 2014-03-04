@@ -1,0 +1,404 @@
+/*
+ This file is part of the econometric software package JMulTi.
+ Copyright (C) 2000-2005  Alexander Benkwitz
+
+ This program is free software; you can redistribute it and/or
+ modify it under the terms of the GNU General Public License
+ as published by the Free Software Foundation; either version 2
+ of the License, or (at your option) any later version.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, write to the Free Software
+ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ */
+#ifos2win 
+/* to be used by library creation, windows only */
+#include var.dec
+#endif
+
+/*
+**
+*/
+proc(1)=var_indcv(what,where);
+	retp(indcv(0$+what$+"        ",where));
+endp;
+
+/*
+**
+*/
+proc(0)=vml_print_ndpchk(msg);
+	print "";
+	print msg;
+	print "Numeric Data Processor exception:";
+	if ndpchk(1);
+		print /flush "Invalid Operation";
+	endif;
+	if ndpchk(2);
+		print /flush "Denormalized Operand";
+	endif;
+	if ndpchk(4);
+		print /flush "Zero Divide";
+	endif;
+	if ndpchk(8);
+		print /flush "Overflow";
+	endif;
+	if ndpchk(16);
+		print /flush "Underflow";
+	endif;
+endp;
+
+
+/*
+** PURPOSE
+** Return a  matrix with all infinities (-/+) set to a given value.
+**
+** SYNTAX
+** y=vml_setINF(x,a);
+**
+** INPUT 
+** x / (M,N) / matrix / Argument
+** a / (1,1) / matrix / Argument
+**
+** OUTPUT
+** y / (M,N) / matrix / 
+**
+** 
+*/
+proc(1)=vml_setINF(x,a);
+	local r,c,idx;
+	if type(x)/=6;
+		retp(x);
+	endif;
+	r=rows(x);
+	c=cols(x);
+	x=vecr(x);
+	idx=abs(x).==__INFp;
+	idx=selif(seqa(1,1,rows(x)),idx);
+	if not(scalmiss(idx));
+		x[idx]=a*ones(rows(idx),1);
+	endif;
+	x=reshape(x,r,c);
+	retp(x);
+endp;
+/*
+** PURPOSE
+** Replace all +/-infinities by a given value.
+**
+** SYNTAX
+** y=vml_infrv(x,a);
+**
+** INPUT 
+** x / (M,N) / matrix / Argument
+** a / (1,1) / matrix / Argument
+**
+** OUTPUT
+** y / (M,N) / matrix / 
+**
+** 
+*/
+proc(1)=vml_infrv(x,a);
+	retp(vml_setINF(x,a));
+endp;
+
+/*
+** PURPOSE
+** Prints dimension of argument on screen.
+**
+** SYNTAX
+** call vml_showDim(x);
+**
+** INPUT 
+** x / (M,N) / matrix, string (array)  / Argument
+**
+** 
+*/
+proc(0)=vml_showDim(x);
+	print /flush "Dimension: ["$+ftocv(rows(x),1,0)$+","$+ftocv(cols(x),1,0)$+"]";
+endp;
+
+/**
+** SYNTAX
+** x = vml_VeRead(dbuf,name);
+**
+** PURPOSE
+** Modified {\tt vread(dbuf, name)}. Checks existence of {\tt name} before returning.
+** 
+** INPUT   dbuf / (Kx1) / matrix / databuffer constructed with vput
+**         name / (1x1) / string / name of variable
+** OUTPUT  x    / (M,N) / string or matrix / if {\tt name} is in {\tt dbuf}
+**              / (0,0) /         / if {\tt name} is not in {\tt dbuf}
+**
+** REMARK
+** If the element {\tt name} is not found in {\tt dbuf} an empty symbol is returned.
+** In such a case {\tt vread()} simply brings out an error message.
+** 
+** 
+*/
+proc(1)= vml_VeRead(dbuf,name);
+	local i;
+	i=indcv((name$+"       "),vnamecv(dbuf));
+	if scalmiss(i);
+		i={};
+		retp(i);
+        else;
+		retp(vread(dbuf,name));
+	endif;
+endp;
+/**
+** SYNTAX
+** dbufNew = vml_vput(dbuf,x,xname);
+**
+** PURPOSE
+** Modified {\tt vput(dbuf, x, xname)}. Works for string array arguments.
+** Empty symbols (rows==0) are not written to the data buffer.
+** 
+** INPUT   dbuf / (Kx1) / matrix / databuffer constructed with vput
+**         x    / (M,N) / matrix or string array / data
+**         xname / (1x1) / string / name of variable
+** OUTPUT  dbufNew / (L,1) / matrix / new data buffer
+**             
+**
+** REMARK
+** In order to read the string array from the data buffer one must use
+** {\tt vml\_vread()}.
+** 
+** SEE
+** vml_vread
+** 
+*/
+proc(1)= vml_vput(dbuf,x,xname);
+	local xType, buf;
+	xType = type(x);
+	if xType==15;
+		if rows(x);
+			local longString;
+			longString = ""$+ftocv(rows(x),1,0)$+"\L";
+			longString = longString$+ftocv(cols(x),1,0)$+"\L";
+			for i(1,rows(x),1);
+				for j(1,cols(x),1);
+   					longString = longString$+x[i,j]$+"\L";
+				endfor;
+			endfor;
+			longString = longString$+"END\L";
+			retp(vput(dbuf,longString,xname));
+		else;
+			retp(dbuf);
+		endif;
+	elseif xType==13 or xType==6;
+		if rows(x);
+		  buf = vput(dbuf,x,xname);
+		  retp(buf);
+		else;
+	          retp(dbuf);
+		endif;
+	else;
+		retp(dbuf);
+	endif;
+endp;
+/**
+** SYNTAX
+** x = vml_vread(dbuf,xname);
+**
+** PURPOSE
+** Modified {\tt vread(dbuf, xname)}. Reads string array elements (if added with
+** {vml\_vput()}).
+** 
+** INPUT   dbuf / (Kx1) / matrix / databuffer constructed with vput
+**         xname / (1x1) / string / name of variable
+** OUTPUT  x    / (M,N) / matrix or string array / data
+**             
+**
+** REMARK
+** In order to return an element of type string array it must have been
+** putted using {\tt vml\_vput()}.
+** 
+** SEE
+** vml_vput
+*/
+proc(1)= vml_vread(dbuf,xname);
+	local x,xA,i1,i2,r,c;
+	x = vml_VeRead(dbuf,xname);
+	@ recover possible string arrays! @
+	/* a string array is stored as a string. */
+	/* the array elements are ... */
+	if type(x)==13;
+		if strindx(x,"\L",1)==0;
+			retp(x);
+		else;
+			i1 = strindx(x,"\L",1);
+			i2 = strindx(x,"\L",i1+1);
+			if i2 == i1+1;
+				/* we got a tail of \L from the data buffer back which 
+				   made us thinking we have a string array gotten. */
+				retp(strsect(x,1,i1-1));
+			endif;
+			r  = strsect(x,1,i1-1);
+			c  = strsect(x,i1+1,i2-i1-1);
+			r  = stof(r);
+			c  = stof(c);
+			xA  = ""$+zeros(r,c);
+			i1 = i2;
+			for i(1,r,1);
+				for j(1,c,1);
+					i2     = strindx(x,"\L",i1+1);
+					xA[i,j] = strsect(x,i1+1,i2-i1-1);
+					i1     = i2;
+				endfor;
+			endfor;
+			retp(xA);
+		endif;
+	else;
+		retp(x);
+	endif;
+endp;
+
+/**
+** SYNTAX
+** x = vml_vdel(model, keyList);
+**
+** PURPOSE
+** 
+** INPUT   dbuf / (Kx1) / matrix / databuffer constructed with vput
+**         xname / (1x1) / string / name of variable
+** OUTPUT  x    / (M,N) / matrix or string array / data
+**             
+**
+** REMARK
+** 
+** SEE
+** vml_vput
+*/
+proc(1)=vml_vdel(model, keyList);
+	if rows(keyList);
+		local idx,trash;
+
+		idx = type(keyList);
+		if idx==13 or idx==15;
+			keyList=0$+keyList;
+		endif;
+		idx = vnamecv(model)$+"        ";
+		idx = packr(indcv(idx, keyList$+"        "));
+		if not scalmiss(idx);
+   			for i(1,rows(idx),1);
+				{trash,model} = vget( model, keyList[idx[i]]);
+	   		endfor;
+		endif;
+	endif;
+	retp(model);
+endp;
+
+
+/* 
+** PURPOSE
+** Computes the number of periods between two points.
+**
+** SYNTAX 
+** y = vml_pb(ep)
+** 
+** INPUT
+** ep / (3,1) / matrix / Time span, coded: {\tt ep = t0|t1|p}
+**
+** OUTPUT
+** y  / (1,1) / matrix / Number of periods between {\tt t0} and {\tt t1}
+**
+** REMARK
+** Note that {\tt vml\_pb(1960.1|1960.1|4)} returns 0.
+**
+** {\tt t0} and {\tt t1} using {\tt p} must be coded in the following manner:\\
+** {\tt t0=1971.1} and {\tt p=4}  means 1971 first quarter\\
+** {\tt t0=1971.1} and {\tt p=12} means 1971 January
+**
+*/
+proc(1)=vml_pb(ep);
+	local m,temp,s,t,p;
+	s	=	ep[1];
+	t	=	ep[2];
+	p	=	ep[3];
+	{temp,m} = base10(p);
+	m=10^(m+1);
+	retp(round((trunc(t)-trunc(s))*p + ((t-trunc(t))-(s-trunc(s)))*m));
+endp;
+/*
+**
+*/
+proc duplicationMatrix(K);
+	local D,idx,idx_target,idx_source,idx_selection;
+
+	if K<1;
+		errorlog("Argument must be at least 1");
+		retp(-10);
+	elseif K==1;
+		D=1;
+	else;
+		D=eye(K*K);
+		idx=reshape(seqa(1,1,K*K),K,K)';
+		idx_selection=lowmat(idx);
+		idx_target = vec(diagrv(idx_selection,zeros(K,1)));
+		idx=vec(idx);
+		idx_source = selif(idx,vec(idx_selection).==0);
+		idx_target = selif(idx,vec(diagrv(idx_selection,zeros(K,1)))./=0);
+		D[idx_target,.]=D[idx_target,.]+D[idx_source,.];
+		D=delif(D,vec(idx_selection).==0)';
+	endif;
+	
+	retp(D);
+endp;
+/*
+**
+*/
+proc eliminationMatrix(K);
+	local L,idx,idx_source,idx_selection;
+
+	if K<1;
+		errorlog("Argument must be at least 1");
+		retp(-10);
+	elseif K==1;
+		L=1;
+	else;
+		L=eye(K*K);
+		idx=reshape(seqa(1,1,K*K),K,K)';
+		idx_selection=lowmat(idx);
+		idx=vec(idx);
+		idx_source = selif(idx,vec(idx_selection).==0);
+		L=delif(L,vec(idx_selection).==0);
+	endif;
+
+	retp(L);
+endp;
+/*
+**
+*/
+proc commutationMatrix(N,M);
+	local C,idx;
+
+	if N<1 AND M<1;
+		errorlog("Arguments must be at least 1");
+		retp(-10);
+	elseif N==1 AND M==1;
+		C=1;
+	else;
+		C=eye(N*M);
+		idx=reshape(seqa(1,1,N*M),M,N)';
+		idx=vecr(idx);
+		C=C[idx,.];
+	endif;
+
+	retp(C);
+endp;
+/*
+**
+*/
+proc vechc(x);
+  retp(selif(vec(lowmat(x)),vec(lowmat(ones(rows(x),cols(x))))));
+endp;
+
+/*
+**
+*/
+fn var_scalarMiss(x) = scalmiss(x) and rows(x)>0;
+

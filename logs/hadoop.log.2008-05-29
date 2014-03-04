@@ -1,0 +1,3224 @@
+2008-05-29 15:27:43,562 INFO  cfg.Environment - Hibernate 3.1.3
+2008-05-29 15:27:43,578 INFO  cfg.Environment - hibernate.properties not found
+2008-05-29 15:27:43,578 INFO  cfg.Environment - using CGLIB reflection optimizer
+2008-05-29 15:27:43,593 INFO  cfg.Environment - using JDK 1.4 java.sql.Timestamp handling
+2008-05-29 15:27:43,718 INFO  cfg.Configuration - configuring from resource: /hibernate.cfg.xml
+2008-05-29 15:27:43,718 INFO  cfg.Configuration - Configuration resource: /hibernate.cfg.xml
+2008-05-29 15:27:43,781 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbCluster.hbm.xml
+2008-05-29 15:27:43,984 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbCluster -> tb_cluster
+2008-05-29 15:27:44,031 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbClusterTopic.hbm.xml
+2008-05-29 15:27:44,093 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbClusterTopic -> tb_cluster_topic
+2008-05-29 15:27:44,203 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbHotTopic.hbm.xml
+2008-05-29 15:27:44,265 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbHotTopic -> tb_hot_topic
+2008-05-29 15:27:44,265 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbParserBbs.hbm.xml
+2008-05-29 15:27:44,296 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbParserBbs -> tb_parser_bbs
+2008-05-29 15:27:44,296 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbParserNews.hbm.xml
+2008-05-29 15:27:44,328 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbParserNews -> tb_parser_news
+2008-05-29 15:27:44,328 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbReBbs.hbm.xml
+2008-05-29 15:27:44,359 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbReBbs -> tb_re_bbs
+2008-05-29 15:27:44,359 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbReNews.hbm.xml
+2008-05-29 15:27:44,390 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbReNews -> tb_re_news
+2008-05-29 15:27:44,390 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbSensitiveTopic.hbm.xml
+2008-05-29 15:27:44,421 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbSensitiveTopic -> tb_sensitive_topic
+2008-05-29 15:27:44,421 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbAuRef.hbm.xml
+2008-05-29 15:27:44,437 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbAuRef -> tb_au_ref
+2008-05-29 15:27:44,437 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbUser.hbm.xml
+2008-05-29 15:27:44,468 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbUser -> tb_user
+2008-05-29 15:27:44,468 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbAu.hbm.xml
+2008-05-29 15:27:44,484 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbAu -> tb_au
+2008-05-29 15:27:44,484 INFO  cfg.Configuration - Configured SessionFactory: null
+2008-05-29 15:27:44,484 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbCluster.tbSensitiveTopics -> tb_sensitive_topic
+2008-05-29 15:27:44,484 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbCluster.tbHotTopics -> tb_hot_topic
+2008-05-29 15:27:44,500 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbCluster.tbClusterTopics -> tb_cluster_topic
+2008-05-29 15:27:44,500 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbParserBbs.tbSensitiveTopics -> tb_sensitive_topic
+2008-05-29 15:27:44,500 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbParserBbs.tbClusterTopics -> tb_cluster_topic
+2008-05-29 15:27:44,500 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbParserBbs.tbReBbses -> tb_re_bbs
+2008-05-29 15:27:44,500 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbParserNews.tbClusterTopics -> tb_cluster_topic
+2008-05-29 15:27:44,500 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbParserNews.tbReNewses -> tb_re_news
+2008-05-29 15:27:44,500 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbParserNews.tbSensitiveTopics -> tb_sensitive_topic
+2008-05-29 15:27:44,500 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbReBbs.tbSensitiveTopics -> tb_sensitive_topic
+2008-05-29 15:27:44,500 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbReNews.tbSensitiveTopics -> tb_sensitive_topic
+2008-05-29 15:27:44,500 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbUser.tbAuRefs -> tb_au_ref
+2008-05-29 15:27:44,500 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbAu.tbAuRefs -> tb_au_ref
+2008-05-29 15:27:44,515 INFO  connection.DriverManagerConnectionProvider - Using Hibernate built-in connection pool (not for production use!)
+2008-05-29 15:27:44,515 INFO  connection.DriverManagerConnectionProvider - Hibernate connection pool size: 20
+2008-05-29 15:27:44,515 INFO  connection.DriverManagerConnectionProvider - autocommit mode: false
+2008-05-29 15:27:44,531 INFO  connection.DriverManagerConnectionProvider - using driver: com.mysql.jdbc.Driver at URL: jdbc:mysql://192.168.198.119:3306/yqfx
+2008-05-29 15:27:44,531 INFO  connection.DriverManagerConnectionProvider - connection properties: {user=root, password=****}
+2008-05-29 15:28:01,390 INFO  cfg.SettingsFactory - RDBMS: MySQL, version: 5.0.41-community-nt
+2008-05-29 15:28:01,390 INFO  cfg.SettingsFactory - JDBC driver: MySQL-AB JDBC Driver, version: mysql-connector-java-5.0.8 ( Revision: ${svn.Revision} )
+2008-05-29 15:28:01,437 INFO  dialect.Dialect - Using dialect: org.hibernate.dialect.MySQLDialect
+2008-05-29 15:28:01,453 INFO  transaction.TransactionFactoryFactory - Using default transaction strategy (direct JDBC transactions)
+2008-05-29 15:28:01,453 INFO  transaction.TransactionManagerLookupFactory - No TransactionManagerLookup configured (in JTA environment, use of read-write or transactional second-level cache is not recommended)
+2008-05-29 15:28:01,453 INFO  cfg.SettingsFactory - Automatic flush during beforeCompletion(): disabled
+2008-05-29 15:28:01,453 INFO  cfg.SettingsFactory - Automatic session close at end of transaction: disabled
+2008-05-29 15:28:01,453 INFO  cfg.SettingsFactory - JDBC batch size: 50
+2008-05-29 15:28:01,453 INFO  cfg.SettingsFactory - JDBC batch updates for versioned data: disabled
+2008-05-29 15:28:01,453 INFO  cfg.SettingsFactory - Scrollable result sets: enabled
+2008-05-29 15:28:01,453 INFO  cfg.SettingsFactory - JDBC3 getGeneratedKeys(): enabled
+2008-05-29 15:28:01,453 INFO  cfg.SettingsFactory - JDBC result set fetch size: 50
+2008-05-29 15:28:01,453 INFO  cfg.SettingsFactory - Connection release mode: auto
+2008-05-29 15:28:01,453 INFO  cfg.SettingsFactory - Maximum outer join fetch depth: 3
+2008-05-29 15:28:01,453 INFO  cfg.SettingsFactory - Default batch fetch size: 4
+2008-05-29 15:28:01,453 INFO  cfg.SettingsFactory - Generate SQL with comments: disabled
+2008-05-29 15:28:01,453 INFO  cfg.SettingsFactory - Order SQL updates by primary key: disabled
+2008-05-29 15:28:01,453 INFO  cfg.SettingsFactory - Query translator: org.hibernate.hql.ast.ASTQueryTranslatorFactory
+2008-05-29 15:28:01,468 INFO  ast.ASTQueryTranslatorFactory - Using ASTQueryTranslatorFactory
+2008-05-29 15:28:01,468 INFO  cfg.SettingsFactory - Query language substitutions: {}
+2008-05-29 15:28:01,468 INFO  cfg.SettingsFactory - Second-level cache: enabled
+2008-05-29 15:28:01,468 INFO  cfg.SettingsFactory - Query cache: disabled
+2008-05-29 15:28:01,468 INFO  cfg.SettingsFactory - Cache provider: org.hibernate.cache.EhCacheProvider
+2008-05-29 15:28:01,468 INFO  cfg.SettingsFactory - Optimize cache for minimal puts: disabled
+2008-05-29 15:28:01,468 INFO  cfg.SettingsFactory - Structured second-level cache entries: disabled
+2008-05-29 15:28:01,484 INFO  cfg.SettingsFactory - Echoing all SQL to stdout
+2008-05-29 15:28:01,484 INFO  cfg.SettingsFactory - Statistics: disabled
+2008-05-29 15:28:01,484 INFO  cfg.SettingsFactory - Deleted entity synthetic identifier rollback: disabled
+2008-05-29 15:28:01,484 INFO  cfg.SettingsFactory - Default entity-mode: pojo
+2008-05-29 15:28:01,562 INFO  impl.SessionFactoryImpl - building session factory
+2008-05-29 15:28:02,765 INFO  impl.SessionFactoryObjectFactory - Not binding factory to JNDI, no JNDI name configured
+2008-05-29 15:28:30,796 INFO  model.GaussPCall - GRTE:               true
+2008-05-29 15:28:33,312 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:28:33 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             抵制_家乐福 
+order of differencing (d):     0 
+adjusted sample range:         [12, 41], T = 30
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=2, q=0
+Hannan-Quinn Criterion:   p=2, q=0
+Schwarz Criterion:        p=2, q=0
+
+2008-05-29 15:28:33,500 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:28:33 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             抵制_家乐福 
+order of differencing (d):     0 
+adjusted sample range:         [12, 41], T = 30
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=2, q=3
+Hannan-Quinn Criterion:   p=2, q=3
+Schwarz Criterion:        p=1, q=3
+
+2008-05-29 15:28:33,546 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:28:33 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             抵制_家乐福 
+order of differencing (d):     1 
+adjusted sample range:         [13, 41], T = 29
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=1, q=0
+Hannan-Quinn Criterion:   p=1, q=0
+Schwarz Criterion:        p=1, q=0
+
+2008-05-29 15:28:33,671 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:28:33 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             抵制_家乐福 
+order of differencing (d):     1 
+adjusted sample range:         [13, 41], T = 29
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=1, q=0
+Hannan-Quinn Criterion:   p=1, q=0
+Schwarz Criterion:        p=1, q=0
+
+2008-05-29 15:28:33,750 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:28:33 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             抵制_家乐福 
+order of differencing (d):     2 
+adjusted sample range:         [14, 41], T = 28
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=1, q=0
+Hannan-Quinn Criterion:   p=0, q=0
+Schwarz Criterion:        p=0, q=0
+
+2008-05-29 15:28:33,859 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:28:33 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             抵制_家乐福 
+order of differencing (d):     2 
+adjusted sample range:         [14, 41], T = 28
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=2, q=0
+Hannan-Quinn Criterion:   p=2, q=0
+Schwarz Criterion:        p=2, q=0
+
+2008-05-29 15:28:34,046 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:28:34 ***
+sample range:       [3, 41], T = 39
+Model:  ARIMA(0,2,0)
+
+
+Final Results:
+
+Iterations Until Convergence:   1
+
+Log Likelihood:   -141.748076         Number of Residuals: 39    
+AIC           :    285.496151         Error Variance     : 86.248313090     
+SBC           :    287.159713         Standard Error     : 9.286996990      
+
+DF: 38      Adj. SSE: 3277.435897436       SSE: 3277.435897436   
+
+Dependent Variable:         抵制_家?
+
+            Coefficients     Std. Errors      T-Ratio    Approx. Prob.
+const         0.25641024      1.48710968      0.17242          0.86402
+Total Computation Time: 0.00 (seconds)
+
+
+2008-05-29 15:28:34,062 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:28:34 ***
+PORTMANTEAU TEST with 10 lags
+
+Portmanteau:               16.3197     
+ p-Value (Chi^2):          0.0605      
+Ljung & Box:               18.6968     
+ p-Value (Chi^2):          0.0279      
+
+
+2008-05-29 15:28:34,203 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:28:34 ***
+
+forecasted variable: 抵制_家乐福 (in levels)
+forecast range:      [42, 51], T = 10
+
+time           lower CI             forecast             upper CI             std. err            
+42              216.0542             234.2564             252.4586             9.2870             
+43              204.0679             244.7692             285.4705             20.7664            
+44              187.4321             255.5385             323.6448             34.7488            
+45              166.8667             266.5641             366.2615             50.8670            
+46              142.8552             277.8462             412.8371             68.8742            
+47              115.7469             289.3846             463.0223             88.5923            
+48              85.8084              301.1795             516.5506             109.8852           
+49              53.2517              313.2308             573.2099             132.6448           
+50              18.2503              325.5385             632.8266             156.7826           
+51             -19.0500              338.1026             695.2551             182.2240           
+
+2008-05-29 15:31:21,515 INFO  cfg.Environment - Hibernate 3.1.3
+2008-05-29 15:31:21,531 INFO  cfg.Environment - hibernate.properties not found
+2008-05-29 15:31:21,531 INFO  cfg.Environment - using CGLIB reflection optimizer
+2008-05-29 15:31:21,531 INFO  cfg.Environment - using JDK 1.4 java.sql.Timestamp handling
+2008-05-29 15:31:21,640 INFO  cfg.Configuration - configuring from resource: /hibernate.cfg.xml
+2008-05-29 15:31:21,640 INFO  cfg.Configuration - Configuration resource: /hibernate.cfg.xml
+2008-05-29 15:31:21,703 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbCluster.hbm.xml
+2008-05-29 15:31:21,875 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbCluster -> tb_cluster
+2008-05-29 15:31:21,921 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbClusterTopic.hbm.xml
+2008-05-29 15:31:21,968 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbClusterTopic -> tb_cluster_topic
+2008-05-29 15:31:22,062 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbHotTopic.hbm.xml
+2008-05-29 15:31:22,109 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbHotTopic -> tb_hot_topic
+2008-05-29 15:31:22,109 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbParserBbs.hbm.xml
+2008-05-29 15:31:22,140 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbParserBbs -> tb_parser_bbs
+2008-05-29 15:31:22,140 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbParserNews.hbm.xml
+2008-05-29 15:31:22,171 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbParserNews -> tb_parser_news
+2008-05-29 15:31:22,171 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbReBbs.hbm.xml
+2008-05-29 15:31:22,203 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbReBbs -> tb_re_bbs
+2008-05-29 15:31:22,203 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbReNews.hbm.xml
+2008-05-29 15:31:22,234 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbReNews -> tb_re_news
+2008-05-29 15:31:22,234 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbSensitiveTopic.hbm.xml
+2008-05-29 15:31:22,250 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbSensitiveTopic -> tb_sensitive_topic
+2008-05-29 15:31:22,250 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbAuRef.hbm.xml
+2008-05-29 15:31:22,265 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbAuRef -> tb_au_ref
+2008-05-29 15:31:22,265 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbUser.hbm.xml
+2008-05-29 15:31:22,296 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbUser -> tb_user
+2008-05-29 15:31:22,296 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbAu.hbm.xml
+2008-05-29 15:31:22,312 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbAu -> tb_au
+2008-05-29 15:31:22,312 INFO  cfg.Configuration - Configured SessionFactory: null
+2008-05-29 15:31:22,312 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbCluster.tbSensitiveTopics -> tb_sensitive_topic
+2008-05-29 15:31:22,312 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbCluster.tbHotTopics -> tb_hot_topic
+2008-05-29 15:31:22,312 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbCluster.tbClusterTopics -> tb_cluster_topic
+2008-05-29 15:31:22,312 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbParserBbs.tbSensitiveTopics -> tb_sensitive_topic
+2008-05-29 15:31:22,312 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbParserBbs.tbClusterTopics -> tb_cluster_topic
+2008-05-29 15:31:22,312 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbParserBbs.tbReBbses -> tb_re_bbs
+2008-05-29 15:31:22,312 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbParserNews.tbClusterTopics -> tb_cluster_topic
+2008-05-29 15:31:22,312 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbParserNews.tbReNewses -> tb_re_news
+2008-05-29 15:31:22,312 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbParserNews.tbSensitiveTopics -> tb_sensitive_topic
+2008-05-29 15:31:22,312 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbReBbs.tbSensitiveTopics -> tb_sensitive_topic
+2008-05-29 15:31:22,312 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbReNews.tbSensitiveTopics -> tb_sensitive_topic
+2008-05-29 15:31:22,312 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbUser.tbAuRefs -> tb_au_ref
+2008-05-29 15:31:22,312 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbAu.tbAuRefs -> tb_au_ref
+2008-05-29 15:31:22,328 INFO  connection.DriverManagerConnectionProvider - Using Hibernate built-in connection pool (not for production use!)
+2008-05-29 15:31:22,328 INFO  connection.DriverManagerConnectionProvider - Hibernate connection pool size: 20
+2008-05-29 15:31:22,328 INFO  connection.DriverManagerConnectionProvider - autocommit mode: false
+2008-05-29 15:31:22,343 INFO  connection.DriverManagerConnectionProvider - using driver: com.mysql.jdbc.Driver at URL: jdbc:mysql://192.168.198.119:3306/yqfx
+2008-05-29 15:31:22,343 INFO  connection.DriverManagerConnectionProvider - connection properties: {user=root, password=****}
+2008-05-29 15:31:39,156 INFO  cfg.SettingsFactory - RDBMS: MySQL, version: 5.0.41-community-nt
+2008-05-29 15:31:39,156 INFO  cfg.SettingsFactory - JDBC driver: MySQL-AB JDBC Driver, version: mysql-connector-java-5.0.8 ( Revision: ${svn.Revision} )
+2008-05-29 15:31:39,203 INFO  dialect.Dialect - Using dialect: org.hibernate.dialect.MySQLDialect
+2008-05-29 15:31:39,203 INFO  transaction.TransactionFactoryFactory - Using default transaction strategy (direct JDBC transactions)
+2008-05-29 15:31:39,218 INFO  transaction.TransactionManagerLookupFactory - No TransactionManagerLookup configured (in JTA environment, use of read-write or transactional second-level cache is not recommended)
+2008-05-29 15:31:39,218 INFO  cfg.SettingsFactory - Automatic flush during beforeCompletion(): disabled
+2008-05-29 15:31:39,218 INFO  cfg.SettingsFactory - Automatic session close at end of transaction: disabled
+2008-05-29 15:31:39,218 INFO  cfg.SettingsFactory - JDBC batch size: 50
+2008-05-29 15:31:39,218 INFO  cfg.SettingsFactory - JDBC batch updates for versioned data: disabled
+2008-05-29 15:31:39,218 INFO  cfg.SettingsFactory - Scrollable result sets: enabled
+2008-05-29 15:31:39,218 INFO  cfg.SettingsFactory - JDBC3 getGeneratedKeys(): enabled
+2008-05-29 15:31:39,218 INFO  cfg.SettingsFactory - JDBC result set fetch size: 50
+2008-05-29 15:31:39,218 INFO  cfg.SettingsFactory - Connection release mode: auto
+2008-05-29 15:31:39,218 INFO  cfg.SettingsFactory - Maximum outer join fetch depth: 3
+2008-05-29 15:31:39,218 INFO  cfg.SettingsFactory - Default batch fetch size: 4
+2008-05-29 15:31:39,218 INFO  cfg.SettingsFactory - Generate SQL with comments: disabled
+2008-05-29 15:31:39,218 INFO  cfg.SettingsFactory - Order SQL updates by primary key: disabled
+2008-05-29 15:31:39,218 INFO  cfg.SettingsFactory - Query translator: org.hibernate.hql.ast.ASTQueryTranslatorFactory
+2008-05-29 15:31:39,218 INFO  ast.ASTQueryTranslatorFactory - Using ASTQueryTranslatorFactory
+2008-05-29 15:31:39,218 INFO  cfg.SettingsFactory - Query language substitutions: {}
+2008-05-29 15:31:39,218 INFO  cfg.SettingsFactory - Second-level cache: enabled
+2008-05-29 15:31:39,218 INFO  cfg.SettingsFactory - Query cache: disabled
+2008-05-29 15:31:39,218 INFO  cfg.SettingsFactory - Cache provider: org.hibernate.cache.EhCacheProvider
+2008-05-29 15:31:39,234 INFO  cfg.SettingsFactory - Optimize cache for minimal puts: disabled
+2008-05-29 15:31:39,234 INFO  cfg.SettingsFactory - Structured second-level cache entries: disabled
+2008-05-29 15:31:39,234 INFO  cfg.SettingsFactory - Echoing all SQL to stdout
+2008-05-29 15:31:39,234 INFO  cfg.SettingsFactory - Statistics: disabled
+2008-05-29 15:31:39,234 INFO  cfg.SettingsFactory - Deleted entity synthetic identifier rollback: disabled
+2008-05-29 15:31:39,234 INFO  cfg.SettingsFactory - Default entity-mode: pojo
+2008-05-29 15:31:39,312 INFO  impl.SessionFactoryImpl - building session factory
+2008-05-29 15:31:40,296 INFO  impl.SessionFactoryObjectFactory - Not binding factory to JNDI, no JNDI name configured
+2008-05-29 15:32:06,750 INFO  model.GaussPCall - GRTE:               true
+2008-05-29 15:32:07,312 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:32:07 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             抵制_家乐福 
+order of differencing (d):     0 
+adjusted sample range:         [12, 41], T = 30
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=2, q=0
+Hannan-Quinn Criterion:   p=2, q=0
+Schwarz Criterion:        p=2, q=0
+
+2008-05-29 15:32:07,421 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:32:07 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             抵制_家乐福 
+order of differencing (d):     0 
+adjusted sample range:         [12, 41], T = 30
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=2, q=3
+Hannan-Quinn Criterion:   p=2, q=3
+Schwarz Criterion:        p=1, q=3
+
+2008-05-29 15:32:07,531 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:32:07 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             抵制_家乐福 
+order of differencing (d):     1 
+adjusted sample range:         [13, 41], T = 29
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=1, q=0
+Hannan-Quinn Criterion:   p=1, q=0
+Schwarz Criterion:        p=1, q=0
+
+2008-05-29 15:32:07,656 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:32:07 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             抵制_家乐福 
+order of differencing (d):     1 
+adjusted sample range:         [13, 41], T = 29
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=1, q=0
+Hannan-Quinn Criterion:   p=1, q=0
+Schwarz Criterion:        p=1, q=0
+
+2008-05-29 15:32:07,765 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:32:07 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             抵制_家乐福 
+order of differencing (d):     2 
+adjusted sample range:         [14, 41], T = 28
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=1, q=0
+Hannan-Quinn Criterion:   p=0, q=0
+Schwarz Criterion:        p=0, q=0
+
+2008-05-29 15:32:07,875 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:32:07 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             抵制_家乐福 
+order of differencing (d):     2 
+adjusted sample range:         [14, 41], T = 28
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=2, q=0
+Hannan-Quinn Criterion:   p=2, q=0
+Schwarz Criterion:        p=2, q=0
+
+2008-05-29 15:32:08,031 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:32:08 ***
+sample range:       [3, 41], T = 39
+Model:  ARIMA(0,2,0)
+
+
+Final Results:
+
+Iterations Until Convergence:   1
+
+Log Likelihood:   -141.748076         Number of Residuals: 39    
+AIC           :    285.496151         Error Variance     : 86.248313090     
+SBC           :    287.159713         Standard Error     : 9.286996990      
+
+DF: 38      Adj. SSE: 3277.435897436       SSE: 3277.435897436   
+
+Dependent Variable:         抵制_家?
+
+            Coefficients     Std. Errors      T-Ratio    Approx. Prob.
+const         0.25641024      1.48710968      0.17242          0.86402
+Total Computation Time: 0.00 (seconds)
+
+
+2008-05-29 15:32:08,093 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:32:08 ***
+PORTMANTEAU TEST with 10 lags
+
+Portmanteau:               16.3197     
+ p-Value (Chi^2):          0.0605      
+Ljung & Box:               18.6968     
+ p-Value (Chi^2):          0.0279      
+
+
+2008-05-29 15:32:08,203 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:32:08 ***
+
+forecasted variable: 抵制_家乐福 (in levels)
+forecast range:      [42, 51], T = 10
+
+time           lower CI             forecast             upper CI             std. err            
+42              216.0542             234.2564             252.4586             9.2870             
+43              204.0679             244.7692             285.4705             20.7664            
+44              187.4321             255.5385             323.6448             34.7488            
+45              166.8667             266.5641             366.2615             50.8670            
+46              142.8552             277.8462             412.8371             68.8742            
+47              115.7469             289.3846             463.0223             88.5923            
+48              85.8084              301.1795             516.5506             109.8852           
+49              53.2517              313.2308             573.2099             132.6448           
+50              18.2503              325.5385             632.8266             156.7826           
+51             -19.0500              338.1026             695.2551             182.2240           
+
+2008-05-29 15:32:46,046 INFO  cfg.Environment - Hibernate 3.1.3
+2008-05-29 15:32:46,062 INFO  cfg.Environment - hibernate.properties not found
+2008-05-29 15:32:46,062 INFO  cfg.Environment - using CGLIB reflection optimizer
+2008-05-29 15:32:46,062 INFO  cfg.Environment - using JDK 1.4 java.sql.Timestamp handling
+2008-05-29 15:32:46,171 INFO  cfg.Configuration - configuring from resource: /hibernate.cfg.xml
+2008-05-29 15:32:46,171 INFO  cfg.Configuration - Configuration resource: /hibernate.cfg.xml
+2008-05-29 15:32:46,218 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbCluster.hbm.xml
+2008-05-29 15:32:46,406 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbCluster -> tb_cluster
+2008-05-29 15:32:46,437 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbClusterTopic.hbm.xml
+2008-05-29 15:32:46,484 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbClusterTopic -> tb_cluster_topic
+2008-05-29 15:32:46,593 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbHotTopic.hbm.xml
+2008-05-29 15:32:46,640 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbHotTopic -> tb_hot_topic
+2008-05-29 15:32:46,640 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbParserBbs.hbm.xml
+2008-05-29 15:32:46,671 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbParserBbs -> tb_parser_bbs
+2008-05-29 15:32:46,671 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbParserNews.hbm.xml
+2008-05-29 15:32:46,703 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbParserNews -> tb_parser_news
+2008-05-29 15:32:46,703 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbReBbs.hbm.xml
+2008-05-29 15:32:46,734 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbReBbs -> tb_re_bbs
+2008-05-29 15:32:46,734 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbReNews.hbm.xml
+2008-05-29 15:32:46,765 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbReNews -> tb_re_news
+2008-05-29 15:32:46,765 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbSensitiveTopic.hbm.xml
+2008-05-29 15:32:46,781 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbSensitiveTopic -> tb_sensitive_topic
+2008-05-29 15:32:46,781 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbAuRef.hbm.xml
+2008-05-29 15:32:46,796 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbAuRef -> tb_au_ref
+2008-05-29 15:32:46,812 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbUser.hbm.xml
+2008-05-29 15:32:46,828 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbUser -> tb_user
+2008-05-29 15:32:46,828 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbAu.hbm.xml
+2008-05-29 15:32:46,843 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbAu -> tb_au
+2008-05-29 15:32:46,843 INFO  cfg.Configuration - Configured SessionFactory: null
+2008-05-29 15:32:46,843 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbCluster.tbSensitiveTopics -> tb_sensitive_topic
+2008-05-29 15:32:46,843 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbCluster.tbHotTopics -> tb_hot_topic
+2008-05-29 15:32:46,843 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbCluster.tbClusterTopics -> tb_cluster_topic
+2008-05-29 15:32:46,843 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbParserBbs.tbSensitiveTopics -> tb_sensitive_topic
+2008-05-29 15:32:46,843 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbParserBbs.tbClusterTopics -> tb_cluster_topic
+2008-05-29 15:32:46,843 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbParserBbs.tbReBbses -> tb_re_bbs
+2008-05-29 15:32:46,843 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbParserNews.tbClusterTopics -> tb_cluster_topic
+2008-05-29 15:32:46,843 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbParserNews.tbReNewses -> tb_re_news
+2008-05-29 15:32:46,843 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbParserNews.tbSensitiveTopics -> tb_sensitive_topic
+2008-05-29 15:32:46,843 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbReBbs.tbSensitiveTopics -> tb_sensitive_topic
+2008-05-29 15:32:46,859 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbReNews.tbSensitiveTopics -> tb_sensitive_topic
+2008-05-29 15:32:46,859 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbUser.tbAuRefs -> tb_au_ref
+2008-05-29 15:32:46,859 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbAu.tbAuRefs -> tb_au_ref
+2008-05-29 15:32:46,875 INFO  connection.DriverManagerConnectionProvider - Using Hibernate built-in connection pool (not for production use!)
+2008-05-29 15:32:46,875 INFO  connection.DriverManagerConnectionProvider - Hibernate connection pool size: 20
+2008-05-29 15:32:46,875 INFO  connection.DriverManagerConnectionProvider - autocommit mode: false
+2008-05-29 15:32:46,875 INFO  connection.DriverManagerConnectionProvider - using driver: com.mysql.jdbc.Driver at URL: jdbc:mysql://192.168.198.119:3306/yqfx
+2008-05-29 15:32:46,875 INFO  connection.DriverManagerConnectionProvider - connection properties: {user=root, password=****}
+2008-05-29 15:33:03,687 INFO  cfg.SettingsFactory - RDBMS: MySQL, version: 5.0.41-community-nt
+2008-05-29 15:33:03,703 INFO  cfg.SettingsFactory - JDBC driver: MySQL-AB JDBC Driver, version: mysql-connector-java-5.0.8 ( Revision: ${svn.Revision} )
+2008-05-29 15:33:03,734 INFO  dialect.Dialect - Using dialect: org.hibernate.dialect.MySQLDialect
+2008-05-29 15:33:03,750 INFO  transaction.TransactionFactoryFactory - Using default transaction strategy (direct JDBC transactions)
+2008-05-29 15:33:03,750 INFO  transaction.TransactionManagerLookupFactory - No TransactionManagerLookup configured (in JTA environment, use of read-write or transactional second-level cache is not recommended)
+2008-05-29 15:33:03,750 INFO  cfg.SettingsFactory - Automatic flush during beforeCompletion(): disabled
+2008-05-29 15:33:03,750 INFO  cfg.SettingsFactory - Automatic session close at end of transaction: disabled
+2008-05-29 15:33:03,750 INFO  cfg.SettingsFactory - JDBC batch size: 50
+2008-05-29 15:33:03,750 INFO  cfg.SettingsFactory - JDBC batch updates for versioned data: disabled
+2008-05-29 15:33:03,750 INFO  cfg.SettingsFactory - Scrollable result sets: enabled
+2008-05-29 15:33:03,750 INFO  cfg.SettingsFactory - JDBC3 getGeneratedKeys(): enabled
+2008-05-29 15:33:03,750 INFO  cfg.SettingsFactory - JDBC result set fetch size: 50
+2008-05-29 15:33:03,750 INFO  cfg.SettingsFactory - Connection release mode: auto
+2008-05-29 15:33:03,750 INFO  cfg.SettingsFactory - Maximum outer join fetch depth: 3
+2008-05-29 15:33:03,750 INFO  cfg.SettingsFactory - Default batch fetch size: 4
+2008-05-29 15:33:03,750 INFO  cfg.SettingsFactory - Generate SQL with comments: disabled
+2008-05-29 15:33:03,750 INFO  cfg.SettingsFactory - Order SQL updates by primary key: disabled
+2008-05-29 15:33:03,750 INFO  cfg.SettingsFactory - Query translator: org.hibernate.hql.ast.ASTQueryTranslatorFactory
+2008-05-29 15:33:03,765 INFO  ast.ASTQueryTranslatorFactory - Using ASTQueryTranslatorFactory
+2008-05-29 15:33:03,765 INFO  cfg.SettingsFactory - Query language substitutions: {}
+2008-05-29 15:33:03,765 INFO  cfg.SettingsFactory - Second-level cache: enabled
+2008-05-29 15:33:03,765 INFO  cfg.SettingsFactory - Query cache: disabled
+2008-05-29 15:33:03,765 INFO  cfg.SettingsFactory - Cache provider: org.hibernate.cache.EhCacheProvider
+2008-05-29 15:33:03,765 INFO  cfg.SettingsFactory - Optimize cache for minimal puts: disabled
+2008-05-29 15:33:03,765 INFO  cfg.SettingsFactory - Structured second-level cache entries: disabled
+2008-05-29 15:33:03,781 INFO  cfg.SettingsFactory - Echoing all SQL to stdout
+2008-05-29 15:33:03,781 INFO  cfg.SettingsFactory - Statistics: disabled
+2008-05-29 15:33:03,781 INFO  cfg.SettingsFactory - Deleted entity synthetic identifier rollback: disabled
+2008-05-29 15:33:03,781 INFO  cfg.SettingsFactory - Default entity-mode: pojo
+2008-05-29 15:33:03,828 INFO  impl.SessionFactoryImpl - building session factory
+2008-05-29 15:33:04,828 INFO  impl.SessionFactoryObjectFactory - Not binding factory to JNDI, no JNDI name configured
+2008-05-29 15:33:30,828 INFO  model.GaussPCall - GRTE:               true
+2008-05-29 15:33:31,296 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:33:31 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             抵制_家乐福 
+order of differencing (d):     0 
+adjusted sample range:         [12, 41], T = 30
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=2, q=0
+Hannan-Quinn Criterion:   p=2, q=0
+Schwarz Criterion:        p=2, q=0
+
+2008-05-29 15:33:31,406 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:33:31 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             抵制_家乐福 
+order of differencing (d):     0 
+adjusted sample range:         [12, 41], T = 30
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=2, q=3
+Hannan-Quinn Criterion:   p=2, q=3
+Schwarz Criterion:        p=1, q=3
+
+2008-05-29 15:33:31,531 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:33:31 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             抵制_家乐福 
+order of differencing (d):     1 
+adjusted sample range:         [13, 41], T = 29
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=1, q=0
+Hannan-Quinn Criterion:   p=1, q=0
+Schwarz Criterion:        p=1, q=0
+
+2008-05-29 15:33:31,640 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:33:31 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             抵制_家乐福 
+order of differencing (d):     1 
+adjusted sample range:         [13, 41], T = 29
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=1, q=0
+Hannan-Quinn Criterion:   p=1, q=0
+Schwarz Criterion:        p=1, q=0
+
+2008-05-29 15:33:31,750 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:33:31 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             抵制_家乐福 
+order of differencing (d):     2 
+adjusted sample range:         [14, 41], T = 28
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=1, q=0
+Hannan-Quinn Criterion:   p=0, q=0
+Schwarz Criterion:        p=0, q=0
+
+2008-05-29 15:33:31,859 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:33:31 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             抵制_家乐福 
+order of differencing (d):     2 
+adjusted sample range:         [14, 41], T = 28
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=2, q=0
+Hannan-Quinn Criterion:   p=2, q=0
+Schwarz Criterion:        p=2, q=0
+
+2008-05-29 15:33:32,015 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:33:32 ***
+sample range:       [3, 41], T = 39
+Model:  ARIMA(0,2,0)
+
+
+Final Results:
+
+Iterations Until Convergence:   1
+
+Log Likelihood:   -141.748076         Number of Residuals: 39    
+AIC           :    285.496151         Error Variance     : 86.248313090     
+SBC           :    287.159713         Standard Error     : 9.286996990      
+
+DF: 38      Adj. SSE: 3277.435897436       SSE: 3277.435897436   
+
+Dependent Variable:         抵制_家?
+
+            Coefficients     Std. Errors      T-Ratio    Approx. Prob.
+const         0.25641024      1.48710968      0.17242          0.86402
+Total Computation Time: 0.00 (seconds)
+
+
+2008-05-29 15:33:32,078 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:33:32 ***
+PORTMANTEAU TEST with 10 lags
+
+Portmanteau:               16.3197     
+ p-Value (Chi^2):          0.0605      
+Ljung & Box:               18.6968     
+ p-Value (Chi^2):          0.0279      
+
+
+2008-05-29 15:33:32,187 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:33:32 ***
+
+forecasted variable: 抵制_家乐福 (in levels)
+forecast range:      [42, 51], T = 10
+
+time           lower CI             forecast             upper CI             std. err            
+42              216.0542             234.2564             252.4586             9.2870             
+43              204.0679             244.7692             285.4705             20.7664            
+44              187.4321             255.5385             323.6448             34.7488            
+45              166.8667             266.5641             366.2615             50.8670            
+46              142.8552             277.8462             412.8371             68.8742            
+47              115.7469             289.3846             463.0223             88.5923            
+48              85.8084              301.1795             516.5506             109.8852           
+49              53.2517              313.2308             573.2099             132.6448           
+50              18.2503              325.5385             632.8266             156.7826           
+51             -19.0500              338.1026             695.2551             182.2240           
+
+2008-05-29 15:56:59,265 INFO  cfg.Environment - Hibernate 3.1.3
+2008-05-29 15:56:59,281 INFO  cfg.Environment - hibernate.properties not found
+2008-05-29 15:56:59,281 INFO  cfg.Environment - using CGLIB reflection optimizer
+2008-05-29 15:56:59,281 INFO  cfg.Environment - using JDK 1.4 java.sql.Timestamp handling
+2008-05-29 15:56:59,421 INFO  cfg.Configuration - configuring from resource: /hibernate.cfg.xml
+2008-05-29 15:56:59,421 INFO  cfg.Configuration - Configuration resource: /hibernate.cfg.xml
+2008-05-29 15:56:59,484 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbCluster.hbm.xml
+2008-05-29 15:56:59,671 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbCluster -> tb_cluster
+2008-05-29 15:56:59,718 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbClusterTopic.hbm.xml
+2008-05-29 15:56:59,765 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbClusterTopic -> tb_cluster_topic
+2008-05-29 15:56:59,875 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbHotTopic.hbm.xml
+2008-05-29 15:56:59,906 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbHotTopic -> tb_hot_topic
+2008-05-29 15:56:59,906 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbParserBbs.hbm.xml
+2008-05-29 15:56:59,953 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbParserBbs -> tb_parser_bbs
+2008-05-29 15:56:59,953 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbParserNews.hbm.xml
+2008-05-29 15:56:59,984 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbParserNews -> tb_parser_news
+2008-05-29 15:56:59,984 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbReBbs.hbm.xml
+2008-05-29 15:57:00,000 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbReBbs -> tb_re_bbs
+2008-05-29 15:57:00,000 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbReNews.hbm.xml
+2008-05-29 15:57:00,031 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbReNews -> tb_re_news
+2008-05-29 15:57:00,031 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbSensitiveTopic.hbm.xml
+2008-05-29 15:57:00,046 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbSensitiveTopic -> tb_sensitive_topic
+2008-05-29 15:57:00,046 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbAuRef.hbm.xml
+2008-05-29 15:57:00,062 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbAuRef -> tb_au_ref
+2008-05-29 15:57:00,078 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbUser.hbm.xml
+2008-05-29 15:57:00,093 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbUser -> tb_user
+2008-05-29 15:57:00,093 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbAu.hbm.xml
+2008-05-29 15:57:00,109 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbAu -> tb_au
+2008-05-29 15:57:00,109 INFO  cfg.Configuration - Configured SessionFactory: null
+2008-05-29 15:57:00,109 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbCluster.tbSensitiveTopics -> tb_sensitive_topic
+2008-05-29 15:57:00,109 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbCluster.tbHotTopics -> tb_hot_topic
+2008-05-29 15:57:00,109 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbCluster.tbClusterTopics -> tb_cluster_topic
+2008-05-29 15:57:00,109 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbParserBbs.tbSensitiveTopics -> tb_sensitive_topic
+2008-05-29 15:57:00,109 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbParserBbs.tbClusterTopics -> tb_cluster_topic
+2008-05-29 15:57:00,109 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbParserBbs.tbReBbses -> tb_re_bbs
+2008-05-29 15:57:00,109 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbParserNews.tbClusterTopics -> tb_cluster_topic
+2008-05-29 15:57:00,109 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbParserNews.tbReNewses -> tb_re_news
+2008-05-29 15:57:00,109 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbParserNews.tbSensitiveTopics -> tb_sensitive_topic
+2008-05-29 15:57:00,109 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbReBbs.tbSensitiveTopics -> tb_sensitive_topic
+2008-05-29 15:57:00,109 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbReNews.tbSensitiveTopics -> tb_sensitive_topic
+2008-05-29 15:57:00,109 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbUser.tbAuRefs -> tb_au_ref
+2008-05-29 15:57:00,109 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbAu.tbAuRefs -> tb_au_ref
+2008-05-29 15:57:00,140 INFO  connection.DriverManagerConnectionProvider - Using Hibernate built-in connection pool (not for production use!)
+2008-05-29 15:57:00,140 INFO  connection.DriverManagerConnectionProvider - Hibernate connection pool size: 20
+2008-05-29 15:57:00,140 INFO  connection.DriverManagerConnectionProvider - autocommit mode: false
+2008-05-29 15:57:00,140 INFO  connection.DriverManagerConnectionProvider - using driver: com.mysql.jdbc.Driver at URL: jdbc:mysql://192.168.198.119:3306/yqfx
+2008-05-29 15:57:00,140 INFO  connection.DriverManagerConnectionProvider - connection properties: {user=root, password=****}
+2008-05-29 15:57:17,000 INFO  cfg.SettingsFactory - RDBMS: MySQL, version: 5.0.41-community-nt
+2008-05-29 15:57:17,000 INFO  cfg.SettingsFactory - JDBC driver: MySQL-AB JDBC Driver, version: mysql-connector-java-5.0.8 ( Revision: ${svn.Revision} )
+2008-05-29 15:57:17,046 INFO  dialect.Dialect - Using dialect: org.hibernate.dialect.MySQLDialect
+2008-05-29 15:57:17,062 INFO  transaction.TransactionFactoryFactory - Using default transaction strategy (direct JDBC transactions)
+2008-05-29 15:57:17,062 INFO  transaction.TransactionManagerLookupFactory - No TransactionManagerLookup configured (in JTA environment, use of read-write or transactional second-level cache is not recommended)
+2008-05-29 15:57:17,062 INFO  cfg.SettingsFactory - Automatic flush during beforeCompletion(): disabled
+2008-05-29 15:57:17,062 INFO  cfg.SettingsFactory - Automatic session close at end of transaction: disabled
+2008-05-29 15:57:17,062 INFO  cfg.SettingsFactory - JDBC batch size: 50
+2008-05-29 15:57:17,062 INFO  cfg.SettingsFactory - JDBC batch updates for versioned data: disabled
+2008-05-29 15:57:17,062 INFO  cfg.SettingsFactory - Scrollable result sets: enabled
+2008-05-29 15:57:17,062 INFO  cfg.SettingsFactory - JDBC3 getGeneratedKeys(): enabled
+2008-05-29 15:57:17,062 INFO  cfg.SettingsFactory - JDBC result set fetch size: 50
+2008-05-29 15:57:17,062 INFO  cfg.SettingsFactory - Connection release mode: auto
+2008-05-29 15:57:17,062 INFO  cfg.SettingsFactory - Maximum outer join fetch depth: 3
+2008-05-29 15:57:17,062 INFO  cfg.SettingsFactory - Default batch fetch size: 4
+2008-05-29 15:57:17,062 INFO  cfg.SettingsFactory - Generate SQL with comments: disabled
+2008-05-29 15:57:17,062 INFO  cfg.SettingsFactory - Order SQL updates by primary key: disabled
+2008-05-29 15:57:17,062 INFO  cfg.SettingsFactory - Query translator: org.hibernate.hql.ast.ASTQueryTranslatorFactory
+2008-05-29 15:57:17,062 INFO  ast.ASTQueryTranslatorFactory - Using ASTQueryTranslatorFactory
+2008-05-29 15:57:17,062 INFO  cfg.SettingsFactory - Query language substitutions: {}
+2008-05-29 15:57:17,062 INFO  cfg.SettingsFactory - Second-level cache: enabled
+2008-05-29 15:57:17,062 INFO  cfg.SettingsFactory - Query cache: disabled
+2008-05-29 15:57:17,062 INFO  cfg.SettingsFactory - Cache provider: org.hibernate.cache.EhCacheProvider
+2008-05-29 15:57:17,078 INFO  cfg.SettingsFactory - Optimize cache for minimal puts: disabled
+2008-05-29 15:57:17,078 INFO  cfg.SettingsFactory - Structured second-level cache entries: disabled
+2008-05-29 15:57:17,078 INFO  cfg.SettingsFactory - Echoing all SQL to stdout
+2008-05-29 15:57:17,078 INFO  cfg.SettingsFactory - Statistics: disabled
+2008-05-29 15:57:17,078 INFO  cfg.SettingsFactory - Deleted entity synthetic identifier rollback: disabled
+2008-05-29 15:57:17,093 INFO  cfg.SettingsFactory - Default entity-mode: pojo
+2008-05-29 15:57:17,140 INFO  impl.SessionFactoryImpl - building session factory
+2008-05-29 15:57:18,171 INFO  impl.SessionFactoryObjectFactory - Not binding factory to JNDI, no JNDI name configured
+2008-05-29 15:57:28,375 INFO  model.GaussPCall - GRTE:               true
+2008-05-29 15:57:29,062 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:57:29 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             中国_股市 
+order of differencing (d):     0 
+adjusted sample range:         [12, 41], T = 30
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=3, q=2
+Hannan-Quinn Criterion:   p=3, q=2
+Schwarz Criterion:        p=3, q=2
+
+2008-05-29 15:57:29,109 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:57:29 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             中国_股市 
+order of differencing (d):     0 
+adjusted sample range:         [12, 41], T = 30
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=3, q=3
+Hannan-Quinn Criterion:   p=3, q=3
+Schwarz Criterion:        p=2, q=2
+
+2008-05-29 15:57:29,218 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:57:29 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             中国_股市 
+order of differencing (d):     1 
+adjusted sample range:         [13, 41], T = 29
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=1, q=1
+Hannan-Quinn Criterion:   p=1, q=1
+Schwarz Criterion:        p=1, q=1
+
+2008-05-29 15:57:29,328 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:57:29 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             中国_股市 
+order of differencing (d):     1 
+adjusted sample range:         [13, 41], T = 29
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=3, q=1
+Hannan-Quinn Criterion:   p=1, q=1
+Schwarz Criterion:        p=1, q=1
+
+2008-05-29 15:57:29,437 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:57:29 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             中国_股市 
+order of differencing (d):     2 
+adjusted sample range:         [14, 41], T = 28
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=0, q=1
+Hannan-Quinn Criterion:   p=0, q=1
+Schwarz Criterion:        p=0, q=1
+
+2008-05-29 15:57:29,546 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:57:29 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             中国_股市 
+order of differencing (d):     2 
+adjusted sample range:         [14, 41], T = 28
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=0, q=1
+Hannan-Quinn Criterion:   p=0, q=1
+Schwarz Criterion:        p=0, q=1
+
+2008-05-29 15:57:29,703 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:57:29 ***
+sample range:       [3, 41], T = 39
+Model:  ARIMA(0,2,1)
+
+
+Final Results:
+
+Iterations Until Convergence:   4
+
+Log Likelihood:   -132.154081         Number of Residuals: 39    
+AIC           :    268.308162         Error Variance     : 53.986564831     
+SBC           :    271.635285         Standard Error     : 7.347555024      
+
+DF: 37      Adj. SSE: 2003.832622708       SSE: 1997.502898765   
+
+Dependent Variable:         中国_股?
+
+            Coefficients     Std. Errors      T-Ratio    Approx. Prob.
+MA1           0.34070490      0.15497584      2.19844          0.03425
+const         0.73485515      0.78496912      0.93616          0.35526
+
+Total Computation Time: 0.00 (seconds)
+
+MA Root:   2.93509 
+
+
+2008-05-29 15:57:29,765 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:57:29 ***
+PORTMANTEAU TEST with 10 lags
+
+Portmanteau:               6.8851      
+ p-Value (Chi^2):          0.5491      
+Ljung & Box:               8.7728      
+ p-Value (Chi^2):          0.3618      
+
+
+2008-05-29 15:57:29,812 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:57:29 ***
+
+forecasted variable: 中国_股市 (in levels)
+forecast range:      [42, 51], T = 10
+
+time           lower CI             forecast             upper CI             std. err            
+42              183.6165             198.0174             212.4183             7.3476             
+43              199.8702             227.7696             255.6691             14.2347            
+44              214.7451             258.2567             301.7684             22.2002            
+45              228.3859             289.4787             350.5715             31.1704            
+46              240.9627             321.4355             401.9083             41.0583            
+47              252.6177             354.1272             455.6367             51.7915            
+48              263.4669             387.5537             511.6405             63.3108            
+49              273.6062             421.7151             569.8240             75.5671            
+50              283.1162             456.6113             630.1065             88.5196            
+51              292.0654             492.2424             692.4194             102.1330           
+
+2008-05-29 15:57:57,703 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:57:57 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             抵制_家乐福 
+order of differencing (d):     0 
+adjusted sample range:         [12, 41], T = 30
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=2, q=0
+Hannan-Quinn Criterion:   p=2, q=0
+Schwarz Criterion:        p=2, q=0
+
+2008-05-29 15:57:57,796 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:57:57 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             抵制_家乐福 
+order of differencing (d):     0 
+adjusted sample range:         [12, 41], T = 30
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=2, q=3
+Hannan-Quinn Criterion:   p=2, q=3
+Schwarz Criterion:        p=1, q=3
+
+2008-05-29 15:57:57,921 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:57:57 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             抵制_家乐福 
+order of differencing (d):     1 
+adjusted sample range:         [13, 41], T = 29
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=1, q=0
+Hannan-Quinn Criterion:   p=1, q=0
+Schwarz Criterion:        p=1, q=0
+
+2008-05-29 15:57:58,031 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:57:58 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             抵制_家乐福 
+order of differencing (d):     1 
+adjusted sample range:         [13, 41], T = 29
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=1, q=0
+Hannan-Quinn Criterion:   p=1, q=0
+Schwarz Criterion:        p=1, q=0
+
+2008-05-29 15:57:58,140 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:57:58 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             抵制_家乐福 
+order of differencing (d):     2 
+adjusted sample range:         [14, 41], T = 28
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=1, q=0
+Hannan-Quinn Criterion:   p=0, q=0
+Schwarz Criterion:        p=0, q=0
+
+2008-05-29 15:57:58,250 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:57:58 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             抵制_家乐福 
+order of differencing (d):     2 
+adjusted sample range:         [14, 41], T = 28
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=2, q=0
+Hannan-Quinn Criterion:   p=2, q=0
+Schwarz Criterion:        p=2, q=0
+
+2008-05-29 15:57:58,359 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:57:58 ***
+sample range:       [3, 41], T = 39
+Model:  ARIMA(0,2,0)
+
+
+Final Results:
+
+Iterations Until Convergence:   1
+
+Log Likelihood:   -141.748076         Number of Residuals: 39    
+AIC           :    285.496151         Error Variance     : 86.248313090     
+SBC           :    287.159713         Standard Error     : 9.286996990      
+
+DF: 38      Adj. SSE: 3277.435897436       SSE: 3277.435897436   
+
+Dependent Variable:  抵制_家?
+
+            Coefficients     Std. Errors      T-Ratio    Approx. Prob.
+const         0.25641024      1.48710968      0.17242          0.86402
+Total Computation Time: 0.00 (seconds)
+
+
+2008-05-29 15:57:58,453 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:57:58 ***
+PORTMANTEAU TEST with 10 lags
+
+Portmanteau:               16.3197     
+ p-Value (Chi^2):          0.0605      
+Ljung & Box:               18.6968     
+ p-Value (Chi^2):          0.0279      
+
+
+2008-05-29 15:57:58,562 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:57:58 ***
+
+forecasted variable: 抵制_家乐福 (in levels)
+forecast range:      [42, 51], T = 10
+
+time           lower CI             forecast             upper CI             std. err            
+42              216.0542             234.2564             252.4586             9.2870             
+43              204.0679             244.7692             285.4705             20.7664            
+44              187.4321             255.5385             323.6448             34.7488            
+45              166.8667             266.5641             366.2615             50.8670            
+46              142.8552             277.8462             412.8371             68.8742            
+47              115.7469             289.3846             463.0223             88.5923            
+48              85.8084              301.1795             516.5506             109.8852           
+49              53.2517              313.2308             573.2099             132.6448           
+50              18.2503              325.5385             632.8266             156.7826           
+51             -19.0500              338.1026             695.2551             182.2240           
+
+2008-05-29 15:58:07,312 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:58:07 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             法国_一个_笑话 
+order of differencing (d):     0 
+adjusted sample range:         [12, 41], T = 30
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=1, q=1
+Hannan-Quinn Criterion:   p=1, q=1
+Schwarz Criterion:        p=1, q=1
+
+2008-05-29 15:58:07,484 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:58:07 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             法国_一个_笑话 
+order of differencing (d):     0 
+adjusted sample range:         [12, 41], T = 30
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=2, q=0
+Hannan-Quinn Criterion:   p=2, q=0
+Schwarz Criterion:        p=2, q=0
+
+2008-05-29 15:58:07,593 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:58:07 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             法国_一个_笑话 
+order of differencing (d):     1 
+adjusted sample range:         [13, 41], T = 29
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=1, q=3
+Hannan-Quinn Criterion:   p=1, q=3
+Schwarz Criterion:        p=1, q=3
+
+2008-05-29 15:58:07,703 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:58:07 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             法国_一个_笑话 
+order of differencing (d):     1 
+adjusted sample range:         [13, 41], T = 29
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=1, q=3
+Hannan-Quinn Criterion:   p=1, q=3
+Schwarz Criterion:        p=0, q=0
+
+2008-05-29 15:58:07,812 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:58:07 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             法国_一个_笑话 
+order of differencing (d):     2 
+adjusted sample range:         [14, 41], T = 28
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=0, q=3
+Hannan-Quinn Criterion:   p=2, q=0
+Schwarz Criterion:        p=2, q=0
+
+2008-05-29 15:58:07,906 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:58:07 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             法国_一个_笑话 
+order of differencing (d):     2 
+adjusted sample range:         [14, 41], T = 28
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=0, q=3
+Hannan-Quinn Criterion:   p=2, q=0
+Schwarz Criterion:        p=2, q=0
+
+2008-05-29 15:58:08,062 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:58:08 ***
+sample range:       [1, 41], T = 41
+Model:  ARIMA(1,0,1)
+
+
+Final Results:
+
+Iterations Until Convergence:  29
+
+Log Likelihood:   -178.007868         Number of Residuals: 41    
+AIC           :    362.015737         Error Variance     : 327.159905479    
+SBC           :    367.156453         Standard Error     : 18.087562176     
+
+DF: 38      Adj. SSE: 14171.747562746      SSE: 12432.076408207  
+
+Dependent Variable:  法国_一?
+
+            Coefficients     Std. Errors      T-Ratio    Approx. Prob.
+AR1           0.98827523      0.03791476     26.06571          0.00000
+MA1          -0.66970934      0.11943461     -5.60733          0.00000
+const       187.65094195    338.75077073      0.55395          0.58286
+
+Total Computation Time: 0.05 (seconds)
+
+AR Root:   1.01186 
+
+MA Root:  -1.49319 
+
+
+2008-05-29 15:58:08,125 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:58:08 ***
+PORTMANTEAU TEST with 10 lags
+
+Portmanteau:               9.5850      
+ p-Value (Chi^2):          0.2133      
+Ljung & Box:               10.8468     
+ p-Value (Chi^2):          0.1454      
+
+
+2008-05-29 15:58:08,234 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:58:08 ***
+
+forecasted variable: 法国_一个_笑话 (in levels)
+forecast range:      [42, 51], T = 10
+
+time           lower CI             forecast             upper CI             std. err            
+42              375.8114             411.2624             446.7134             18.0876            
+43              340.0001             408.6406             477.2812             35.0213            
+44              316.1288             406.0496             495.9703             45.8788            
+45              296.8057             403.4889             510.1721             54.4312            
+46              280.1277             400.9582             521.7888             61.6494            
+47              265.2517             398.4573             531.6628             67.9633            
+48              251.7146             395.9856             540.2566             73.6090            
+49              239.2284             393.5429             547.8574             78.7333            
+50              227.5994             391.1289             554.6584             83.4349            
+51              216.6893             388.7432             560.7970             87.7842            
+
+2008-05-29 15:58:18,812 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:58:18 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             事件_中国 
+order of differencing (d):     0 
+adjusted sample range:         [12, 41], T = 30
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=2, q=1
+Hannan-Quinn Criterion:   p=2, q=1
+Schwarz Criterion:        p=2, q=1
+
+2008-05-29 15:58:18,937 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:58:18 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             事件_中国 
+order of differencing (d):     0 
+adjusted sample range:         [12, 41], T = 30
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=2, q=2
+Hannan-Quinn Criterion:   p=2, q=0
+Schwarz Criterion:        p=2, q=0
+
+2008-05-29 15:58:19,031 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:58:19 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             事件_中国 
+order of differencing (d):     1 
+adjusted sample range:         [13, 41], T = 29
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=1, q=3
+Hannan-Quinn Criterion:   p=1, q=3
+Schwarz Criterion:        p=1, q=0
+
+2008-05-29 15:58:19,140 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:58:19 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             事件_中国 
+order of differencing (d):     1 
+adjusted sample range:         [13, 41], T = 29
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=1, q=3
+Hannan-Quinn Criterion:   p=1, q=3
+Schwarz Criterion:        p=0, q=0
+
+2008-05-29 15:58:19,250 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:58:19 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             事件_中国 
+order of differencing (d):     2 
+adjusted sample range:         [14, 41], T = 28
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=2, q=0
+Hannan-Quinn Criterion:   p=2, q=0
+Schwarz Criterion:        p=2, q=0
+
+2008-05-29 15:58:19,359 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:58:19 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             事件_中国 
+order of differencing (d):     2 
+adjusted sample range:         [14, 41], T = 28
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=2, q=0
+Hannan-Quinn Criterion:   p=2, q=0
+Schwarz Criterion:        p=2, q=0
+
+2008-05-29 15:58:19,500 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:58:19 ***
+sample range:       [1, 41], T = 41
+Model:  ARIMA(2,0,0)
+
+
+Final Results:
+
+Iterations Until Convergence:  17
+
+Log Likelihood:   -174.861797         Number of Residuals: 41    
+AIC           :    357.723593         Error Variance     : 301.726126960    
+SBC           :    364.577882         Standard Error     : 17.370265598     
+
+DF: 37      Adj. SSE: 12155.520918460      SSE: 11163.866697529  
+
+Dependent Variable:  事件_中?
+
+            Coefficients     Std. Errors      T-Ratio    Approx. Prob.
+AR1           1.47519343      0.14059681     10.49237          0.00000
+AR2          -0.51931330      0.15434780     -3.36457          0.00180
+const       -75.26790141     82.32679151     -0.91426          0.36650
+TREND        10.53199128      3.75810504      2.80247          0.00802
+
+Total Computation Time: 0.03 (seconds)
+
+AR Roots and Moduli:
+
+Real :    1.72318   1.11748 
+Imag.:    0.00000   0.00000 
+Mod. :    1.72318   1.11748 
+
+
+2008-05-29 15:58:19,578 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:58:19 ***
+PORTMANTEAU TEST with 10 lags
+
+Portmanteau:               13.0960     
+ p-Value (Chi^2):          0.0698      
+Ljung & Box:               15.1147     
+ p-Value (Chi^2):          0.0346      
+
+
+2008-05-29 15:58:19,687 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:58:19 ***
+
+forecasted variable: 事件_中国 (in levels)
+forecast range:      [42, 51], T = 10
+
+time           lower CI             forecast             upper CI             std. err            
+42              404.3190             438.3641             472.4092             17.3703            
+43              354.4033             415.0781             475.7528             30.9571            
+44              305.4271             388.2726             471.1180             42.2689            
+45              260.6514             361.2867             461.9220             51.3455            
+46              221.1843             335.8625             450.5406             58.5103            
+47              187.1459             312.8356             438.5253             64.1286            
+48              158.2253             292.5343             426.8433             68.5263            
+49              133.9485             275.0088             416.0690             71.9708            
+50              113.8044             260.1627             406.5209             74.6739            
+51              97.3021              247.8277             398.3533             76.8002            
+
+2008-05-29 15:58:24,453 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:58:24 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             行为_爱国 
+order of differencing (d):     0 
+adjusted sample range:         [12, 41], T = 30
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=1, q=1
+Hannan-Quinn Criterion:   p=1, q=1
+Schwarz Criterion:        p=1, q=1
+
+2008-05-29 15:58:24,671 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:58:24 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             行为_爱国 
+order of differencing (d):     0 
+adjusted sample range:         [12, 41], T = 30
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=1, q=0
+Hannan-Quinn Criterion:   p=1, q=0
+Schwarz Criterion:        p=1, q=0
+
+2008-05-29 15:58:24,765 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:58:24 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             行为_爱国 
+order of differencing (d):     1 
+adjusted sample range:         [13, 41], T = 29
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=0, q=0
+Hannan-Quinn Criterion:   p=0, q=0
+Schwarz Criterion:        p=0, q=0
+
+2008-05-29 15:58:24,875 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:58:24 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             行为_爱国 
+order of differencing (d):     1 
+adjusted sample range:         [13, 41], T = 29
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=0, q=0
+Hannan-Quinn Criterion:   p=0, q=0
+Schwarz Criterion:        p=0, q=0
+
+2008-05-29 15:58:24,968 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:58:24 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             行为_爱国 
+order of differencing (d):     2 
+adjusted sample range:         [14, 41], T = 28
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=0, q=3
+Hannan-Quinn Criterion:   p=0, q=3
+Schwarz Criterion:        p=0, q=3
+
+2008-05-29 15:58:25,078 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:58:25 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             行为_爱国 
+order of differencing (d):     2 
+adjusted sample range:         [14, 41], T = 28
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=0, q=3
+Hannan-Quinn Criterion:   p=0, q=3
+Schwarz Criterion:        p=0, q=3
+
+2008-05-29 15:58:25,187 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:58:25 ***
+sample range:       [2, 41], T = 40
+Model:  ARIMA(0,1,0)
+
+
+Final Results:
+
+Iterations Until Convergence:   1
+
+Log Likelihood:   -155.170294         Number of Residuals: 40    
+AIC           :    312.340588         Error Variance     : 140.605128205    
+SBC           :    314.029468         Standard Error     : 11.857703328     
+
+DF: 39      Adj. SSE: 5483.600000000       SSE: 5483.600000000   
+
+Dependent Variable:  行为_爱?
+
+            Coefficients     Std. Errors      T-Ratio    Approx. Prob.
+const         6.09999990      1.87486752      3.25356          0.00236
+Total Computation Time: 0.00 (seconds)
+
+
+2008-05-29 15:58:25,296 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:58:25 ***
+PORTMANTEAU TEST with 10 lags
+
+Portmanteau:               8.2100      
+ p-Value (Chi^2):          0.5131      
+Ljung & Box:               9.5502      
+ p-Value (Chi^2):          0.3881      
+
+
+2008-05-29 15:58:25,406 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:58:25 ***
+
+forecasted variable: 行为_爱国 (in levels)
+forecast range:      [42, 51], T = 10
+
+time           lower CI             forecast             upper CI             std. err            
+42              227.8593             251.1000             274.3407             11.8577            
+43              224.3327             257.2000             290.0673             16.7693            
+44              223.0460             263.3000             303.5540             20.5381            
+45              222.9187             269.4000             315.8813             23.7154            
+46              223.5323             275.5000             327.4677             26.5146            
+47              224.6722             281.6000             338.5278             29.0453            
+48              226.2110             287.7000             349.1890             31.3725            
+49              228.0655             293.8000             359.5345             33.5386            
+50              230.1780             299.9000             369.6220             35.5731            
+51              232.5065             306.0000             379.4935             37.4974            
+
+2008-05-29 15:58:28,484 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:58:28 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             Cnn_媒体 
+order of differencing (d):     0 
+adjusted sample range:         [12, 41], T = 30
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=2, q=0
+Hannan-Quinn Criterion:   p=2, q=0
+Schwarz Criterion:        p=2, q=0
+
+2008-05-29 15:58:28,578 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:58:28 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             Cnn_媒体 
+order of differencing (d):     0 
+adjusted sample range:         [12, 41], T = 30
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=2, q=0
+Hannan-Quinn Criterion:   p=2, q=0
+Schwarz Criterion:        p=2, q=0
+
+2008-05-29 15:58:28,687 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:58:28 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             Cnn_媒体 
+order of differencing (d):     1 
+adjusted sample range:         [13, 41], T = 29
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=2, q=0
+Hannan-Quinn Criterion:   p=2, q=0
+Schwarz Criterion:        p=1, q=0
+
+2008-05-29 15:58:28,796 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:58:28 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             Cnn_媒体 
+order of differencing (d):     1 
+adjusted sample range:         [13, 41], T = 29
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=2, q=0
+Hannan-Quinn Criterion:   p=2, q=0
+Schwarz Criterion:        p=2, q=0
+
+2008-05-29 15:58:28,906 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:58:28 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             Cnn_媒体 
+order of differencing (d):     2 
+adjusted sample range:         [14, 41], T = 28
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=2, q=0
+Hannan-Quinn Criterion:   p=2, q=0
+Schwarz Criterion:        p=0, q=0
+
+2008-05-29 15:58:29,015 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:58:29 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             Cnn_媒体 
+order of differencing (d):     2 
+adjusted sample range:         [14, 41], T = 28
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=2, q=0
+Hannan-Quinn Criterion:   p=2, q=0
+Schwarz Criterion:        p=0, q=0
+
+2008-05-29 15:58:29,156 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:58:29 ***
+sample range:       [1, 41], T = 41
+Model:  ARIMA(2,0,0)
+
+
+Final Results:
+
+Iterations Until Convergence:  27
+
+Log Likelihood:    -75.015364         Number of Residuals: 41    
+AIC           :    156.030727         Error Variance     : 2.092790956      
+SBC           :    161.171443         Standard Error     : 1.446648180      
+
+DF: 38      Adj. SSE: 93.221746811         SSE: 79.526056310     
+
+Dependent Variable:  Cnn_媒体 
+
+            Coefficients     Std. Errors      T-Ratio    Approx. Prob.
+AR1           1.82542558      0.10328208     17.67418          0.00000
+AR2          -0.84150853      0.12454443     -6.75669          0.00000
+const        17.01688992     24.42391339      0.69673          0.49021
+
+Total Computation Time: 0.03 (seconds)
+
+AR Roots and Moduli:
+
+Real :    1.08462   1.08462 
+Imag.:    0.10933  -0.10933 
+Mod. :    1.09011   1.09011 
+
+
+2008-05-29 15:58:29,234 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:58:29 ***
+PORTMANTEAU TEST with 10 lags
+
+Portmanteau:               4.7057      
+ p-Value (Chi^2):          0.6958      
+Ljung & Box:               5.6119      
+ p-Value (Chi^2):          0.5857      
+
+
+2008-05-29 15:58:29,343 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:58:29 ***
+
+forecasted variable: Cnn_媒体 (in levels)
+forecast range:      [42, 51], T = 10
+
+time           lower CI             forecast             upper CI             std. err            
+42              43.9543              46.7897              49.6250              1.4466             
+43              43.5983              49.4999              55.4014              3.0110             
+44              42.0548              51.2581              60.4613              4.6956             
+45              39.6348              52.1870              64.7391              6.4043             
+46              36.5771              52.4030              68.2289              8.0746             
+47              33.0720              52.0156              70.9592              9.6653             
+48              29.2738              51.1268              72.9798              11.1497            
+49              25.3080              49.8302              74.3525              12.5116            
+50              21.2768              48.2115              75.1461              13.7424            
+51              17.2625              46.3475              75.4326              14.8396            
+
+2008-05-29 15:58:32,093 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:58:32 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             不能_没有 
+order of differencing (d):     0 
+adjusted sample range:         [12, 41], T = 30
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=2, q=0
+Hannan-Quinn Criterion:   p=2, q=0
+Schwarz Criterion:        p=2, q=0
+
+2008-05-29 15:58:32,218 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:58:32 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             不能_没有 
+order of differencing (d):     0 
+adjusted sample range:         [12, 41], T = 30
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=2, q=1
+Hannan-Quinn Criterion:   p=2, q=1
+Schwarz Criterion:        p=2, q=1
+
+2008-05-29 15:58:32,328 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:58:32 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             不能_没有 
+order of differencing (d):     1 
+adjusted sample range:         [13, 41], T = 29
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=3, q=0
+Hannan-Quinn Criterion:   p=3, q=0
+Schwarz Criterion:        p=3, q=0
+
+2008-05-29 15:58:32,437 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:58:32 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             不能_没有 
+order of differencing (d):     1 
+adjusted sample range:         [13, 41], T = 29
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=3, q=0
+Hannan-Quinn Criterion:   p=0, q=2
+Schwarz Criterion:        p=1, q=0
+
+2008-05-29 15:58:32,546 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:58:32 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             不能_没有 
+order of differencing (d):     2 
+adjusted sample range:         [14, 41], T = 28
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=2, q=0
+Hannan-Quinn Criterion:   p=2, q=0
+Schwarz Criterion:        p=2, q=0
+
+2008-05-29 15:58:32,656 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:58:32 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             不能_没有 
+order of differencing (d):     2 
+adjusted sample range:         [14, 41], T = 28
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=2, q=0
+Hannan-Quinn Criterion:   p=2, q=0
+Schwarz Criterion:        p=2, q=0
+
+2008-05-29 15:58:32,718 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:58:32 ***
+sample range:       [1, 41], T = 41
+Model:  ARIMA(2,0,0)
+
+
+Final Results:
+
+Iterations Until Convergence:  67
+
+Log Likelihood:    -94.782713         Number of Residuals: 41    
+AIC           :    195.565425         Error Variance     : 5.518023445      
+SBC           :    200.706141         Standard Error     : 2.349047348      
+
+DF: 38      Adj. SSE: 244.506514745        SSE: 209.684890905    
+
+Dependent Variable:  不能_没?
+
+            Coefficients     Std. Errors      T-Ratio    Approx. Prob.
+AR1           1.75555124      0.11515395     15.24525          0.00000
+AR2          -0.76500528      0.12958452     -5.90352          0.00000
+const        32.24770913     53.85662208      0.59877          0.55288
+
+Total Computation Time: 0.06 (seconds)
+
+AR Roots and Moduli:
+
+Real :    1.24422   1.05060 
+Imag.:    0.00000   0.00000 
+Mod. :    1.24422   1.05060 
+
+
+2008-05-29 15:58:32,765 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:58:32 ***
+PORTMANTEAU TEST with 10 lags
+
+Portmanteau:               10.4888     
+ p-Value (Chi^2):          0.1625      
+Ljung & Box:               12.4596     
+ p-Value (Chi^2):          0.0864      
+
+
+2008-05-29 15:58:32,875 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:58:32 ***
+
+forecasted variable: 不能_没有 (in levels)
+forecast range:      [42, 51], T = 10
+
+time           lower CI             forecast             upper CI             std. err            
+42              72.8263              77.4303              82.0343              2.3490             
+43              70.3254              79.6273              88.9293              4.7460             
+44              66.7067              80.8602              95.0136              7.2213             
+45              62.4316              81.3437              100.2558             9.6492             
+46              57.8019              81.2494              104.6970             11.9633            
+47              53.0198              80.7141              108.4084             14.1300            
+48              48.2220              79.8463              111.4706             16.1351            
+49              43.5006              78.7325              113.9644             17.9758            
+50              38.9163              77.4409              115.9655             19.6558            
+51              34.5081              76.0256              117.5430             21.1828            
+
+2008-05-29 15:58:35,593 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:58:35 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             法国_总统 
+order of differencing (d):     0 
+adjusted sample range:         [12, 41], T = 30
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=2, q=0
+Hannan-Quinn Criterion:   p=2, q=0
+Schwarz Criterion:        p=2, q=0
+
+2008-05-29 15:58:35,625 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:58:35 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             法国_总统 
+order of differencing (d):     0 
+adjusted sample range:         [12, 41], T = 30
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=2, q=0
+Hannan-Quinn Criterion:   p=2, q=0
+Schwarz Criterion:        p=2, q=0
+
+2008-05-29 15:58:35,781 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:58:35 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             法国_总统 
+order of differencing (d):     1 
+adjusted sample range:         [13, 41], T = 29
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=1, q=0
+Hannan-Quinn Criterion:   p=1, q=0
+Schwarz Criterion:        p=1, q=0
+
+2008-05-29 15:58:35,890 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:58:35 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             法国_总统 
+order of differencing (d):     1 
+adjusted sample range:         [13, 41], T = 29
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=2, q=0
+Hannan-Quinn Criterion:   p=2, q=0
+Schwarz Criterion:        p=0, q=0
+
+2008-05-29 15:58:36,000 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:58:36 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             法国_总统 
+order of differencing (d):     2 
+adjusted sample range:         [14, 41], T = 28
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=0, q=2
+Hannan-Quinn Criterion:   p=0, q=2
+Schwarz Criterion:        p=0, q=2
+
+2008-05-29 15:58:36,109 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:58:36 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             法国_总统 
+order of differencing (d):     2 
+adjusted sample range:         [14, 41], T = 28
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=0, q=2
+Hannan-Quinn Criterion:   p=0, q=2
+Schwarz Criterion:        p=0, q=2
+
+2008-05-29 15:58:36,218 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:58:36 ***
+sample range:       [2, 41], T = 40
+Model:  ARIMA(1,1,0)
+
+
+Final Results:
+
+Iterations Until Convergence:   3
+
+Log Likelihood:    -91.771649         Number of Residuals: 40    
+AIC           :    187.543299         Error Variance     : 5.998605708      
+SBC           :    190.921058         Standard Error     : 2.449205118      
+
+DF: 38      Adj. SSE: 230.346538135        SSE: 227.947016907    
+
+Dependent Variable:  法国_总?
+
+            Coefficients     Std. Errors      T-Ratio    Approx. Prob.
+AR1           0.58498502      0.13834036      4.22859          0.00014
+const         1.77180252      0.90250183      1.96321          0.05697
+
+Total Computation Time: 0.00 (seconds)
+
+AR Root:   1.70945 
+
+
+2008-05-29 15:58:36,328 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:58:36 ***
+PORTMANTEAU TEST with 10 lags
+
+Portmanteau:               6.3977      
+ p-Value (Chi^2):          0.6028      
+Ljung & Box:               7.6134      
+ p-Value (Chi^2):          0.4721      
+
+
+2008-05-29 15:58:36,437 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:58:36 ***
+
+forecasted variable: 法国_总统 (in levels)
+forecast range:      [42, 51], T = 10
+
+time           lower CI             forecast             upper CI             std. err            
+42              67.0299              71.8302              76.6306              2.4492             
+43              66.3949              75.3912              84.3874              4.5900             
+44              65.3054              78.2096              91.1137              6.5839             
+45              64.1374              80.5936              97.0498              8.3962             
+46              63.0540              82.7236              102.3931             10.0357            
+47              62.1179              84.7049              107.2919             11.5242            
+48              61.3453              86.5993              111.8532             12.8849            
+49              60.7317              88.4428              116.1539             14.1386            
+50              60.2639              90.2565              120.2491             15.3026            
+51              59.9267              92.0529              124.1790             16.3912            
+
+2008-05-29 15:58:40,750 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:58:40 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             嘉宾_现在 
+order of differencing (d):     0 
+adjusted sample range:         [12, 41], T = 30
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=2, q=3
+Hannan-Quinn Criterion:   p=2, q=3
+Schwarz Criterion:        p=2, q=3
+
+2008-05-29 15:58:40,875 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:58:40 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             嘉宾_现在 
+order of differencing (d):     0 
+adjusted sample range:         [12, 41], T = 30
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=3, q=3
+Hannan-Quinn Criterion:   p=1, q=3
+Schwarz Criterion:        p=1, q=3
+
+2008-05-29 15:58:40,984 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:58:40 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             嘉宾_现在 
+order of differencing (d):     1 
+adjusted sample range:         [13, 41], T = 29
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=0, q=1
+Hannan-Quinn Criterion:   p=0, q=1
+Schwarz Criterion:        p=0, q=1
+
+2008-05-29 15:58:41,093 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:58:41 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             嘉宾_现在 
+order of differencing (d):     1 
+adjusted sample range:         [13, 41], T = 29
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=0, q=1
+Hannan-Quinn Criterion:   p=0, q=1
+Schwarz Criterion:        p=0, q=1
+
+2008-05-29 15:58:41,093 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:58:41 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             嘉宾_现在 
+order of differencing (d):     2 
+adjusted sample range:         [14, 41], T = 28
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=3, q=0
+Hannan-Quinn Criterion:   p=3, q=0
+Schwarz Criterion:        p=0, q=0
+
+2008-05-29 15:58:41,203 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:58:41 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             嘉宾_现在 
+order of differencing (d):     2 
+adjusted sample range:         [14, 41], T = 28
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=3, q=0
+Hannan-Quinn Criterion:   p=3, q=0
+Schwarz Criterion:        p=0, q=0
+
+2008-05-29 15:58:41,312 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:58:41 ***
+sample range:       [2, 41], T = 40
+Model:  ARIMA(0,1,1)
+
+
+Final Results:
+
+Iterations Until Convergence:   3
+
+Log Likelihood:   -146.179170         Number of Residuals: 40    
+AIC           :    296.358339         Error Variance     : 91.556115020     
+SBC           :    299.736098         Standard Error     : 9.568495964      
+
+DF: 38      Adj. SSE: 3498.049716837       SSE: 3479.132370755   
+
+Dependent Variable:  嘉宾_现?
+
+            Coefficients     Std. Errors      T-Ratio    Approx. Prob.
+MA1          -0.44158150      0.14608671     -3.02274          0.00447
+const         3.69096811      2.15861423      1.70988          0.09544
+
+Total Computation Time: 0.00 (seconds)
+
+MA Root:  -2.26459 
+
+
+2008-05-29 15:58:41,421 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:58:41 ***
+PORTMANTEAU TEST with 10 lags
+
+Portmanteau:               5.4015      
+ p-Value (Chi^2):          0.7139      
+Ljung & Box:               6.4808      
+ p-Value (Chi^2):          0.5935      
+
+
+2008-05-29 15:58:41,531 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:58:41 ***
+
+forecasted variable: 嘉宾_现在 (in levels)
+forecast range:      [42, 51], T = 10
+
+time           lower CI             forecast             upper CI             std. err            
+42              134.7066             153.4605             172.2144             9.5685             
+43              124.2484             157.1515             190.0546             16.7876            
+44              118.2570             160.8425             203.4279             21.7277            
+45              114.0911             164.5334             214.9758             25.7364            
+46              110.9939             168.2244             225.4550             29.1998            
+47              108.6205             171.9154             235.2103             32.2939            
+48              106.7794             175.6063             244.4333             35.1164            
+49              105.3510             179.2973             253.2436             37.7284            
+50              104.2548             182.9883             261.7218             40.1709            
+51              103.4334             186.6792             269.9251             42.4731            
+
+2008-05-29 15:58:43,890 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:58:43 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             一定_国家 
+order of differencing (d):     0 
+adjusted sample range:         [12, 41], T = 30
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=1, q=1
+Hannan-Quinn Criterion:   p=1, q=1
+Schwarz Criterion:        p=1, q=1
+
+2008-05-29 15:58:44,046 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:58:44 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             一定_国家 
+order of differencing (d):     0 
+adjusted sample range:         [12, 41], T = 30
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=1, q=0
+Hannan-Quinn Criterion:   p=1, q=0
+Schwarz Criterion:        p=1, q=0
+
+2008-05-29 15:58:44,156 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:58:44 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             一定_国家 
+order of differencing (d):     1 
+adjusted sample range:         [13, 41], T = 29
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=0, q=0
+Hannan-Quinn Criterion:   p=0, q=0
+Schwarz Criterion:        p=0, q=0
+
+2008-05-29 15:58:44,265 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:58:44 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             一定_国家 
+order of differencing (d):     1 
+adjusted sample range:         [13, 41], T = 29
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=0, q=0
+Hannan-Quinn Criterion:   p=0, q=0
+Schwarz Criterion:        p=0, q=0
+
+2008-05-29 15:58:44,375 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:58:44 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             一定_国家 
+order of differencing (d):     2 
+adjusted sample range:         [14, 41], T = 28
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=0, q=1
+Hannan-Quinn Criterion:   p=0, q=1
+Schwarz Criterion:        p=0, q=1
+
+2008-05-29 15:58:44,484 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:58:44 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             一定_国家 
+order of differencing (d):     2 
+adjusted sample range:         [14, 41], T = 28
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=0, q=1
+Hannan-Quinn Criterion:   p=0, q=1
+Schwarz Criterion:        p=0, q=1
+
+2008-05-29 15:58:44,593 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:58:44 ***
+sample range:       [2, 41], T = 40
+Model:  ARIMA(0,1,0)
+
+
+Final Results:
+
+Iterations Until Convergence:   1
+
+Log Likelihood:   -104.674496         Number of Residuals: 40    
+AIC           :    211.348992         Error Variance     : 11.258974359     
+SBC           :    213.037871         Standard Error     : 3.355439518      
+
+DF: 39      Adj. SSE: 439.100000000        SSE: 439.100000000    
+
+Dependent Variable:  一定_国?
+
+            Coefficients     Std. Errors      T-Ratio    Approx. Prob.
+const         1.65000001      0.53054157      3.11003          0.00349
+Total Computation Time: 0.00 (seconds)
+
+
+2008-05-29 15:58:44,703 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:58:44 ***
+PORTMANTEAU TEST with 10 lags
+
+Portmanteau:               3.7529      
+ p-Value (Chi^2):          0.9269      
+Ljung & Box:               4.6989      
+ p-Value (Chi^2):          0.8597      
+
+
+2008-05-29 15:58:44,812 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:58:44 ***
+
+forecasted variable: 一定_国家 (in levels)
+forecast range:      [42, 51], T = 10
+
+time           lower CI             forecast             upper CI             std. err            
+42              62.0735              68.6500              75.2265              3.3554             
+43              60.9994              70.3000              79.6006              4.7453             
+44              60.5591              71.9500              83.3409              5.8118             
+45              60.4469              73.6000              86.7531              6.7109             
+46              60.5444              75.2500              89.9556              7.5030             
+47              60.7908              76.9000              93.0092              8.2191             
+48              61.1501              78.5500              95.9499              8.8777             
+49              61.5987              80.2000              98.8013              9.4906             
+50              62.1204              81.8500              101.5796             10.0663            
+51              62.7032              83.5000              104.2968             10.6108            
+
+2008-05-29 15:58:47,265 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:58:47 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             引导_爱国 
+order of differencing (d):     0 
+adjusted sample range:         [12, 41], T = 30
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=1, q=1
+Hannan-Quinn Criterion:   p=1, q=1
+Schwarz Criterion:        p=1, q=1
+
+2008-05-29 15:58:47,437 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:58:47 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             引导_爱国 
+order of differencing (d):     0 
+adjusted sample range:         [12, 41], T = 30
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=1, q=0
+Hannan-Quinn Criterion:   p=1, q=0
+Schwarz Criterion:        p=1, q=0
+
+2008-05-29 15:58:47,453 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:58:47 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             引导_爱国 
+order of differencing (d):     1 
+adjusted sample range:         [13, 41], T = 29
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=0, q=0
+Hannan-Quinn Criterion:   p=0, q=0
+Schwarz Criterion:        p=0, q=0
+
+2008-05-29 15:58:47,546 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:58:47 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             引导_爱国 
+order of differencing (d):     1 
+adjusted sample range:         [13, 41], T = 29
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=0, q=0
+Hannan-Quinn Criterion:   p=0, q=0
+Schwarz Criterion:        p=0, q=0
+
+2008-05-29 15:58:47,656 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:58:47 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             引导_爱国 
+order of differencing (d):     2 
+adjusted sample range:         [14, 41], T = 28
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=0, q=1
+Hannan-Quinn Criterion:   p=0, q=1
+Schwarz Criterion:        p=0, q=1
+
+2008-05-29 15:58:47,750 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:58:47 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             引导_爱国 
+order of differencing (d):     2 
+adjusted sample range:         [14, 41], T = 28
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=0, q=1
+Hannan-Quinn Criterion:   p=0, q=1
+Schwarz Criterion:        p=0, q=1
+
+2008-05-29 15:58:47,765 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:58:47 ***
+sample range:       [2, 41], T = 40
+Model:  ARIMA(0,1,0)
+
+
+Final Results:
+
+Iterations Until Convergence:   1
+
+Log Likelihood:   -120.834815         Number of Residuals: 40    
+AIC           :    243.669631         Error Variance     : 25.258974359     
+SBC           :    245.358510         Standard Error     : 5.025830713      
+
+DF: 39      Adj. SSE: 985.100000000        SSE: 985.100000000    
+
+Dependent Variable:  引导_爱?
+
+            Coefficients     Std. Errors      T-Ratio    Approx. Prob.
+const         2.65000001      0.79465361      3.33479          0.00188
+Total Computation Time: 0.00 (seconds)
+
+
+2008-05-29 15:58:47,859 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:58:47 ***
+PORTMANTEAU TEST with 10 lags
+
+Portmanteau:               2.0834      
+ p-Value (Chi^2):          0.9901      
+Ljung & Box:               2.4443      
+ p-Value (Chi^2):          0.9823      
+
+
+2008-05-29 15:58:47,968 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:58:47 ***
+
+forecasted variable: 引导_爱国 (in levels)
+forecast range:      [42, 51], T = 10
+
+time           lower CI             forecast             upper CI             std. err            
+42              99.7996              109.6500             119.5004             5.0258             
+43              98.3694              112.3000             126.2306             7.1076             
+44              97.8885              114.9500             132.0115             8.7050             
+45              97.8991              117.6000             137.3009             10.0517            
+46              98.2237              120.2500             142.2763             11.2381            
+47              98.7714              122.9000             147.0286             12.3107            
+48              99.4882              125.5500             151.6118             13.2971            
+49              100.3387             128.2000             156.0613             14.2152            
+50              101.2987             130.8500             160.4013             15.0775            
+51              102.3502             133.5000             164.6498             15.8931            
+
+2008-05-29 15:58:49,640 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:58:49 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             知道_美国 
+order of differencing (d):     0 
+adjusted sample range:         [12, 41], T = 30
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=2, q=0
+Hannan-Quinn Criterion:   p=2, q=0
+Schwarz Criterion:        p=2, q=0
+
+2008-05-29 15:58:49,875 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:58:49 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             知道_美国 
+order of differencing (d):     0 
+adjusted sample range:         [12, 41], T = 30
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=2, q=0
+Hannan-Quinn Criterion:   p=2, q=0
+Schwarz Criterion:        p=2, q=0
+
+2008-05-29 15:58:49,890 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:58:49 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             知道_美国 
+order of differencing (d):     1 
+adjusted sample range:         [13, 41], T = 29
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=1, q=0
+Hannan-Quinn Criterion:   p=1, q=0
+Schwarz Criterion:        p=1, q=0
+
+2008-05-29 15:58:50,000 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:58:50 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             知道_美国 
+order of differencing (d):     1 
+adjusted sample range:         [13, 41], T = 29
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=0, q=0
+Hannan-Quinn Criterion:   p=0, q=0
+Schwarz Criterion:        p=0, q=0
+
+2008-05-29 15:58:50,109 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:58:50 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             知道_美国 
+order of differencing (d):     2 
+adjusted sample range:         [14, 41], T = 28
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=0, q=1
+Hannan-Quinn Criterion:   p=0, q=1
+Schwarz Criterion:        p=0, q=1
+
+2008-05-29 15:58:50,109 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:58:50 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             知道_美国 
+order of differencing (d):     2 
+adjusted sample range:         [14, 41], T = 28
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=0, q=1
+Hannan-Quinn Criterion:   p=0, q=1
+Schwarz Criterion:        p=0, q=1
+
+2008-05-29 15:58:50,218 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:58:50 ***
+sample range:       [2, 41], T = 40
+Model:  ARIMA(0,1,0)
+
+
+Final Results:
+
+Iterations Until Convergence:   1
+
+Log Likelihood:    -83.935368         Number of Residuals: 40    
+AIC           :    171.870737         Error Variance     : 4.096711761      
+SBC           :    175.248495         Standard Error     : 2.024033537      
+
+DF: 38      Adj. SSE: 155.675046904        SSE: 155.675046904    
+
+Dependent Variable:  知道_美?
+
+            Coefficients     Std. Errors      T-Ratio    Approx. Prob.
+const        -1.41069416      0.67654234     -2.08515          0.04382
+TREND         0.12607880      0.02772389      4.54766          0.00005
+
+Total Computation Time: 0.00 (seconds)
+
+
+2008-05-29 15:58:50,328 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:58:50 ***
+PORTMANTEAU TEST with 10 lags
+
+Portmanteau:               8.4357      
+ p-Value (Chi^2):          0.4909      
+Ljung & Box:               10.1596     
+ p-Value (Chi^2):          0.3377      
+
+
+2008-05-29 15:58:50,437 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:58:50 ***
+
+forecasted variable: 知道_美国 (in levels)
+forecast range:      [42, 51], T = 10
+
+time           lower CI             forecast             upper CI             std. err            
+42              47.7484              51.7154              55.6824              2.0240             
+43              44.9466              50.5568              56.1671              2.8624             
+44              42.6533              49.5244              56.3955              3.5057             
+45              40.6839              48.6180              56.5521              4.0481             
+46              38.9672              47.8377              56.7083              4.5259             
+47              37.4663              47.1835              56.9007              4.9578             
+48              36.1596              46.6553              57.1511              5.3551             
+49              35.0328              46.2533              57.4737              5.7248             
+50              34.0762              45.9773              57.8784              6.0721             
+51              33.2825              45.8274              58.3723              6.4006             
+
+2008-05-29 15:58:53,937 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:58:53 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             五一_家乐福 
+order of differencing (d):     0 
+adjusted sample range:         [12, 41], T = 30
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=3, q=3
+Hannan-Quinn Criterion:   p=3, q=3
+Schwarz Criterion:        p=1, q=3
+
+2008-05-29 15:58:54,125 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:58:54 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             五一_家乐福 
+order of differencing (d):     0 
+adjusted sample range:         [12, 41], T = 30
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=1, q=1
+Hannan-Quinn Criterion:   p=1, q=1
+Schwarz Criterion:        p=1, q=0
+
+2008-05-29 15:58:54,250 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:58:54 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             五一_家乐福 
+order of differencing (d):     1 
+adjusted sample range:         [13, 41], T = 29
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=0, q=0
+Hannan-Quinn Criterion:   p=0, q=0
+Schwarz Criterion:        p=0, q=0
+
+2008-05-29 15:58:54,390 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:58:54 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             五一_家乐福 
+order of differencing (d):     1 
+adjusted sample range:         [13, 41], T = 29
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=0, q=0
+Hannan-Quinn Criterion:   p=0, q=0
+Schwarz Criterion:        p=0, q=0
+
+2008-05-29 15:58:54,484 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:58:54 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             五一_家乐福 
+order of differencing (d):     2 
+adjusted sample range:         [14, 41], T = 28
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=2, q=0
+Hannan-Quinn Criterion:   p=2, q=0
+Schwarz Criterion:        p=2, q=0
+
+2008-05-29 15:58:54,593 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:58:54 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             五一_家乐福 
+order of differencing (d):     2 
+adjusted sample range:         [14, 41], T = 28
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=2, q=0
+Hannan-Quinn Criterion:   p=2, q=0
+Schwarz Criterion:        p=2, q=0
+
+2008-05-29 15:58:54,703 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:58:54 ***
+sample range:       [2, 41], T = 40
+Model:  ARIMA(0,1,0)
+
+
+Final Results:
+
+Iterations Until Convergence:   1
+
+Log Likelihood:    -52.153549         Number of Residuals: 40    
+AIC           :    106.307097         Error Variance     : 0.814743590      
+SBC           :    107.995977         Standard Error     : 0.902631481      
+
+DF: 39      Adj. SSE: 31.775000000         SSE: 31.775000000     
+
+Dependent Variable:  五一_家?
+
+            Coefficients     Std. Errors      T-Ratio    Approx. Prob.
+const         0.57500000      0.14271857      4.02891          0.00025
+Total Computation Time: 0.00 (seconds)
+
+
+2008-05-29 15:58:54,812 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:58:54 ***
+PORTMANTEAU TEST with 10 lags
+
+Portmanteau:               7.1458      
+ p-Value (Chi^2):          0.6219      
+Ljung & Box:               8.6196      
+ p-Value (Chi^2):          0.4731      
+
+
+2008-05-29 15:58:54,921 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:58:54 ***
+
+forecasted variable: 五一_家乐福 (in levels)
+forecast range:      [42, 51], T = 10
+
+time           lower CI             forecast             upper CI             std. err            
+42              22.8059              24.5750              26.3441              0.9026             
+43              22.6481              25.1500              27.6519              1.2765             
+44              22.6608              25.7250              28.7892              1.5634             
+45              22.7617              26.3000              29.8383              1.8053             
+46              22.9191              26.8750              30.8309              2.0183             
+47              23.1165              27.4500              31.7835              2.2110             
+48              23.3443              28.0250              32.7057              2.3881             
+49              23.5962              28.6000              33.6038              2.5530             
+50              23.8676              29.1750              34.4824              2.7079             
+51              24.1555              29.7500              35.3445              2.8544             
+
+2008-05-29 15:58:56,562 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:58:56 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             分裂_首发 
+order of differencing (d):     0 
+adjusted sample range:         [12, 41], T = 30
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=3, q=1
+Hannan-Quinn Criterion:   p=3, q=1
+Schwarz Criterion:        p=3, q=0
+
+2008-05-29 15:58:56,671 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:58:56 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             分裂_首发 
+order of differencing (d):     0 
+adjusted sample range:         [12, 41], T = 30
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=3, q=0
+Hannan-Quinn Criterion:   p=3, q=0
+Schwarz Criterion:        p=3, q=0
+
+2008-05-29 15:58:56,781 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:58:56 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             分裂_首发 
+order of differencing (d):     1 
+adjusted sample range:         [13, 41], T = 29
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=0, q=2
+Hannan-Quinn Criterion:   p=0, q=2
+Schwarz Criterion:        p=0, q=0
+
+2008-05-29 15:58:56,890 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:58:56 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             分裂_首发 
+order of differencing (d):     1 
+adjusted sample range:         [13, 41], T = 29
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=0, q=0
+Hannan-Quinn Criterion:   p=0, q=0
+Schwarz Criterion:        p=0, q=0
+
+2008-05-29 15:58:57,000 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:58:57 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             分裂_首发 
+order of differencing (d):     2 
+adjusted sample range:         [14, 41], T = 28
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=1, q=0
+Hannan-Quinn Criterion:   p=1, q=0
+Schwarz Criterion:        p=1, q=0
+
+2008-05-29 15:58:57,000 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:58:57 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             分裂_首发 
+order of differencing (d):     2 
+adjusted sample range:         [14, 41], T = 28
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=1, q=0
+Hannan-Quinn Criterion:   p=1, q=0
+Schwarz Criterion:        p=1, q=0
+
+2008-05-29 15:58:57,109 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:58:57 ***
+sample range:       [2, 41], T = 40
+Model:  ARIMA(0,1,0)
+
+
+Final Results:
+
+Iterations Until Convergence:   1
+
+Log Likelihood:    -88.821342         Number of Residuals: 40    
+AIC           :    181.642683         Error Variance     : 5.230376716      
+SBC           :    185.020442         Standard Error     : 2.287001687      
+
+DF: 38      Adj. SSE: 198.754315197        SSE: 198.754315197    
+
+Dependent Variable:  分裂_首?
+
+            Coefficients     Std. Errors      T-Ratio    Approx. Prob.
+const        -0.63264542      0.76444063     -0.82759          0.41307
+TREND         0.09803002      0.03132585      3.12936          0.00336
+
+Total Computation Time: 0.00 (seconds)
+
+
+2008-05-29 15:58:57,250 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:58:57 ***
+PORTMANTEAU TEST with 10 lags
+
+Portmanteau:               13.1954     
+ p-Value (Chi^2):          0.1540      
+Ljung & Box:               15.9177     
+ p-Value (Chi^2):          0.0686      
+
+
+2008-05-29 15:58:57,359 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:58:57 ***
+
+forecasted variable: 分裂_首发 (in levels)
+forecast range:      [42, 51], T = 10
+
+time           lower CI             forecast             upper CI             std. err            
+42              54.9829              59.4654              63.9478              2.2870             
+43              52.6897              59.0288              65.3679              3.2343             
+44              50.9264              58.6902              66.4541              3.9612             
+45              49.4848              58.4497              67.4146              4.5740             
+46              48.2842              58.3072              68.3303              5.1139             
+47              47.2831              58.2628              69.2425              5.6020             
+48              46.4569              58.3163              70.1757              6.0508             
+49              45.7897              58.4679              71.1462              6.4686             
+50              45.2702              58.7175              72.1649              6.8610             
+51              44.8905              59.0652              73.2399              7.2321             
+
+2008-05-29 15:59:02,484 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:59:02 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             法国_德国_无法_美国 
+order of differencing (d):     0 
+adjusted sample range:         [12, 41], T = 30
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=3, q=2
+Hannan-Quinn Criterion:   p=3, q=1
+Schwarz Criterion:        p=3, q=1
+
+2008-05-29 15:59:02,625 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:59:02 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             法国_德国_无法_美国 
+order of differencing (d):     0 
+adjusted sample range:         [12, 41], T = 30
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=1, q=1
+Hannan-Quinn Criterion:   p=1, q=1
+Schwarz Criterion:        p=1, q=0
+
+2008-05-29 15:59:02,734 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:59:02 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             法国_德国_无法_美国 
+order of differencing (d):     1 
+adjusted sample range:         [13, 41], T = 29
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=0, q=0
+Hannan-Quinn Criterion:   p=0, q=0
+Schwarz Criterion:        p=0, q=0
+
+2008-05-29 15:59:02,843 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:59:02 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             法国_德国_无法_美国 
+order of differencing (d):     1 
+adjusted sample range:         [13, 41], T = 29
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=0, q=0
+Hannan-Quinn Criterion:   p=0, q=0
+Schwarz Criterion:        p=0, q=0
+
+2008-05-29 15:59:02,953 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:59:02 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             法国_德国_无法_美国 
+order of differencing (d):     2 
+adjusted sample range:         [14, 41], T = 28
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=3, q=0
+Hannan-Quinn Criterion:   p=0, q=1
+Schwarz Criterion:        p=0, q=1
+
+2008-05-29 15:59:03,062 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:59:03 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             法国_德国_无法_美国 
+order of differencing (d):     2 
+adjusted sample range:         [14, 41], T = 28
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=3, q=0
+Hannan-Quinn Criterion:   p=3, q=0
+Schwarz Criterion:        p=0, q=1
+
+2008-05-29 15:59:03,171 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:59:03 ***
+sample range:       [2, 41], T = 40
+Model:  ARIMA(0,1,0)
+
+
+Final Results:
+
+Iterations Until Convergence:   1
+
+Log Likelihood:    -52.043095         Number of Residuals: 40    
+AIC           :    106.086189         Error Variance     : 0.810256410      
+SBC           :    107.775069         Standard Error     : 0.900142439      
+
+DF: 39      Adj. SSE: 31.600000000         SSE: 31.600000000     
+
+Dependent Variable:  法国_德?
+
+            Coefficients     Std. Errors      T-Ratio    Approx. Prob.
+const         0.60000001      0.14232502      4.21570          0.00014
+Total Computation Time: 0.00 (seconds)
+
+
+2008-05-29 15:59:03,265 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:59:03 ***
+PORTMANTEAU TEST with 10 lags
+
+Portmanteau:               4.7996      
+ p-Value (Chi^2):          0.8514      
+Ljung & Box:               5.9092      
+ p-Value (Chi^2):          0.7490      
+
+
+2008-05-29 15:59:03,375 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:59:03 ***
+
+forecasted variable: 法国_德国_无法_美国 (in levels)
+forecast range:      [42, 51], T = 10
+
+time           lower CI             forecast             upper CI             std. err            
+42              23.8358              25.6000              27.3642              0.9001             
+43              23.7050              26.2000              28.6950              1.2730             
+44              23.7442              26.8000              29.8558              1.5591             
+45              23.8715              27.4000              30.9285              1.8003             
+46              24.0550              28.0000              31.9450              2.0128             
+47              24.2785              28.6000              32.9215              2.2049             
+48              24.5322              29.2000              33.8678              2.3816             
+49              24.8100              29.8000              34.7900              2.5460             
+50              25.1073              30.4000              35.6927              2.7004             
+51              25.4210              31.0000              36.5790              2.8465             
+
+2008-05-29 15:59:06,828 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:59:06 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             石油_终于 
+order of differencing (d):     0 
+adjusted sample range:         [12, 41], T = 30
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=1, q=2
+Hannan-Quinn Criterion:   p=1, q=2
+Schwarz Criterion:        p=1, q=2
+
+2008-05-29 15:59:06,937 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:59:06 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             石油_终于 
+order of differencing (d):     0 
+adjusted sample range:         [12, 41], T = 30
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=2, q=1
+Hannan-Quinn Criterion:   p=2, q=1
+Schwarz Criterion:        p=2, q=0
+
+2008-05-29 15:59:07,046 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:59:07 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             石油_终于 
+order of differencing (d):     1 
+adjusted sample range:         [13, 41], T = 29
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=1, q=0
+Hannan-Quinn Criterion:   p=1, q=0
+Schwarz Criterion:        p=1, q=0
+
+2008-05-29 15:59:07,046 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:59:07 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             石油_终于 
+order of differencing (d):     1 
+adjusted sample range:         [13, 41], T = 29
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=0, q=0
+Hannan-Quinn Criterion:   p=0, q=0
+Schwarz Criterion:        p=0, q=0
+
+2008-05-29 15:59:07,156 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:59:07 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             石油_终于 
+order of differencing (d):     2 
+adjusted sample range:         [14, 41], T = 28
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=0, q=2
+Hannan-Quinn Criterion:   p=0, q=2
+Schwarz Criterion:        p=0, q=2
+
+2008-05-29 15:59:07,281 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:59:07 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             石油_终于 
+order of differencing (d):     2 
+adjusted sample range:         [14, 41], T = 28
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=0, q=2
+Hannan-Quinn Criterion:   p=0, q=2
+Schwarz Criterion:        p=0, q=2
+
+2008-05-29 15:59:07,390 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:59:07 ***
+sample range:       [2, 41], T = 40
+Model:  ARIMA(0,1,0)
+
+
+Final Results:
+
+Iterations Until Convergence:   1
+
+Log Likelihood:   -138.829633         Number of Residuals: 40    
+AIC           :    281.659267         Error Variance     : 63.745455219     
+SBC           :    285.037025         Standard Error     : 7.984075101      
+
+DF: 38      Adj. SSE: 2422.327298311       SSE: 2422.327298311   
+
+Dependent Variable:  石油_终?
+
+            Coefficients     Std. Errors      T-Ratio    Approx. Prob.
+const        -3.57485943      2.66871313     -1.33954          0.18835
+TREND         0.33255160      0.10936063      3.04087          0.00426
+
+Total Computation Time: 0.00 (seconds)
+
+
+2008-05-29 15:59:07,500 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:59:07 ***
+PORTMANTEAU TEST with 10 lags
+
+Portmanteau:               8.0476      
+ p-Value (Chi^2):          0.5294      
+Ljung & Box:               9.6512      
+ p-Value (Chi^2):          0.3795      
+
+
+2008-05-29 15:59:07,609 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:59:07 ***
+
+forecasted variable: 石油_终于 (in levels)
+forecast range:      [42, 51], T = 10
+
+time           lower CI             forecast             upper CI             std. err            
+42              125.1092             140.7577             156.4062             7.9841             
+43              115.7176             137.8479             159.9783             11.2912            
+44              108.1667             135.2707             162.3747             13.8288            
+45              101.7291             133.0261             164.3231             15.9682            
+46              96.1229              131.1140             166.1051             17.8529            
+47              91.2036              129.5344             167.8653             19.5569            
+48              86.8854              128.2874             169.6895             21.1239            
+49              83.1123              127.3730             171.6336             22.5824            
+50              79.8456              126.7911             173.7366             23.9522            
+51              77.0568              126.5417             176.0266             25.2479            
+
+2008-05-29 15:59:09,968 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:59:09 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             国家_反对 
+order of differencing (d):     0 
+adjusted sample range:         [12, 41], T = 30
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=2, q=1
+Hannan-Quinn Criterion:   p=2, q=1
+Schwarz Criterion:        p=2, q=1
+
+2008-05-29 15:59:10,015 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:59:10 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             国家_反对 
+order of differencing (d):     0 
+adjusted sample range:         [12, 41], T = 30
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=2, q=0
+Hannan-Quinn Criterion:   p=2, q=0
+Schwarz Criterion:        p=1, q=0
+
+2008-05-29 15:59:10,125 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:59:10 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             国家_反对 
+order of differencing (d):     1 
+adjusted sample range:         [13, 41], T = 29
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=1, q=0
+Hannan-Quinn Criterion:   p=0, q=0
+Schwarz Criterion:        p=0, q=0
+
+2008-05-29 15:59:10,140 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:59:10 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             国家_反对 
+order of differencing (d):     1 
+adjusted sample range:         [13, 41], T = 29
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=0, q=0
+Hannan-Quinn Criterion:   p=0, q=0
+Schwarz Criterion:        p=0, q=0
+
+2008-05-29 15:59:10,234 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:59:10 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             国家_反对 
+order of differencing (d):     2 
+adjusted sample range:         [14, 41], T = 28
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=0, q=1
+Hannan-Quinn Criterion:   p=0, q=1
+Schwarz Criterion:        p=0, q=1
+
+2008-05-29 15:59:10,343 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:59:10 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             国家_反对 
+order of differencing (d):     2 
+adjusted sample range:         [14, 41], T = 28
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=0, q=1
+Hannan-Quinn Criterion:   p=0, q=1
+Schwarz Criterion:        p=0, q=1
+
+2008-05-29 15:59:10,453 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:59:10 ***
+sample range:       [2, 41], T = 40
+Model:  ARIMA(0,1,0)
+
+
+Final Results:
+
+Iterations Until Convergence:   1
+
+Log Likelihood:   -122.055547         Number of Residuals: 40    
+AIC           :    246.111093         Error Variance     : 26.848717949     
+SBC           :    247.799973         Standard Error     : 5.181574852      
+
+DF: 39      Adj. SSE: 1047.100000000       SSE: 1047.100000000   
+
+Dependent Variable:  国家_反?
+
+            Coefficients     Std. Errors      T-Ratio    Approx. Prob.
+const         2.65000002      0.81927892      3.23455          0.00248
+Total Computation Time: 0.00 (seconds)
+
+
+2008-05-29 15:59:10,562 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:59:10 ***
+PORTMANTEAU TEST with 10 lags
+
+Portmanteau:               13.4736     
+ p-Value (Chi^2):          0.1423      
+Ljung & Box:               15.6578     
+ p-Value (Chi^2):          0.0744      
+
+
+2008-05-29 15:59:10,671 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:59:10 ***
+
+forecasted variable: 国家_反对 (in levels)
+forecast range:      [42, 51], T = 10
+
+time           lower CI             forecast             upper CI             std. err            
+42              99.4943              109.6500             119.8057             5.1816             
+43              97.9377              112.3000             126.6623             7.3279             
+44              97.3598              114.9500             132.5402             8.9748             
+45              97.2886              117.6000             137.9114             10.3631            
+46              97.5412              120.2500             142.9588             11.5864            
+47              98.0237              122.9000             147.7763             12.6922            
+48              98.6805              125.5500             152.4195             13.7092            
+49              99.4753              128.2000             156.9247             14.6557            
+50              100.3829             130.8500             161.3171             15.5447            
+51              101.3849             133.5000             165.6151             16.3856            
+
+2008-05-29 15:59:13,281 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:59:13 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             应该_起来 
+order of differencing (d):     0 
+adjusted sample range:         [12, 41], T = 30
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=1, q=3
+Hannan-Quinn Criterion:   p=1, q=3
+Schwarz Criterion:        p=1, q=1
+
+2008-05-29 15:59:13,453 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:59:13 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             应该_起来 
+order of differencing (d):     0 
+adjusted sample range:         [12, 41], T = 30
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=1, q=3
+Hannan-Quinn Criterion:   p=1, q=3
+Schwarz Criterion:        p=1, q=0
+
+2008-05-29 15:59:13,578 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:59:13 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             应该_起来 
+order of differencing (d):     1 
+adjusted sample range:         [13, 41], T = 29
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=0, q=0
+Hannan-Quinn Criterion:   p=0, q=0
+Schwarz Criterion:        p=0, q=0
+
+2008-05-29 15:59:13,671 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:59:13 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             应该_起来 
+order of differencing (d):     1 
+adjusted sample range:         [13, 41], T = 29
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=0, q=0
+Hannan-Quinn Criterion:   p=0, q=0
+Schwarz Criterion:        p=0, q=0
+
+2008-05-29 15:59:13,781 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:59:13 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             应该_起来 
+order of differencing (d):     2 
+adjusted sample range:         [14, 41], T = 28
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=0, q=1
+Hannan-Quinn Criterion:   p=0, q=1
+Schwarz Criterion:        p=0, q=1
+
+2008-05-29 15:59:13,890 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:59:13 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             应该_起来 
+order of differencing (d):     2 
+adjusted sample range:         [14, 41], T = 28
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=0, q=1
+Hannan-Quinn Criterion:   p=0, q=1
+Schwarz Criterion:        p=0, q=1
+
+2008-05-29 15:59:14,000 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:59:14 ***
+sample range:       [2, 41], T = 40
+Model:  ARIMA(0,1,0)
+
+
+Final Results:
+
+Iterations Until Convergence:   1
+
+Log Likelihood:   -111.208927         Number of Residuals: 40    
+AIC           :    224.417854         Error Variance     : 15.609615385     
+SBC           :    226.106734         Standard Error     : 3.950900579      
+
+DF: 39      Adj. SSE: 608.775000000        SSE: 608.775000000    
+
+Dependent Variable:  应该_起?
+
+            Coefficients     Std. Errors      T-Ratio    Approx. Prob.
+const         1.92500001      0.62469223      3.08152          0.00377
+Total Computation Time: 0.00 (seconds)
+
+
+2008-05-29 15:59:14,109 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:59:14 ***
+PORTMANTEAU TEST with 10 lags
+
+Portmanteau:               12.4610     
+ p-Value (Chi^2):          0.1885      
+Ljung & Box:               14.2005     
+ p-Value (Chi^2):          0.1154      
+
+
+2008-05-29 15:59:14,218 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 15:59:14 ***
+
+forecasted variable: 应该_起来 (in levels)
+forecast range:      [42, 51], T = 10
+
+time           lower CI             forecast             upper CI             std. err            
+42              72.1814              79.9250              87.6686              3.9509             
+43              70.8989              81.8500              92.8011              5.5874             
+44              70.3627              83.7750              97.1873              6.8432             
+45              70.2128              85.7000              101.1872             7.9018             
+46              70.3097              87.6250              104.9403             8.8345             
+47              70.5821              89.5500              108.5179             9.6777             
+48              70.9873              91.4750              111.9627             10.4531            
+49              71.4977              93.4000              115.3023             11.1748            
+50              72.0941              95.3250              118.5559             11.8527            
+51              72.7625              97.2500              121.7375             12.4938            
+
+2008-05-29 16:53:12,718 INFO  cfg.Environment - Hibernate 3.1.3
+2008-05-29 16:53:12,718 INFO  cfg.Environment - hibernate.properties not found
+2008-05-29 16:53:12,718 INFO  cfg.Environment - using CGLIB reflection optimizer
+2008-05-29 16:53:12,734 INFO  cfg.Environment - using JDK 1.4 java.sql.Timestamp handling
+2008-05-29 16:53:12,843 INFO  cfg.Configuration - configuring from resource: /hibernate.cfg.xml
+2008-05-29 16:53:12,843 INFO  cfg.Configuration - Configuration resource: /hibernate.cfg.xml
+2008-05-29 16:53:12,890 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbCluster.hbm.xml
+2008-05-29 16:53:13,062 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbCluster -> tb_cluster
+2008-05-29 16:53:13,093 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbClusterTopic.hbm.xml
+2008-05-29 16:53:13,140 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbClusterTopic -> tb_cluster_topic
+2008-05-29 16:53:13,250 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbHotTopic.hbm.xml
+2008-05-29 16:53:13,281 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbHotTopic -> tb_hot_topic
+2008-05-29 16:53:13,281 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbParserBbs.hbm.xml
+2008-05-29 16:53:13,343 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbParserBbs -> tb_parser_bbs
+2008-05-29 16:53:13,343 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbParserNews.hbm.xml
+2008-05-29 16:53:13,359 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbParserNews -> tb_parser_news
+2008-05-29 16:53:13,375 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbReBbs.hbm.xml
+2008-05-29 16:53:13,390 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbReBbs -> tb_re_bbs
+2008-05-29 16:53:13,390 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbReNews.hbm.xml
+2008-05-29 16:53:13,421 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbReNews -> tb_re_news
+2008-05-29 16:53:13,421 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbSensitiveTopic.hbm.xml
+2008-05-29 16:53:13,437 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbSensitiveTopic -> tb_sensitive_topic
+2008-05-29 16:53:13,437 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbAuRef.hbm.xml
+2008-05-29 16:53:13,453 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbAuRef -> tb_au_ref
+2008-05-29 16:53:13,453 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbUser.hbm.xml
+2008-05-29 16:53:13,484 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbUser -> tb_user
+2008-05-29 16:53:13,484 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbAu.hbm.xml
+2008-05-29 16:53:13,500 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbAu -> tb_au
+2008-05-29 16:53:13,500 INFO  cfg.Configuration - Configured SessionFactory: null
+2008-05-29 16:53:13,500 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbCluster.tbSensitiveTopics -> tb_sensitive_topic
+2008-05-29 16:53:13,500 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbCluster.tbHotTopics -> tb_hot_topic
+2008-05-29 16:53:13,500 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbCluster.tbClusterTopics -> tb_cluster_topic
+2008-05-29 16:53:13,500 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbParserBbs.tbSensitiveTopics -> tb_sensitive_topic
+2008-05-29 16:53:13,500 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbParserBbs.tbClusterTopics -> tb_cluster_topic
+2008-05-29 16:53:13,500 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbParserBbs.tbReBbses -> tb_re_bbs
+2008-05-29 16:53:13,500 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbParserNews.tbClusterTopics -> tb_cluster_topic
+2008-05-29 16:53:13,500 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbParserNews.tbReNewses -> tb_re_news
+2008-05-29 16:53:13,500 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbParserNews.tbSensitiveTopics -> tb_sensitive_topic
+2008-05-29 16:53:13,500 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbReBbs.tbSensitiveTopics -> tb_sensitive_topic
+2008-05-29 16:53:13,500 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbReNews.tbSensitiveTopics -> tb_sensitive_topic
+2008-05-29 16:53:13,500 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbUser.tbAuRefs -> tb_au_ref
+2008-05-29 16:53:13,500 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbAu.tbAuRefs -> tb_au_ref
+2008-05-29 16:53:13,515 INFO  connection.DriverManagerConnectionProvider - Using Hibernate built-in connection pool (not for production use!)
+2008-05-29 16:53:13,515 INFO  connection.DriverManagerConnectionProvider - Hibernate connection pool size: 20
+2008-05-29 16:53:13,515 INFO  connection.DriverManagerConnectionProvider - autocommit mode: false
+2008-05-29 16:53:13,531 INFO  connection.DriverManagerConnectionProvider - using driver: com.mysql.jdbc.Driver at URL: jdbc:mysql://192.168.198.119:3306/yqfx
+2008-05-29 16:53:13,531 INFO  connection.DriverManagerConnectionProvider - connection properties: {user=root, password=****}
+2008-05-29 16:53:30,375 INFO  cfg.SettingsFactory - RDBMS: MySQL, version: 5.0.41-community-nt
+2008-05-29 16:53:30,375 INFO  cfg.SettingsFactory - JDBC driver: MySQL-AB JDBC Driver, version: mysql-connector-java-5.0.8 ( Revision: ${svn.Revision} )
+2008-05-29 16:53:30,421 INFO  dialect.Dialect - Using dialect: org.hibernate.dialect.MySQLDialect
+2008-05-29 16:53:30,421 INFO  transaction.TransactionFactoryFactory - Using default transaction strategy (direct JDBC transactions)
+2008-05-29 16:53:30,437 INFO  transaction.TransactionManagerLookupFactory - No TransactionManagerLookup configured (in JTA environment, use of read-write or transactional second-level cache is not recommended)
+2008-05-29 16:53:30,437 INFO  cfg.SettingsFactory - Automatic flush during beforeCompletion(): disabled
+2008-05-29 16:53:30,437 INFO  cfg.SettingsFactory - Automatic session close at end of transaction: disabled
+2008-05-29 16:53:30,437 INFO  cfg.SettingsFactory - JDBC batch size: 50
+2008-05-29 16:53:30,437 INFO  cfg.SettingsFactory - JDBC batch updates for versioned data: disabled
+2008-05-29 16:53:30,437 INFO  cfg.SettingsFactory - Scrollable result sets: enabled
+2008-05-29 16:53:30,437 INFO  cfg.SettingsFactory - JDBC3 getGeneratedKeys(): enabled
+2008-05-29 16:53:30,437 INFO  cfg.SettingsFactory - JDBC result set fetch size: 50
+2008-05-29 16:53:30,437 INFO  cfg.SettingsFactory - Connection release mode: auto
+2008-05-29 16:53:30,437 INFO  cfg.SettingsFactory - Maximum outer join fetch depth: 3
+2008-05-29 16:53:30,437 INFO  cfg.SettingsFactory - Default batch fetch size: 4
+2008-05-29 16:53:30,437 INFO  cfg.SettingsFactory - Generate SQL with comments: disabled
+2008-05-29 16:53:30,437 INFO  cfg.SettingsFactory - Order SQL updates by primary key: disabled
+2008-05-29 16:53:30,437 INFO  cfg.SettingsFactory - Query translator: org.hibernate.hql.ast.ASTQueryTranslatorFactory
+2008-05-29 16:53:30,437 INFO  ast.ASTQueryTranslatorFactory - Using ASTQueryTranslatorFactory
+2008-05-29 16:53:30,437 INFO  cfg.SettingsFactory - Query language substitutions: {}
+2008-05-29 16:53:30,437 INFO  cfg.SettingsFactory - Second-level cache: enabled
+2008-05-29 16:53:30,437 INFO  cfg.SettingsFactory - Query cache: disabled
+2008-05-29 16:53:30,437 INFO  cfg.SettingsFactory - Cache provider: org.hibernate.cache.EhCacheProvider
+2008-05-29 16:53:30,453 INFO  cfg.SettingsFactory - Optimize cache for minimal puts: disabled
+2008-05-29 16:53:30,453 INFO  cfg.SettingsFactory - Structured second-level cache entries: disabled
+2008-05-29 16:53:30,453 INFO  cfg.SettingsFactory - Echoing all SQL to stdout
+2008-05-29 16:53:30,453 INFO  cfg.SettingsFactory - Statistics: disabled
+2008-05-29 16:53:30,453 INFO  cfg.SettingsFactory - Deleted entity synthetic identifier rollback: disabled
+2008-05-29 16:53:30,453 INFO  cfg.SettingsFactory - Default entity-mode: pojo
+2008-05-29 16:53:30,515 INFO  impl.SessionFactoryImpl - building session factory
+2008-05-29 16:53:31,515 INFO  impl.SessionFactoryObjectFactory - Not binding factory to JNDI, no JNDI name configured
+2008-05-29 16:53:41,968 INFO  model.GaussPCall - GRTE:               true
+2008-05-29 16:53:42,609 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 16:53:42 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             中国_股市 
+order of differencing (d):     0 
+adjusted sample range:         [12, 41], T = 30
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=3, q=2
+Hannan-Quinn Criterion:   p=3, q=2
+Schwarz Criterion:        p=3, q=2
+
+2008-05-29 16:53:42,671 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 16:53:42 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             中国_股市 
+order of differencing (d):     0 
+adjusted sample range:         [12, 41], T = 30
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=3, q=3
+Hannan-Quinn Criterion:   p=3, q=3
+Schwarz Criterion:        p=2, q=2
+
+2008-05-29 16:53:42,781 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 16:53:42 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             中国_股市 
+order of differencing (d):     1 
+adjusted sample range:         [13, 41], T = 29
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=1, q=1
+Hannan-Quinn Criterion:   p=1, q=1
+Schwarz Criterion:        p=1, q=1
+
+2008-05-29 16:53:42,875 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 16:53:42 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             中国_股市 
+order of differencing (d):     1 
+adjusted sample range:         [13, 41], T = 29
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=3, q=1
+Hannan-Quinn Criterion:   p=1, q=1
+Schwarz Criterion:        p=1, q=1
+
+2008-05-29 16:53:43,187 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 16:53:43 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             中国_股市 
+order of differencing (d):     2 
+adjusted sample range:         [14, 41], T = 28
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=0, q=1
+Hannan-Quinn Criterion:   p=0, q=1
+Schwarz Criterion:        p=0, q=1
+
+2008-05-29 16:53:43,296 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 16:53:43 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             中国_股市 
+order of differencing (d):     2 
+adjusted sample range:         [14, 41], T = 28
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=0, q=1
+Hannan-Quinn Criterion:   p=0, q=1
+Schwarz Criterion:        p=0, q=1
+
+2008-05-29 16:53:43,468 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 16:53:43 ***
+sample range:       [3, 41], T = 39
+Model:  ARIMA(0,2,1)
+
+
+Final Results:
+
+Iterations Until Convergence:   4
+
+Log Likelihood:   -132.154081         Number of Residuals: 39    
+AIC           :    268.308162         Error Variance     : 53.986564831     
+SBC           :    271.635285         Standard Error     : 7.347555024      
+
+DF: 37      Adj. SSE: 2003.832622708       SSE: 1997.502898765   
+
+Dependent Variable:         中国_股?
+
+            Coefficients     Std. Errors      T-Ratio    Approx. Prob.
+MA1           0.34070490      0.15497584      2.19844          0.03425
+const         0.73485515      0.78496912      0.93616          0.35526
+
+Total Computation Time: 0.00 (seconds)
+
+MA Root:   2.93509 
+
+
+2008-05-29 16:53:43,515 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 16:53:43 ***
+PORTMANTEAU TEST with 10 lags
+
+Portmanteau:               6.8851      
+ p-Value (Chi^2):          0.5491      
+Ljung & Box:               8.7728      
+ p-Value (Chi^2):          0.3618      
+
+
+2008-05-29 16:53:43,625 INFO  component.SystemOutHolder - *** Thu, 29 May 2008 16:53:43 ***
+
+forecasted variable: 中国_股市 (in levels)
+forecast range:      [42, 51], T = 10
+
+time           lower CI             forecast             upper CI             std. err            
+42              183.6165             198.0174             212.4183             7.3476             
+43              199.8702             227.7696             255.6691             14.2347            
+44              214.7451             258.2567             301.7684             22.2002            
+45              228.3859             289.4787             350.5715             31.1704            
+46              240.9627             321.4355             401.9083             41.0583            
+47              252.6177             354.1272             455.6367             51.7915            
+48              263.4669             387.5537             511.6405             63.3108            
+49              273.6062             421.7151             569.8240             75.5671            
+50              283.1162             456.6113             630.1065             88.5196            
+51              292.0654             492.2424             692.4194             102.1330           
+

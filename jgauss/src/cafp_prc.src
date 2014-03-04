@@ -1,0 +1,3793 @@
+/*
+ This file is part of the econometric software package JMulTi.
+ Copyright (C) 2000-2005  Rolf Tschernig, Markus Kraetzig
+
+ This program is free software; you can redistribute it and/or
+ modify it under the terms of the GNU General Public License
+ as published by the Free Software Foundation; either version 2
+ of the License, or (at your option) any later version.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, write to the Free Software
+ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ */
+
+/*  last revision March 2003
+**  --------------------------------------------------------------------------
+**                            CAFP_PRC.SRC 
+**
+**                            depends on:
+**                            CAFP.DEC
+**  the C++ library: cafpe is needed
+**  --------------------------------------------------------------------------
+**  this file contains all the routines that are needed by cafp_est.src, 
+**  cafp_sel.srcand cafp_for.src to carry out nonparametric lag selection,
+**  estimation and forecasting
+*/
+/* RT, May 1996
+**
+** --------------------------------------------------------------------------
+**                               FIRSTMIN_NONPARAM.G
+** --------------------------------------------------------------------------
+**
+** Subroutine to compute index of first interior single minimum in a
+** prespecified column of a matrix
+**
+** Input variables
+**         z            (K x M) matrix
+**         col          scalar, column on which first minimum is searched for
+**
+** Output variable
+**         first_min_i  scalar, if there is a first minimum, it contains
+**                      row number; if there is no single local first
+**                      minimum but only multiple minima neighboring each other
+**                      it is assigned a missing value
+**
+** Examples:
+**
+**       - For  z1 = {0,0,1,2,1,2} it returns  5
+**       - For  z2 = {0,1,2,1,3} it returns 1
+**       - For  z3 = {0,0,0,0,0} it returns .
+**       - for  z4 = {0,0,1,0,0} it returns .
+**
+** This routine is used in FPE_NPS_NONPARAM.G
+*/
+
+
+proc firstmin_nonparam(z,col);
+local z_rows,first_min,i,minin;
+
+z_rows    =  rows(z);
+
+if z_rows   == 1;
+    first_min   = 1;
+else;
+    minin = "notreach";
+    i     = 2;
+    do while i <= z_rows and minin $/= "reached";
+        if i < z_rows;
+            if z[i,col] < z[i-1,col];
+                if z[i,col] < z[i+1,col];
+                    first_min = i;
+                    minin     = "reached";
+                endif;
+            elseif z[i,col] > z[i-1,col] and i == 2;
+                first_min = 1;
+                minin     = "reached";
+            endif;
+        elseif i == z_rows;
+            if z[i,col] < z[i-1,col];
+                first_min = i;
+                minin     = "reached";
+            elseif z[i,col] > z[i-1,col] and i == 2;
+                first_min = i-1;
+                minin     = "reached";
+            else;
+                first_min = {.};
+            endif;
+         endif;
+         i = i + 1;
+    endo;
+endif;
+retp(first_min);
+endp;
+
+
+/* ======================================================================== */
+
+/* Version:  1.0e, November 26, 2000 */
+
+
+/*
+**
+** --------------------------------------------------------------------------
+**                      BINOM_NONPARAM.G
+** --------------------------------------------------------------------------
+*/
+
+proc (1) = binom_nonparam(n,k);
+retp(n! ./(k! .* (n-k)!));
+endp;
+/* ========================================================================== */
+
+
+/*  LY and RT, February 1999 ok ------- from MULTBAND.SRC
+**
+**  -----------------------------------------------------------------
+**                      DEN_C_P_NONPARAM.G
+**  -----------------------------------------------------------------
+**
+**  Subroutine to call kernel density estimator written from DLL
+**  routine.
+**  If the DLL is not available, one has to replace this file
+**  with a pure GAUSS routine.
+**
+**  Input variables:
+**      x           (n x d) matrix of regressors
+**      h           (d x 1) vector of bandwidths
+**      xest        (nest x d) matrix of points at which
+**                  the density has to be computed
+**      loo         0 = no leave-one-out
+**                  1 = leave-one-out
+**      kern_den    character, choice of kernel function
+**                  only available: "gaussian"
+**
+**  Output variable:
+**      dh          (nxest x 1) estimated density at xest
+**
+**  DLLs needed:
+**      density.dll in Windows 95/NT
+**      den_c.so    in Sun-UNIX
+*/
+
+proc (1) = den_c_p_nonparam(x,h,xest,loo,kern_den);
+local xc,x_t_j,nc,pc,hc,x_t_j_ro,dh,looc;
+
+/* checks */
+if cols(x) /= cols(xest);
+    if _print_cafpejm;
+        "den_c_p_nonparam: x and xest do not have the same number";
+        "                  of regressors";
+        "                  Program terminated.";
+    endif;
+    end;
+endif;
+if not(loo==0 or loo==1);
+    if _print_cafpejm;
+        "den_c_p_nonparam: loo must be 0 or 1. It is";
+        print loo;
+        "                  Program terminated.";
+    endif;
+    end;
+endif;
+if cols(h) > 1;
+    h   = h';
+    if _print_cafpejm;
+        "den_c_p_nonparam: Warning: bandwidth vector was";
+        "                  transposed";
+    endif;
+endif;
+if prodc(h .<= 0);
+    if _print_cafpejm;
+        "den_c_p_nonparam: bandwidth must be positive. It is";
+        print h;
+        "                  Program terminated.";
+    endif;
+    end;
+endif;
+if rows(h)>1 and rows(h) /= cols(x);
+    if _print_cafpejm;
+        "den_c_p_nonparam: bandwidth vector not of the same";
+        "                  dimension than number of regressors. It is";
+        print h;
+        "                  Program terminated.";
+    endif;
+    end;
+endif;
+if rows(h)== 1 and cols(h) == 1 and cols(xest) > 1; /* last statement added March 13, 2002 */
+    if _print_cafpejm;
+        "den_c_p_nonparam: scalar bandwidth used";
+    endif;
+    h   = h * ones(cols(x),1);
+endif;
+
+
+
+xc      = x;
+nc      = rows(x);
+pc      = cols(x);
+hc      = h;
+x_t_j   = xest;
+x_t_j_ro= rows(xest);
+dh      = zeros(x_t_j_ro,1);
+looc    = loo;
+
+if kern_den $== "gaussian";
+    dllcall den_c(xc, nc, pc, hc, x_t_j, x_t_j_ro, dh, looc);
+else;
+    if _print_cafpejm;
+        "den_c_p: density estimation only programmed for gaussian";
+        "         kernel.";
+        "         Program terminated.";
+    endif;
+    end;
+endif;
+
+retp(dh);
+endp;
+
+/* =============================================================== */
+
+
+/*  LY and RT, February 1999 ok ------- from MULTBAND.SRC
+**
+**  -----------------------------------------------------------
+**                     F_V_LLC_NONPARAM.G
+**  -----------------------------------------------------------
+**
+**  Subroutine for local linear or local quadratic estimation
+**  using C++ - routines via dlls.
+**
+**  It can do cond. mean, cond. volatility, first derivatives,
+**  second direct derivatives, cond. densities with full or
+**  leave-one-out and density estimation with all possible
+**  data or only lagged data.
+**  It also can handle seasonal dummy variables. 
+**  At the moment only the gaussian kernel can be used.
+**
+**  Input variables
+**          X_s_j           (n x d) matrix of regressors
+**          Yorig           (ny x 1) vector of dependent data
+**          h               scalar or (d x 1) vector, bandwidth
+**          X_t_j           (nxest x d) matrix of data at which
+**                                  estimation is conducted
+**          kern_reg          character: must currently be "gaussian"
+**          lorq            1=local linear,
+**                                  2=local quadratic with direct 2nder.
+**          fandg           0=only mean function,
+**                                  1=also volatility function
+**                                  (be careful is not guaranteed to be pos.)
+**          loo             0=take all,
+**                                  1= leave-one-out (only works if n=ny)
+**          seas            1=no season, >1 allows for seasonal dummies
+**          seasden_sta     season of first observation in Yorig
+**          ddummies        number of seasonal dummies
+**
+**  Output variables
+**          mA              (nxest x (lorq(d-ddummies)+1)) matrix of
+**                                  cond. mean, cond. first der., cond. direct
+**                                  sec. der. (lorq=2)
+**          g_sqA           (nxest x (lorq(d-ddummies)+1)) matrix of
+**                                  cond. volatility, cond. first der.,
+**                                  cond. direct sec. der. (lorq=2)
+**          denA            (nxest x 1) vector of cond. density
+**          err             0=matrix inversion in dll ok
+**                                  1=matrix inversion failed
+**
+**  GAUSS subroutines needed:
+**          xorig_qu.g, xorig_qu_inv.g
+**
+**  DLLs needed:
+**          cafpe.dll     for Windows 95/NT
+**          cafpe.so      for Sun-UNIX
+**          libcafpe.so   for Linux
+*/
+
+
+
+proc(4) = f_v_llc_nonparam(X_s_j,Yorig,h,X_t_j,kern_reg,lorq,fandg,loo,
+                                        seas,seasden_sta,ddummies);
+local xorig_c,yorig_c,xest_c,yorig_ind,xest_ind,n_c,ny_c,nxest_c,
+      h_c,seas_c,mA,g_sqA,denA,m_c,g_sq_c,den_c,d_c,err;
+
+@ ------- prepare input matrices and check inputs ---------- @
+
+    if not(lorq==1 or lorq==2);
+        if _print_cafpejm;
+            "f_v_llc_nonparam: choose lorq = 1 or 2, see header of";
+            "         f_v_llc_nonparam.g. It is";
+            print lorq;
+            "         Program terminated.";
+        endif;
+        end;
+    endif;
+    if (not(loo==0 or loo==1) or not(fandg==0 or fandg==1));
+        if _print_cafpejm;
+            "f_v_llc_nonparam: choose loo = 0 or 1 and fandg = 0 or 1";
+            "         see header of f_v_llc_nonparam.g";
+            print "loo  " loo;
+            print "fandg" fandg;
+            "         Program terminated.";
+        endif;
+        end;
+    endif;
+    if prodc(h .<= 0)==1;
+        if _print_cafpejm;
+            "f_v_llc_nonparam: choose positive bandwidth vector";
+            print "h    " h;
+            "         Program terminated.";
+            end;
+        endif;
+    endif;
+
+    d_c                     = cols(X_t_j);
+
+    if rows(x_t_j) /= rows(x_s_j) and loo==1;
+        if _print_cafpejm;
+            "f_v_llc_nonparam: be careful: leave-one-out only works ";
+            "         if X_s_j[1:rows(yorig),.] and X_t_j are the same";
+        endif;
+    endif;
+
+    if kern_reg $== "quartic";        /* sorting for quartic kernel */
+         if _print_cafpejm;
+            "f_v_llc_nonparam: kern_reg = quartic supported; choose gaussian";
+         endif;
+    elseif kern_reg $== "gaussian";
+
+            xorig_c = X_s_j';               /* transpose for C++-routines */
+            yorig_c = yorig;
+            xest_c  = X_t_j';
+
+    else;
+        if _print_cafpejm;
+            "f_p_llc: choose available kernel function";
+            "         Program terminated";
+        endif;
+        end;
+    endif;
+
+    n_c             = cols(xorig_c);        /* get dimension of C++ mat. */
+    ny_c            = rows(yorig);
+    nxest_c         = cols(xest_c);
+
+
+    if ny_c /= n_c;
+            if _print_cafpejm;
+                "f_v_llc_nonparam: check rows of Yorig and X_t_j";
+                "         Program terminated";
+            endif;
+            end;
+    endif;
+
+    if rows(h) == 1;
+            h_c     = h*ones(d_c,1);        /* bandwidth vector    */
+    elseif rows(h) == d_c;
+            h_c     = h;
+    else;
+            if _print_cafpejm;
+                "f_v_llc_nonparam: choose h scalar or of correct dimension";
+                "         Program terminated.";
+            endif;
+            end;
+    endif;
+
+    if ddummies > 0;        /* do density estimation only on contin. regr.*/
+        h_c[d_c] = -(d_c-ddummies);
+    else;
+        if rows(xorig_c) /= rows(xest_c);
+            if _print_cafpejm;
+                "f_v_llc_nonparam: x_s_j and x_t_j do not have the same";
+                "         number of regressors"
+                "         Program terminated.";
+            endif;
+            end;
+        endif;
+
+    endif;
+
+
+@ --------- initialize output variables ------------------- @
+
+    mA              = zeros(nxest_c,lorq*d_c+1);    /* cond. mean */
+    g_sqA           = zeros(nxest_c,lorq*d_c+1);    /* cond. vol */
+    if (seas > 1 and ddummies > 0);
+            denA    = zeros(nxest_c,seas+1);
+            seas_c  = seas|seasden_sta;
+    else;
+            denA    = zeros(nxest_c,1);
+            seas_c  = 1|1;
+    endif;
+
+    m_c             = mA';                  /* transpose for C++-routines */
+    g_sq_c          = g_sqA';
+    den_c           = denA';
+
+@ --------- call C++ routines ----------------------------- @
+
+    if kern_reg $== "gaussian";
+            dllcall locling(xorig_c,n_c,d_c,yorig_c,ny_c,xest_c,nxest_c,
+                            h_c, seas_c, m_c, g_sq_c, den_c, lorq, fandg, loo);
+    else;
+        if _print_cafpejm;
+            "f_v_llc_nonparam: local linear estimation only programmed for gaussian kernel ";
+            "         Program terminated.";
+        endif;
+        end;
+    endif;
+
+@ --------- check output ---------------------------------- @
+
+    if ismiss(m_c);
+        err             = 1;
+/*        commented out 040205
+        if _print_cafpejm;
+            print "f_v_llc_nonparam: ZWZT cannot be inverted with h=" h_c';
+            "         Increase bandwidth.";
+        endif;
+*/
+    retp(mA,g_sqA,denA,err);
+    else;
+            err = 0;
+    endif;
+
+    if kern_reg $== "quartic";        /* redo sorting and transpose back */
+
+
+    elseif kern_reg $== "gaussian";   /* transpose back */
+
+            mA      = m_c';
+            g_sqA   = g_sq_c';
+            denA    = den_c';
+
+    endif;
+
+retp(mA,g_sqA,denA,err);
+endp;
+
+/*  ============================================================== */
+
+/*  LY and RT, Febrary 1999 ok  ------- from MULTBAND.SRC
+**
+**  -----------------------------------------------------------
+**                     F_V_LPC_NONPARAM.G
+**  -----------------------------------------------------------
+**
+**  Subroutine for partial local cubic estimation (eq. (4.1),
+**  (4.2) in YT) using C++ - routines via DLLs.
+**
+**  It does cond. mean, cond. volatility, first derivatives,
+**  selected second direct derivatives, cond. densities with full or
+**  leave-one-out and density estimation with all possible
+**  data or only lagged data.
+**
+**  At the moment only the gaussian kernel is implemented.
+**
+**  Input variables:
+**      X_s_j           n x d matrix of regressors
+**      Yorig           ny x 1 vector of dependent data
+**      h               scalar or (d x 1) vector, bandwidth
+**      X_t_j           nxest x d matrix of data at which
+**                              estimation is conducted
+**      kern_reg        only available "gaussian"
+**      lorq            allows only: 3=partial local cubic
+**      fandg           0=only mean function,
+**                              1=also volatility function
+**                              (be careful is not guaranteed to be pos.)
+**      loo                     0=take all,
+**                              1= leave-one-out (only works if n=ny)
+**      g               index of variable for which partial expension
+**                      is carried out (used in cmhathcp.g), June 1998
+**
+**  Output variables
+**      mA              nxest x (lorq(d-ddummies)+1) matrix of
+**                              cond. mean, cond. first der., cond. direct
+**                              sec. der. (lorq=2)
+**      g_sqA           nxest x (lorq(d-ddummies)+1) matrix of
+**                              cond. volatility, cond. first der.,
+**                              cond. direct sec. der. (lorq=2)
+**      denA            nxest x 1 vector of cond. density
+**      err                     0=matrix inversion in dll ok
+**                              1=matrix inversion failed
+**
+**  DLLs needed:
+**
+**      loccubg.dll for Windows 95/NT,
+**      loccubg.so for Sun-UNIX
+*/
+
+
+
+proc(4) = f_v_lpc_nonparam(X_s_j,Yorig,h,X_t_j,kern_reg,lorq,fandg,loo,g);
+local xorig_c,yorig_c,xest_c,yorig_ind,xest_ind,n_c,ny_c,nxest_c,
+      h_c,seas_c,mA,g_sqA,denA,m_c,g_sq_c,den_c,d_c,err,dd;
+
+@ ------------- prepare input matrices and check inputs ------- @
+
+    d_c             = cols(X_t_j);
+
+    if rows(x_t_j) /= rows(x_s_j) and loo==1;
+        if _print_cafpejm;
+            "f_v_lpc_nonparam: be careful: leave-one-out only works ";
+            "         if X_s_j[1:rows(yorig),.] and X_t_j are the same";
+        endif;
+    endif;
+    if g < 1 or lorq < 3 or g > d_c;
+        if _print_cafpejm;
+            "f_v_lpc_nonparam: choose 1 <= g <= number of regressors";
+            "         and lorq = 3";
+            "         Otherwise partial local cubic routine";
+            "         does not work.";
+            print "g    " g;
+            print "lorq " lorq;
+            "         Program terminated.";
+        endif;
+        end;
+    endif;
+    if (not(loo==0 or loo==1) or not(fandg==0 or fandg==1));
+        if _print_cafpejm;
+            "f_v_lpc_nonparam: choose loo = 0 or 1 and fandg = 0 or 1";
+            "         see header of f_v_lpc.g";
+            print "loo   " loo;
+            print "fandg " fandg;
+            "         Program terminated.";
+        endif;
+        end;
+    endif;
+    if prodc(h .<= 0)==1;
+        if _print_cafpejm;
+            "f_v_lpc_nonparam: choose positive bandwidth vector";
+            print "h" h;
+            "         Program terminated.";
+        endif;
+        end;
+    endif;
+
+
+    if kern_reg $== "quartic";        /* sorting for quartic kernel */
+
+        if _print_cafpejm;
+            "f_v_lpc_nonparam: kern_reg = quartic not supported; choose gaussian";
+        endif;
+    elseif kern_reg $== "gaussian";
+
+            xorig_c = X_s_j';               /* transpose for C++-routines */
+            yorig_c = yorig;
+            xest_c  = X_t_j';
+    else;
+        if _print_cafpejm;
+            "f_v_lpc_nonparam: choose gaussian kernel.";
+            "         other kernels not programed";
+            "         Program terminated.";
+        endif;
+        end;
+    endif;
+
+    n_c             = cols(xorig_c);        /* get dimension of C++ mat. */
+    ny_c            = rows(yorig);
+    nxest_c         = cols(xest_c);
+
+    if rows(h) == 1;
+            h_c     = h*ones(d_c,1);        /* bandwidth vector    */
+    elseif rows(h) == d_c;
+            h_c     = h;
+    else;
+            if _print_cafpejm;
+                "f_v_lpc_nonparam: choose h scalar or of correct dimension";
+                "         Program terminated.";
+            endif;
+            end;
+    endif;
+
+
+@ ------------- initialize output variables ------------------- @
+
+    dd      = d_c*3 + 2*(d_c-1) + 1;
+    mA      = zeros(nxest_c,dd);            /* cond. mean/der. */
+    g_sqA   = zeros(nxest_c,dd);            /* cond. vol/der */
+    denA    = zeros(nxest_c,1);             /* density */
+    seas_c  = 1|1;                          /* parameters to
+                                               indicate no season
+                                               in C++-routine */
+
+    m_c     = mA';                          /* transpose for C++-routines */
+    g_sq_c  = g_sqA';
+    den_c   = denA';
+
+@ ------------- call C++ routines ----------------------------- @
+
+    if kern_reg $== "gaussian";
+            dllcall locparg(xorig_c,n_c,d_c,yorig_c,ny_c,xest_c,nxest_c,
+                 h_c, seas_c, m_c, g_sq_c, den_c, lorq, fandg, loo,g);
+                            /*  call C++ routine from DLL that
+                                computes partial local cubic
+                                estimator as defined in eq.
+                                (4.1), (4.2) in YT */
+    else;
+        if _print_cafpejm;
+            "f_v_lpc_nonparam: partial cubic C++ routine only programed for";
+            "         Gaussian kernel.";
+            "         Program terminated.";
+        endif;
+        end;
+    endif;
+
+@ ------------- check output ---------------------------------- @
+
+    if ismiss(m_c);
+        err             = 1;
+        if _print_cafpejm;
+            print "f_v_llc_nonparam: ZWZT cannot be inverted with h=" h_c';
+              "         Increase bandwidth.";
+        endif;
+    retp(mA,g_sqA,denA,err);
+    else;
+            err = 0;
+    endif;
+
+    if kern_reg $== "quartic";        /* redo sorting and transpose back */
+
+
+    elseif kern_reg $== "gaussian";   /* transpose back */
+
+            mA      = m_c';
+            g_sqA   = g_sq_c';
+            denA    = den_c';
+
+    endif;
+
+retp(mA,g_sqA,denA,err);
+endp;
+
+/*  ============================================================== */
+
+
+
+/*  RT and LY, August 1999
+**
+**  -------------------------------------------------------------------------
+**                          FPE_FSV_NONPARAM.G
+**  -------------------------------------------------------------------------
+**
+**  Subroutine to compute (C)AFPE given estimates for B and C and the
+**  asymptotically optimal bandwidth
+**
+**  Input variables
+**      X_s_j       matrix with explanatory variables for all yorig
+**      Yorig       vector with dependent variable
+**      hA          estimate of asymptotically optimal bandwidth
+**      X_t_j       matrix with values at which function has
+*+                  to be estimated
+**      kernel      H
+**      seas        H
+**      seas_cha    H
+**      yorig_seas  vector with season of each element in yorig
+**      ddummies    scalar, number of seasonal dummies
+**      estimator   H
+**      method_dum  H
+**      B_hat       estimator of B in TY, Section 3, YT, Section 3,4
+**      C_hat       estimator of C in TY, Section 2, YT, Section 3,4
+**      per_A       H
+**      Ksq_int     scalar, constant of kernel ||K||_2^2
+**      n_total     number of observations for estimating B
+**      printlog    H
+**
+**  Output variables
+**      afpe        estimate of AFPE in TY, eq. (3.4), YT, eq. (15)
+**      cafpe       estimate of CAFPE in TY, eq. (4.1), YT, eq. (16)
+**      wnsig2_hatc estimate of A using eq. (3.3) in TY
+**      A_hat       compute A_hat in TY, eq. (3.1)
+**      resid       vector of estimated residuals
+*/
+
+
+proc (5) = fpe_fsv_nonparam(X_s_j,Yorig,hA,X_t_j,kernel,
+                    seas,seas_cha,yorig_seas,ddummies,
+                    estimator,method_dum,
+                    B_hat,C_hat,per_A,Ksq_int,n_total,printlog,lag_max);
+
+    /* March 1, 2000: lag_max added to calling list, was forgotten */
+    /* April 18, 2002: seas replaced by seas_c */    
+
+local seasden_sta,sig_K,d_w,lorq,fandg,loo,g_hat,mA,g_sqA,beta_hat,eps_hat,
+      denA,err,afpe,cafpe,wnsig2_hatc,res2,n,wA,A_hat,hAs0,
+      seas_c,ind_seas,yorig_pe,X_t_j_pe,X_s_j_pe,mA_pe,
+      g_sqA_pe,denA_pe,wA_pe,res2_pe,A_hat_pe,i_MS,w_beta,betaplus,
+      d_ols,i_MS_n,garb,resid,hA_pe,afpe_pe,cafpe_pe,wnsig2_hatc_pe;
+
+
+@ -------------------- initialize ------------------------------- @
+
+    i_MS            = 1;    /* !!!!!!!!!!!!!!! */
+    i_MS_n        = 1;      /* !!!  uses n=n_total in seas_cha=periodi*/
+
+    seasden_sta     = yorig_seas[1];
+    sig_K           = 1;
+    d_w             = cols(X_t_j) - ddummies;
+
+
+@ ----------------- estimate mean functions  -------------------- @
+
+    loo     = 0;    /* no leave-one out */
+    fandg   = 0;    /* only cond. mean  */
+
+    if estimator $== "nw";
+        lorq    = 0;    /* local constant */
+    elseif estimator $== "loclin";
+        lorq    = 1;    /* local linear     */
+    endif;
+
+    if seas_cha $== "periodic";
+            g_hat       = zeros(rows(yorig),1);
+            denA        = zeros(rows(yorig),1);
+            seas_c      = 1;
+            do while seas_c <= seas;
+                ind_seas    = indexcat(yorig_seas,seas_c);
+                X_t_j_pe    = X_t_j[ind_seas,.];
+                X_s_j_pe    = X_s_j[ind_seas,.];
+                yorig_pe    = yorig[ind_seas,.];
+                if method_dum $== "perio_dif_h";
+                    hA_pe   = hA[seas_c]; /* added May 16, 2000 */
+                else;
+                    hA_pe   = hA;
+                endif;
+
+                { mA_pe,g_sqA_pe,denA_pe,err } =
+                        f_v_llc_nonparam(X_s_j_pe,yorig_pe,
+                                hA_pe,X_t_j_pe,kernel,
+                                lorq,fandg,loo,
+                                1,1,0); /* seas=1, seas_sta=1, ddummies =0, May 15, 2000 */
+                if err == 1;
+                    goto toobad;
+                endif;
+                g_hat[ind_seas]     = mA_pe[.,1];
+                denA[ind_seas]      = denA_pe;
+                seas_c              = seas_c + 1;
+            endo;
+
+
+    elseif seas_cha $== "seasD" and estimator $== "loclin"
+        and ddummies > 0;
+        betaplus    = 1;
+        w_beta      = 0;
+        if method_dum $== "f_0_f_s";
+
+            { g_hat,mA,g_sqA,beta_hat,garb,eps_hat,denA,err } =
+                fsv_lcr_nonparam(X_s_j,Yorig,hA,X_t_j,estimator,
+                kernel,lorq,fandg,loo,seas,yorig_seas,ddummies,
+                w_beta,betaplus,printlog);
+
+        elseif method_dum $== "dummies";
+
+            d_ols   = 0;
+            { g_hat,mA,g_sqA,beta_hat,garb,eps_hat,denA,err } =
+                fsv_lc_nonparam(X_s_j,Yorig,hA,X_t_j,estimator,
+                kernel,lorq,fandg,loo,seas,seasden_sta,ddummies,
+                w_beta,betaplus,d_ols,printlog);
+        else;
+            if _print_cafpejm;
+                "fpe_fsv_nonparam: choose a valid method_dum";
+            endif;
+        endif;
+
+    elseif seas_cha $== "standard" and estimator $== "nw"
+        and ddummies == 0;
+
+        { mA,g_sqA,denA,err } = f_v_llc_nonparam(X_s_j,Yorig,hA,
+                            X_t_j,kernel,lorq,fandg,loo,
+                            seas,seasden_sta,ddummies);
+
+    elseif seas_cha $== "standard" and estimator $== "loclin"
+        and ddummies == 0;
+
+        { mA,g_sqA,denA,err } = f_v_llc_nonparam(X_s_j,Yorig,hA,
+                            X_t_j,kernel,lorq,fandg,loo,
+                            seas,seasden_sta,ddummies);
+
+        g_hat       = mA[.,1];
+        beta_hat    = 0;
+
+    else;
+        if _print_cafpejm;
+            "fpe_fsv_nonparam: choose a valid and available combination";
+            "         of seas_cha, estimator and seasonal dummies";
+        endif;
+    endif;
+    toobad:
+    if err == 1;
+        if _print_cafpejm;
+            if printlog > 1;
+                print "fpe_fsv_nonparam:";
+            endif;
+            "";
+            print "WARNING: For computing residuals function could not be estimated";
+            print "         at all observations since matrix inversion failed ";
+            print "         at least at one observation.";
+            print "         INCREASE user-specified bandwidth.";
+            print "         Currently used bandwidth:"  hA;
+            print ""; 
+            print "NOTE:    1e20 returned for AFPE, CAFPE since lag selection criteria";
+            print "         cannot be computed owing to missing residuals.";"";
+        endif;
+        afpe    = 1e20; cafpe = 1e20; wnsig2_hatc = 1e20; A_hat = 1e20;
+        resid   = 1e20;
+        retp(afpe,cafpe,wnsig2_hatc,A_hat,resid);  
+    endif;
+
+@ -------------------------- compute A_hat ---------------------------- @
+
+    if seas_cha $== "periodic";
+        A_hat_pe    = zeros(seas,1);
+        resid       = zeros(rows(yorig),1);
+        seas_c      = 1;
+        do while seas_c <= seas;
+                ind_seas    = indexcat(yorig_seas,seas_c);
+                    /* seas replaced by seas_c, April 18, 2002 */
+                if i_MS;
+                    ind_seas  = delif(ind_seas,ind_seas .<
+                                            ceil(lag_max/seas)*seas);
+                endif;
+                wA_pe           = wei_nonparam(denA[ind_seas],per_A/seas,1);
+                n               =  rows(wA_pe);
+                resid[ind_seas] = yorig[ind_seas,.]-g_hat[ind_seas];
+                res2_pe         = resid[ind_seas]^2 .* wA_pe;
+                A_hat_pe[seas_c]= sumc(res2_pe) / n;
+                seas_c          = seas_c + 1;
+        endo;
+        resid   = delif(resid,resid .== 0);
+
+        if method_dum $== "perio_dif_h";    /* added, May 16, 2000 */
+            A_hat = A_hat_pe;
+        else;
+            A_hat   = meanc(A_hat_pe);
+        endif;
+        if i_MS_n;
+            n       = trunc(n_total/seas);
+        endif;
+
+    else;
+        wA          = wei_nonparam(denA,per_A,1);
+        resid       = Yorig - g_hat;
+        res2        = resid^2 .* wA;
+        n           = rows(wA);
+        A_hat       = sumc(res2)/n;
+    endif;
+
+@ ---------------------- compute CAFPE, AFPE -------------------------- @
+
+
+    if method_dum $== "perio_dif_h";        /* added May 16, 2000 */
+        afpe_pe     = zeros(seas,1);
+        cafpe_pe    = zeros(seas,1);
+        wnsig2_hatc_pe = zeros(seas,1);
+        seas_c      = 1;
+        do while seas_c <= seas;
+            afpe_pe[seas_c]    = A_hat[seas_c] + 2*(pdfn(0))^d_w / (n*hA[seas_c]^d_w) 
+                                    * B_hat[seas_c];
+            cafpe_pe[seas_c]       = afpe_pe[seas_c] * ( 1 + d_w*n^(-4/(d_w+4)) );
+            wnsig2_hatc_pe[seas_c] = A_hat[seas_c]
+                    - (Ksq_int^d_w - 2*(pdfn(0))^d_w) / (n*hA[seas_c]^d_w) *B_hat[seas_c]
+                    - sig_K^4*hA[seas_c]^4/4 * C_hat[seas_c]; /* + to -, April 20, 2000 */
+            seas_c             = seas_c + 1;
+        endo;
+        afpe        = meanc(afpe_pe);
+        cafpe       = meanc(cafpe_pe);
+        wnsig2_hatc = meanc(wnsig2_hatc_pe);
+
+    else;
+
+        afpe        = A_hat + 2*(pdfn(0))^d_w / (n*hA^d_w) * B_hat;
+        cafpe       = afpe * ( 1 + d_w*n^(-4/(d_w+4)) );
+        wnsig2_hatc = A_hat
+                    - (Ksq_int^d_w - 2*(pdfn(0))^d_w) / (n*hA^d_w) *B_hat
+                    - sig_K^4*hA^4/4 * C_hat; /* + to -, April 20, 2000 */
+    endif;
+
+retp(afpe,cafpe,wnsig2_hatc,A_hat,resid);
+endp;
+
+/* ==================================================================== */
+/* RT, January 1996, June 1996
+**
+** --------------------------------------------------------------------------
+**                      FPE_LIN_NONPARAM.G
+** --------------------------------------------------------------------------
+**
+** subroutine to compute linear FPE, AIC, SC, HQ criteria for selected lags
+**
+** Protocol:    March 17, 2002  FPE now uses ML estimator of variance
+**                              seas_cha,seas included to control output
+**                              
+*/
+
+proc (4) = fpe_lin_nonparam(Z_i,Y,X_2SLS,lags,lag_max,xexog_com,printlog,seas_cha,seas);
+local n,X,e_exog,e_endog,p,b_hat,eps_hat,wnsig2_hat,crit,wnsig2_hat_m,garb,k;
+
+    n           = rows(Y);
+    if lag_max == 0;
+
+        /* do 2SLS  for simultaneous systems without automatic lag creation */
+
+        e_exog  = xexog_com[lags] .$== "exog";
+/*
+        e_endog = xexog_com[lags] .$== "endog";
+print "e_exog" e_exog;
+print "e_endog" e_endog;
+*/
+        if sumc(e_exog) == 0  /* no exogenous variables -> no estimation    */
+        or rows(lags) == rows(xexog_com); /* case of  underidentification */
+
+            crit    = ones(4,1) * 1e20;
+            wnsig2_hat = {.}; b_hat = {.}; eps_hat = {.};
+            retp(crit,wnsig2_hat,b_hat,eps_hat);
+
+        endif;
+        Z_i         = ones(n,1)~Z_i;
+        k           = cols(Z_i);
+        b_hat       = inv(Z_i'X_2SLS*inv(X_2SLS'X_2SLS)*X_2SLS'Z_i)
+                    * Z_i'X_2SLS*inv(X_2SLS'X_2SLS)*X_2SLS'Y;
+        eps_hat     = Y - Z_i*b_hat;
+        if printlog; print "fpe_lin: Y,Z_i,X_2SLS" y~Z_i~X_2SLS; endif;
+    else;
+
+        /* do OLS */
+
+        X           = Z_i;
+        X           = ones(n,1)~X;  /* add constant */
+        k           = cols(X);
+        b_hat       = inv(X'X)*X'Y;
+        eps_hat     = Y - X*b_hat;
+    endif;
+
+    p   = k-1;
+    wnsig2_hat  = sumc(eps_hat^2)/(n-k); 
+    wnsig2_hat_m= sumc(eps_hat^2) /(n);    /* ML estimate for aic,sc, Sep15, 1998 */
+    crit        = zeros(4,1);
+    crit[1]     = wnsig2_hat_m*(n+k)/(n-k);                 /* fpe */ 
+                                    /* ML variance estimate, see B/D, 1991, March 17, 2002 */
+    crit[2]     =  ln( wnsig2_hat_m ) + 2 * k / n;           /* aic */
+    /* crit[2]     =  -2/n*(-n/2*(1+ln(2*pi))-n/2* ln( wnsig2_hat_m )) + 2 * k / n; */    
+                           /* aic with complete likelihood, not used */    
+
+    crit[3]     =  ln( wnsig2_hat_m ) + ln( n ) * k / n;     /* sc  */
+    crit[4]     =  ln( wnsig2_hat_m ) + 2 * ln( ln(n) ) * k / n;  /* hq */
+
+    if printlog>1;
+        print "fpe_lin_nonparam:";
+    endif;       
+    if printlog; 
+        print "Estimated parameters:";
+        if (seas_cha $== "standard") or (seas_cha $== "shift");
+            garb = printfm( ((ones(rows(b_hat),1).*.("    "))
+                    ~("cons"|(0 $+ "ar" $+ ftocv(lags,1,0)))~b_hat)
+                    ,(0~0~1),((("- *.*s")~4~4)|(("- *.*s")~30~30)|(("*.*lf")~16~8)));
+        elseif seas_cha $== "seasD";
+/*      /*  these parameters are not reported since the normalization differs from the VAR module and
+            would leed to confusion */
+            garb = printfm( ((ones(rows(b_hat)-seas+1,1).*.("    "))
+                        ~("cons"|(0 $+ "ar" $+ ftocv(lags[1:rows(lags)-seas+1],1,0)))
+                        ~b_hat[1:rows(b_hat)-seas+1]),
+                        (0~0~1),
+                        ((("- *.*s")~4~4)|(("- *.*s")~30~30)|(("*.*lf")~16~8)));            
+            garb = printfm( ((ones(seas-1,1).*.("    "))
+                        ~((0 $+ "sd" $+ ftocv(seqa(2,1,seas-1),1,0)))
+                        ~b_hat[rows(b_hat)-seas+2:rows(b_hat)]),
+                        (0~0~1),
+                        ((("- *.*s")~4~4)|(("- *.*s")~30~30)|(("*.*lf")~16~8)));
+*/
+            "To obtain parameter estimates, please use VAR module.";
+        endif;
+        print /lz "    white noise variance               " wnsig2_hat;                                 
+    
+        garb = printfm( ((ones(4,1).*.("    "))~("FPE"|"AIC"|"Schwarz"|"HQ")~crit)
+                    ,(0~0~1),((("- *.*s")~4~4)|(("- *.*s")~30~30)|(("*.*lf")~16~8)));
+    endif;
+
+retp(crit,wnsig2_hat,b_hat,eps_hat);
+endp;
+
+/* ======================================================== */
+
+
+/*  RT and LY, August 1999
+**
+**  -------------------------------------------------------------------------
+**                      FPE_NPS_NONPARAM.G
+**  -------------------------------------------------------------------------
+**
+**  Subroutine to conduct lag and variable selection using
+**  linear or nonparametric (local constant or local linear)
+**  methods
+**
+**  For explanation of variables marked by H see CAFPE_PAR.SRC
+**
+**  Input variables
+**      xraw                vector of univariate time series
+**      xresid              H
+**      xexog               matrix of exogenous variables
+**                          or endogenous variables of
+*+                          another equation
+**      xexog_2SLS          matrix of exogenous variables in a
+**                          system
+**      lag_max             H
+**      xexog_com           H
+**      seas                H
+**      seas_sta            H
+**      seas_cha            H
+**      seas_dum            scalar containing the number of
+**                          seasonal dummies (used for SDNAR model)
+**      volat               H
+**      startval            H
+**      robden              H
+**      estimator           H
+**      kernel              H
+**      method_dum          H
+**      selcrit             H
+**      per_A               H
+**      per_B               H
+**      h_c_start           H
+**      h_c_min             H
+**      h_c_max             H
+**      searchmethod        H
+**      d_max               H
+**      meth_hB             H
+**      meth_hB_d           H
+**      partial_cub         H
+**      hcd_fac             H
+**      printlog            H
+**      hC_Silv_fac         scalar was set to 3 in initial versions of 
+**                          JTSA and seasonal paper. In JTSA final version 2
+**
+**  Output variables
+**      crmin           vector that stores for all considered lag combinations
+**                      in the first d_max rows the selected lag vector
+**                      in the d_max+1 row the estimated criterion
+**                      in the d_max+2 row the computed A_hat if (C)AFPE is
+**                      used
+**                      in the d_max+3 row the estimated variance of the white
+**                      noise process
+**      cr_pro          matrix that stores for each number of lags
+**                      in the first d_max rows the selected lag vector
+**                      in the d_max+1 row the estimated asymptotically
+**                      optimal bandwidth for estimating A and (C)AFPE
+**                      in the d_max+2 row the used bandwidth for estimating B
+**                      in the d_max+3 row the used bandwidth for estimating C
+**                      in the d_max+4 row the estimated criterion
+**                      in the d_max+5 row the computed A_hat if (C)AFPE is
+**                      used
+**                      in the d_max+6 row the estimated variance of the white
+**                      noise process
+**      cr_store        matrix that stores lag vector and criterion value for
+**                      all lag combinations and bandwidth values considered
+**                      in the first d_max rows all considered lag vector are
+**                      stored
+**                      in the d_max+1 to d_max+number of bandwidths in grid
+**                      the estimated criterion for each lag vector and
+**                      bandwidth combination is stored
+**      cr_store_add    matrix that stores those criteria that
+**                      are evaluated in passing for all
+**                      lag combinations where all values for one lag
+**                      combination are stored in one column, see program
+**                      for details
+**      h_store         matrix that stores all bandwidths used in
+**                      computing (C)AFPE
+**                      each column contains for one lag vector
+**                      the grid of bandwidths
+**                      which is used for estimating A and (C)AFE
+**                      in case of plug-in only one bandwidth is stored
+**      h_store_test    matrix that stores for each lag vector in one column
+**                      the estimated asymptotically optimal
+**                      bandwidth, h_S(m+2) and h_C (see section 5 in TY)
+**
+**
+*/
+
+proc(6) = fpe_nps_nonparam(xraw,xresid,xexog,xexog_2SLS,lag_max,xexog_com,seas,
+                seas_sta,seas_cha,seas_dum,volat,startval,robden,
+                estimator,kernel,method_dum,selcrit,per_A,per_B,
+                h_c_start,h_c_min,h_c_max,searchmethod,d_max,
+                meth_hB,meth_hB_d,partial_cub,hcd_fac,printlog,hC_Silv_fac);
+
+local dexog,Ksq_int,lag_no,lag_no_r,lag_comb,d_c,lag_comb_tot,cr_pro,selmet,
+      cr_store,cr_store_test,h_store,h_store_test,lag_v,lag_comb_all,
+      i,lags,d,crit_o,A_hat,sig2wn_hat,hA,hB,hC,garb,crit_grid,hA_grid,
+      lag_d_c_1,lag_c,crmin_i_h,crmin_i_h_v,crmin,crmin_i,cr_pro_cs,sig2_hat,
+      cr_store_add,
+      lagfmt,nosellag,
+      bw_factor;
+@ --------------organize exogenous variables ------------------------- @
+
+if xexog_com[1] $== "none" and rows(xexog_com) == 1;
+   dexog = 0;               /* determine number of exogenous variables */
+else;
+   dexog    = rows(xexog_com);
+endif;
+if (printlog>1); 
+    print /lz "fpe_nps_nonparam: number of exogenous variables:              " dexog; 
+elseif printlog;
+    print /lz "Number of exogenous variables:              " dexog; 
+endif;
+
+@ ========================== Initialize =============================== @
+
+if kernel $== "gaussian";
+    Ksq_int = 1 / (2*sqrt(pi));     /* kernel constant ||K||_2^2  in TY*/
+endif;
+
+bw_factor = 1;      /* factor to multiply h_opt with in fpe_npsl_nonparam, 030317 */
+
+@ ------------------- Set of lags and output matrices ----------------- @
+
+
+if searchmethod $== "full";         /* Nov 6 */
+
+    if seas_dum $== "always";           /* seasonal dummies always includeded */
+        lag_no_r= lag_max+dexog-seas+1; /* total number of regressors */
+        if d_max > lag_no_r;
+            if _print_cafpejm;
+                "fpe_nps_nonparam: you use searchmethod = full";
+                "        ERROR: maximal number of input variables (d_max)";
+                "        greater than set of regressors";
+                "        for seas_dum = always ";
+                "        set d_max = lag_max+dexog-seas+1";
+                "        (dexog is number of exogenous variables)";
+            endif;
+        endif;
+    else;
+        lag_no_r= lag_max+dexog;    /* Aug 1  total number of variables to be
+                                              considered */
+    endif;
+    if lag_no_r < d_max;
+        if _print_cafpejm;
+           print "fpe_nps_nonparam: ERROR: check d_max; the maximal number of input variables"
+                 "         is larger than the total number of input variables.";
+        endif;
+        end;
+    endif;
+
+    if (printlog>1); 
+        print /lz "fpe_nps_nonparam: total number of variables:                  " lag_no_r;
+    elseif printlog;
+        print /lz "Total number of variables:                  " lag_no_r;    
+    endif;
+    lag_comb    = zeros(d_max,1);   /* vector that contains number of all
+                                         possible combinations of lags for
+                                        a given number of lags */
+    d_c         = 1;
+    do while d_c <= d_max;
+
+        lag_comb[d_c]   = binom_nonparam(lag_no_r,d_c);
+        d_c             = d_c + 1;
+
+    endo;
+
+    lag_comb_tot= sumc(lag_comb);
+
+    cr_pro      = zeros(d_max,d_max+6);
+                                    /*  matrix that stores optimal model for
+                                        each d_c, that is all lags, bandwidths
+                                        and criterion, bias corrected
+                                        residual variance and residual variance */
+
+elseif searchmethod $== "directed";
+
+    lag_comb_tot = sumc(seqa(lag_max+dexog,-1,d_max));
+                               
+    cr_pro      = zeros(d_max,d_max+6);
+                                    /*  matrix that stores optimal model for
+                                        each d_c, that is all lags, bandwidths
+                                        and criterion, bias corrected
+                                        residual variance and residual variance
+                                        now as in full case, June 3, 2002 */
+                                         
+endif;
+
+if (printlog>1); 
+    print /lz "fpe_nps_nonparam: total number of lag combinations considered:" lag_comb_tot;
+elseif printlog;
+    print /lz "Total number of lag combinations considered:" lag_comb_tot;
+endif;
+
+selmet          = strsect(selcrit,1,2);
+if selmet $== "lq" or selmet $== "ar";
+    h_c_max     = 1;
+endif;
+
+cr_store        = zeros(d_max+h_c_max,lag_comb_tot);
+                                    /* matrix that stores criterion
+                                        computed during all loops   Aug 1  */
+cr_store_add    = zeros(h_c_max*4,lag_comb_tot);
+                                    /* matrix that stores other criteria
+                                       that are computed for free     */
+cr_store_test   = zeros(d_max+3,lag_comb_tot);
+                                    /* matrix that stores criterion,
+                                        bias corrected residual variance
+                                        and residual variance    Aug 1
+                                        computed during d_c, lags_c loops  */
+h_store         = zeros(h_c_max,lag_comb_tot);
+                                    /* like cr_store for all bandwiths hA
+                                        but without lags, February 12, 1998 */
+h_store_test    = zeros(3,lag_comb_tot);
+                                     /* like cr_store_test for hA, hB, hC
+                                        but without lags, February 12, 1998 */
+crmin           = zeros(1,d_max+3); /* vector with best model */
+
+lag_v           = seqa(1,1,lag_max+dexog);
+                                    /* vector that includes values or all lags
+                                        considered   Aug 1    */
+
+
+@ ================== start loop over set of lags ======================== @
+
+@ ---------------------- full search -------------------------------- @
+if printlog;
+    "";
+    "Begin of computations:";
+    "-----------------------";
+endif;
+if searchmethod $== "full";
+
+    lag_comb_all    = lag_full_nonparam(lag_no_r,d_max,lag_comb);
+    i = 1;
+    do while i <= lag_comb_tot;
+
+        lags                = lag_comb_all[.,i];
+        lags                = delif(lags,lags .== 0);
+                                            /* due to init. possibly more
+                                                   rows in lag_no than sel. */
+        d                   = rows(lags);
+        if seas_dum $== "always" and seas > 1;
+            lags            = lags|seqa(lag_max+dexog-seas+2,1,seas-1);
+        endif;
+
+        cr_store[1:d,i]     = lags[1:d];
+        cr_store_test[1:d,i]= lags[1:d];
+
+        if _print_cafpejm;
+          "";
+          format /mat /on /mb1 /ros 2,0;
+          print /ld "Lag vector considered:          " lags[1:d]'; 
+          format /mat /on /mb1 /ros 16,8;          
+        endif;
+          
+        if printlog == 0;
+            screen off;
+            output off;
+        endif;
+        { crit_o,A_hat,sig2wn_hat,hA,hB,hC,crit_grid,hA_grid,garb,garb,garb,garb,garb } =
+            fpe_npsl_nonparam(xraw,xresid,xexog,xexog_2SLS,lags,lag_max,xexog_com,dexog,seas,
+                seas_sta,seas_cha,volat,startval,robden,
+                estimator,kernel,method_dum,selcrit,per_A,per_B,Ksq_int,
+                h_c_min,h_c_max,meth_hB,meth_hB_d,partial_cub,hcd_fac,printlog,hC_Silv_fac,
+                bw_factor);
+        if printlog == 0;
+            screen on;
+            output on;
+        endif;
+
+        cr_store[d_max+1:d_max+rows(hA_grid),i] = crit_grid[.,1];
+        if (printlog>1); 
+            print "fpe_nps_nonparam: criteria computed (crit_grid)" crit_grid; 
+        endif;
+        if cols(crit_grid) > 1; /* store results on criteria that
+                                   come for free */
+            cr_store_add[1:rows(hA_grid)*(cols(crit_grid)-1),i] =
+                    vec(crit_grid[.,2:cols(crit_grid)]);
+        endif;
+        cr_store_test[d_max+1:d_max+3,i]        = crit_o|A_hat|sig2wn_hat;
+        h_store[1:rows(hA_grid),i]              = hA_grid;
+        h_store_test[1:3,i]                     = hA|hB[1]|hC[1];
+
+
+        i                                       = i + 1;
+    endo;
+
+   @ ----------create cr_pro matrix for full search ---------------------- @
+
+    d_c     = 1;
+    do while d_c <= d_max;
+
+        if d_c == 1;
+            garb =  0;
+        else;
+            garb = sumc(lag_comb[1:d_c-1]);
+        endif;
+
+        crmin_i_h     =
+                    minindc( (cr_store_test[d_max+1,garb+1:garb+lag_comb[d_c]])' );
+        crmin_i_h_v   =
+                    minc(   (cr_store_test[d_max+1,garb+1:garb+lag_comb[d_c]])' );
+        crmin_i_h_v   = crmin_i_h_v~crmin_i_h;   /* ok */
+        if (printlog>1); print "fpe_nps_nonparam: crmin_i_h_v" crmin_i_h_v; endif;
+
+        cr_pro[d_c,.]   = ((cr_store_test[1:d_max,garb+crmin_i_h])')~
+                            (h_store_test[1:3,garb+crmin_i_h]')~
+                            (cr_store_test[d_max+1:d_max+3,garb+crmin_i_h]');
+        if (printlog>1);
+            print "        cr_pro     " cr_pro;"";
+        endif;
+        d_c         = d_c + 1;
+    endo;
+
+
+@ ---------------------- directed search -------------------------------- @
+
+elseif searchmethod $== "directed";
+
+    lag_d_c_1   = 0;                /* vector that includes all lags already
+                                       selected for smaller d_c;        */
+
+
+    i           = 1;                /* counter that runs over d_c and
+                                       lag_c loop in order
+                                       to store all fpe's estimated  */
+
+
+    @ ------------------ Start loop over number of lags --------------- @
+
+
+    d_c         = 1;                /* counter for loop of number of lags */
+    do while d_c <= d_max;
+
+
+        if _print_cafpejm;
+          "";
+          if printlog>1; "fpe_nps_nonparam:"; endif;
+          print /lz "Number of lags to include:    " d_c;
+        endif;
+        
+
+     @ ---- collects all lags which have not yet been selected into lag_no @
+
+        if seas_dum $== "always";
+            { lag_no,lag_no_r } = lag_dir1_nonparam(seas,seas_dum,lag_max,
+                                        d_c,dexog-seas+1,lag_d_c_1);
+        else;
+            { lag_no,lag_no_r } = lag_dir1_nonparam(seas,seas_dum,lag_max,
+                                        d_c,dexog,lag_d_c_1);
+        endif;
+
+        if (printlog);
+            format /mat /on /mb1 /ros 2,0;
+            print /ld "Number of candidate lags:     " lag_no_r;
+            print /ld "Candidate lags:               " lag_no';
+            format /mat /on /mb1 /ros 16,8;          
+        endif;
+        if _print_cafpejm;
+            "";
+            "Beginn of loop over candidate lags:";
+        endif;            
+        
+
+     @ -------- do actual estimation for all lags selected in lag_no ------- @
+
+        lag_c      = 1;                 /* counter for testing loop */
+        do while lag_c <= minc((lag_max+dexog)|lag_no_r);   /* Aug 1 */
+            "";
+            if (printlog); 
+                print /lz "Number of lags to include:        " d_c;
+                print /lz "Counter for candidate lags:       " lag_c; 
+            endif;
+
+
+            if  (seas_dum $== "all" and d_c == 1);
+
+                lags        = lag_no[lag_c];
+
+            elseif d_c == 1;            /* in first loop start with lag 1 */
+
+                lags        = lag_c;
+
+            else;                       /* determine vector of lags
+                                                   that determines total
+                                                   specification
+                                                   for following testing    */
+                lags    = lag_d_c_1|lag_no[lag_c];
+
+            endif;
+
+            d                   = rows(lags);
+
+            if seas_dum $== "always" and seas > 1;
+                            /* always select seasonal dummies   */
+                lags   = lags|seqa(lag_max+dexog-seas+2,1,seas-1);
+            endif;
+
+            cr_store[1:d,i]     = lags[1:d];
+            cr_store_test[1:d,i]= lags[1:d];
+            if _print_cafpejm;
+                format /mat /on /mb1 /ros 2,0;
+                print /ld "Lag vector considered:            " lags[1:d]';
+                format /mat /on /mb1 /ros 16,8;          
+            endif;                
+
+            if printlog == 0;
+                screen off;
+                output off;
+            endif;
+            { crit_o,A_hat,sig2wn_hat,hA,hB,hC,crit_grid,hA_grid,garb,garb,garb,garb,garb } 
+                = fpe_npsl_nonparam(xraw,xresid,xexog,xexog_2SLS,lags,lag_max,xexog_com,
+                    dexog,seas,seas_sta,seas_cha,volat,startval,robden,estimator,kernel,
+                    method_dum,selcrit,per_A,per_B,Ksq_int,h_c_min,h_c_max,meth_hB,
+                    meth_hB_d,partial_cub,hcd_fac,printlog,hC_Silv_fac,
+                    bw_factor);
+            if printlog == 0;
+                screen on;
+                output on;
+            endif;
+            
+
+            cr_store[d_max+1:d_max+rows(hA_grid),i] = crit_grid[.,1];
+            if cols(crit_grid) > 1; /* store results on criteria that
+                                   come for free */
+                cr_store_add[1:rows(hA_grid)*(cols(crit_grid)-1),i] =
+                    vec(crit_grid[.,2:cols(crit_grid)]);
+            endif;
+            cr_store_test[d_max+1:d_max+3,i]        = crit_o|A_hat|sig2wn_hat;
+            h_store[1:rows(hA_grid),i]              = hA_grid;
+            h_store_test[1:3,i]                     = hA|hB|hC;
+
+
+            i           = i + 1;
+            lag_c       = lag_c + 1;
+
+        endo;
+
+        if _print_cafpejm;
+            "";
+            "End of loop over candidate lags: ";
+        endif;
+        if (printlog>1); print "fpe_nps_nonparam: cr_store_test" cr_store_test; endif;
+        crmin_i_h      = minindc( (cr_store_test[d_max+1,i-lag_c+1:i-1])' );
+        crmin_i_h_v    = minc(    (cr_store_test[d_max+1,i-lag_c+1:i-1])' );
+        crmin_i_h_v    = crmin_i_h_v~crmin_i_h;   /* ok */
+        
+        if d_c == 1;  /* June 3, 2002 */
+            cr_pro[d_c,.]  = cr_store_test[d_c,i-lag_c+crmin_i_h]~zeros(1,d_max-1)~
+                         (h_store_test[1:3,i-lag_c+crmin_i_h]')~
+                         (cr_store_test[d_max+1:d_max+3,i-lag_c+crmin_i_h]');
+        elseif d_c < d_max;                         
+            cr_pro[d_c,.]  = (sortc(lag_d_c_1|
+                             cr_store_test[d_c,i-lag_c+crmin_i_h],1)')~zeros(1,d_max-d_c)~
+                         (h_store_test[1:3,i-lag_c+crmin_i_h]')~
+                         (cr_store_test[d_max+1:d_max+3,i-lag_c+crmin_i_h]');
+        else;
+                    cr_pro[d_c,.]  = (sortc(lag_d_c_1|
+                             cr_store_test[d_c,i-lag_c+crmin_i_h],1)')~
+                         (h_store_test[1:3,i-lag_c+crmin_i_h]')~
+                         (cr_store_test[d_max+1:d_max+3,i-lag_c+crmin_i_h]');
+        endif;
+        if (printlog>1);
+            print "fpe_nps_nonparam: crmin_i_h_v" crmin_i_h_v;
+            print "fpe_nps_nonparam: cr_pro     " cr_pro;
+            print "fpe_nps_nonparam: cr_store_test[d_max+1,i-lag_c+1:i-1])'"
+                     (cr_store_test[d_max+1,i-lag_c+1:i-1])';
+        endif;
+
+        lag_d_c_1      = cr_store_test[1:d_c,i-lag_c+crmin_i_h_v[2]];
+                                                /* store optimal lags */
+        if (printlog);
+            if printlog>1; "fpe_nps_nonparam:";endif;
+            format /mat /on /mb1 /ros 3,0;            
+            print /ld "Selected lag vector:                   " lag_d_c_1';
+            format /mat /on /mb1 /ros 16,8;          
+        endif;
+
+        d_c   = d_c + 1;
+    endo;
+    /*if _print_cafpejm;
+      "";" ------ done with d_c - loop ------ ";
+    endif;
+    */
+
+endif;
+
+@ ========================== find overall minimum ====================== @
+
+cr_pro_cs   = d_max;
+
+@ ----------------------- add white noise model --------------------------- @
+
+if volat $== "no";
+    sig2_hat    = (stdc(xraw))^2;
+elseif  volat $== "resid";  /* fixed, October 1999 */
+    sig2_hat    = (stdc(xresid))^2;
+endif;
+if selcrit $== "arfpe" or strsect(selcrit,1,2) $== "lq" or 
+strsect(selcrit,1,2) $== "ng" or strsect(selcrit,1,2) $== "lg"  ;
+
+
+    cr_pro      = (zeros(1,cr_pro_cs)~zeros(1,3)~sig2_hat*ones(1,3))|cr_pro;
+
+elseif selcrit $== "aic" or selcrit $== "araic" or selcrit $== "arsc" or
+       selcrit $== "arhq";
+
+    cr_pro      = (zeros(1,cr_pro_cs)~zeros(1,3)~
+                    (ln(sig2_hat))~sig2_hat*ones(1,2))|cr_pro;
+
+endif;
+
+@ ---------------------- get index of overall minimum and get crmin ------- @
+
+crmin_i = minindc( cr_pro ); /* firstmin_nonparam deleted, February 12, 1998 */
+crmin_i = crmin_i[cr_pro_cs+4];
+
+crmin[1,1:d_max]            = cr_pro[crmin_i,1:d_max];
+crmin[1,d_max+1:d_max+3]    = cr_pro[crmin_i,cr_pro_cs+4:cr_pro_cs+6];
+                                /* delete all unused rows */
+
+cr_store_add    = delif(cr_store_add,sumc(cr_store_add') .== 0);
+
+@ ------------------- print results  --------------------------- @
+
+nosellag    = rows(selif(crmin[1,1:d_max]',crmin[1,1:d_max]' .> 0));
+lagfmt      = { "*.*lf"   3 0}; /* format for printing the lags */
+if _print_cafpejm;
+    "";
+  /*  " =========================================================================== ";*/
+    "Results:";
+    "--------";
+  /*  "-----------------------------------------------------------------------------";*/
+    "";
+    "I. Main results:";
+    "";
+    "Selected lags/indices of variables using " selcrit ":";
+    garb = printfm(crmin[1,1:nosellag],1,ones(nosellag,1) .*. lagfmt);"";
+    print "Associated criterion value:               " crmin[1,d_max+1];
+    print "Estimated variance of white noise process:" crmin[1,d_max+3];
+    if strsect(selcrit,3,2) $== "af" or strsect(selcrit,3,2) $== "ca";
+            print "Estimated value of A:                     " crmin[1,d_max+2];
+    endif;
+    "";
+    "II. Detailed results:";
+    "";
+    "No. of lags         selected vector of lags/indices";
+    garb = printfm(seqa(1,1,d_max)~cr_pro[2:d_max+1,1:d_max]
+            , 1,(("- *.*lf")~18~ 0)|ones(d_max,1) .*. lagfmt);
+    if strsect(selcrit,3,2) $== "af" or strsect(selcrit,3,2) $== "ca";
+        "";
+        "No. of lags estim.  est. asymp.    rule-of-thumb    rule-of-thumb";
+        "                    opt. bandwidth bandwidth        bandwidth";
+        "                    for A, CAFPE    for B           for C";
+        garb = printfm(seqa(1,1,d_max)
+            ~cr_pro[2:d_max+1,d_max+1:d_max+3]
+            ,1,(("- *.*lf")~14~ 0)|(ones(3,1) .*. (("*.*lG")~16~8)));
+    endif;
+    "";
+    "No. of lags estim.  crit. value     est. var of WN  est. value of A (if (C)AFPE)";
+    garb = printfm(seqa(0,1,d_max+1)~cr_pro[1:d_max+1,d_max+4:d_max+6]
+                    ,1,(("- *.*lf")~14~ 0)|(ones(3,1) .*. (("*.*lG")~16~8)));
+    /*"-----------------------------------------------------------------------------";*/
+endif;
+
+retp(crmin,cr_pro,cr_store,cr_store_add,h_store,h_store_test);
+endp;
+
+/* ========================================================================= */
+
+/*  RT and LY, August 1999, March 2003
+**
+**  --------------------------------------------------------------------------
+**                          FPE_NPSL_NONPARAM.G
+**  --------------------------------------------------------------------------
+**
+**  Subroutine to compute variable selection criterion for a given vector
+**  of lags or explanatory variables.
+**
+**  For the explanation abbreviated by H see CAFPE_PAR.SRC.
+**
+**  Input variables
+**      xraw                vector of univariate time series
+**      xresid              H
+**      xexog               matrix of exogenous variables
+**                          or endogenous variables of
+**                          another equation
+**      xexog_2SLS          matrix of exogenous variables in a
+**                          system
+**      lags                actual vector of lags or explan. var.
+**      lag_max             H
+**      xexog_com           H
+**      dexog               number of exogenous continuous
+**                                    variables
+**      seas                H
+**      seas_sta            H
+**      seas_cha            H
+**      seas_dum            scalar containing the number of
+**                          seasonal dummies (used for SDNAR model)
+**      volat               H
+**      startval            H
+**      robden              H
+**      estimator           H
+**      kernel              H
+**      method_dum          H
+**      selcrit             H
+**      per_A               H
+**      per_B               H
+**      Ksq_int             scalar, constant of kernel ||K||_2^2
+**      h_c_start           H
+**      h_c_min             H
+**      h_c_max             H
+**      meth_hB             H
+**      meth_hB_d           H
+**      partial_cub         H
+**      hcd_fac             H
+**      printlog            H
+**      hC_Silv_fac         scalar was set to 3 in initial versions of JTSA 
+**                          and seasonal paper. In JTSA final version 2
+**      bw_factor           factor to multiply asymptotically optimal bandwidth with,
+**                          added 030317
+**
+**  Output variables
+**      crit_o[1]   estimated criterion value
+**      A_hat       computed A_hat of TY, eq. (3.1)
+**      sig2wn_hat  estimated variance of white noise
+**                  for nonparametric estimation
+**                  see TY, eq. (3.4)
+**      hA          estimated asymptotically optimal
+**                  bandwidth for estimating A and (C)AFE
+**      hB          bandwidth for estimating B
+**      hC          bandwidth for estimating C which is used for
+**                  plug-in bandwidth hA
+**      crit_grid   estimated criteria values for each lag vector,
+**                  e.g. AFPE and CAPFE or AIC, HQ, FPE and HQ
+**      h_grid      grid of bandwidth for grid search or
+**                  hA if plug-in is used
+**      X_s_j_adj   matrix of explanatory adjusted for seasonal components
+**                  (SHNAR model)
+**      Y_adj       vector of dependent variables adjusted by seasonal
+**                  dummies (SDNAR model) or by seasonal means (SHNAR model)
+**      X_t_j_adj   see X_s_j_adj
+**      resid       vector of estimated residuals
+**      meanseas    vector of estimated seasonal means in SHNAR model
+*/
+
+
+
+proc(13) = fpe_npsl_nonparam(Xraw,Xresid,xexog,xexog_2SLS,lags,lag_max,xexog_com,dexog,seas,
+                seas_sta,seas_cha,volat,startval,robden,
+                estimator,kernel,method_dum,selcrit,per_A,per_B,Ksq_int,
+                h_c_min,h_c_max,
+                meth_hB,meth_hB_d,partial_cub,hCd_fac,printlog,hC_Silv_fac,bw_factor);
+
+local d,X_s_j,yorig,yorig_seas,ddummies,n,n_total,d_w,seasden_sta,
+        X_t_j,sig_y2,lags_so,B_hat,B_hat_r,hB,C_hat,C_hat_r,hC,hA,
+        crit,sig2wn_hat,garb,kk,afpe,cafpe,A_hat,crit_o,
+        selmet,crit_grid,h_grid,y_adj,X_t_j_adj,X_s_j_adj,beta_hat,i,
+        resid,meanseas,h_user;
+
+
+    d           = rows(lags);       /*  number of lags of current
+                                                   specification      */
+    selmet      = strsect(selcrit,1,2);
+                                    /*  extracts bandwidth and function
+                                        estimation method
+                                        from selcrit (ar,nw,lg,lq */
+
+@ -------------- remove seasonal shift parameters ------------------ @
+
+    if seas_cha $== "shift";
+    
+        if volat $/= "no";
+            if _print_cafpejm;
+                "fpe_npsl_nonparam: seasonal shift model cannot used for";
+                "                   estimating volatility";
+            endif;
+            end;
+        endif;
+
+        i   = 1;            /* check for potential errors */
+        do while i <= rows(xexog_com);
+            if xexog_com[i] $== "SD";
+                if _print_cafpejm;
+                    "fpe_npsl_nonparam: eliminate seasonal dummies from matrix";
+                    "                   of exogenous variables.";
+                    "                   Program is terminated";
+                endif;
+                end;
+            endif;
+            i   = i + 1;
+        endo;
+
+        { xraw, meanseas }        = rseasshd_nonparam(xraw,seas,seas_sta,printlog);
+        if _print_cafpejm;
+            if printlog>1;
+                print "fpe_npsl_nonparam:";
+            endif;       
+            if printlog;
+                "Mean of each season:";
+                if rows(meanseas) > 1;
+                    print /lz "    Season   1 (by definition)         " 0;
+                    garb = printfm( ((ones(rows(meanseas),1).*.("    "))
+                            ~(ones(rows(meanseas),1).*.("Season"))~seqa(2,1,rows(meanseas))
+                            ~meanseas)
+                            ,(0~0~1~1),((("- *.*s")~4~4)|(("- *.*s")~8~8)
+                            |(("- *.*lf")~22~ 0)|(("*.*lf")~16~8)));
+                else;
+                    print /lz "Estimated seasonal dummies:           " ;
+                    print /lz "    Season   1 (by definition)         " 0;
+                    print /lz "    Season 2                          " meanseas;
+                endif;
+            endif;
+        endif;        
+        seas        = 1;    /* now proceed with nonseasonal proc. */
+        seas_sta    = 1;
+        seas_cha    = "standard";
+        method_dum  = "";
+
+    else;
+        meanseas    = 0;
+
+    endif;
+
+    sig_y2      = (stdc(xraw))^2;
+
+@ ---------------------- prepare regressor matrices ----------------------- @
+
+    { X_s_j,yorig,yorig_seas,ddummies } =
+            xorig_ex_nonparam(xraw,Xresid,xexog,lags,lag_max,xexog_com,seas,seas_sta,
+                        seas_cha,volat);
+
+    if printlog > 3;
+        print "rows(x_s_j) before xorig_st_nonparam in fpe_npsl_nonparam" rows(x_s_j);
+        print "rows(yorig)" rows(yorig);
+        print "xresid before call xorig_st_nonparam" xresid[1:minc(5|rows(xresid))];
+        print "xraw before call xorig_st_nonparam" xraw[1:minc(5|rows(xraw))];
+        print "yorig before call xorig_st_nonparam" yorig[1:minc(5|rows(yorig))];
+        print "x_s_j before call xorig_st_nonparam" x_s_j[1:minc(5|rows(x_s_j)),.];
+        print "volat" volat;
+    endif;        
+    if startval $== "same"; /* also for seasonal processes, March 17, 2002 */
+        { X_s_j,Yorig,yorig_seas } = 
+                xorig_st_nonparam(X_s_j,Yorig,Xraw,lag_max,seas,xresid,yorig_seas
+                ,lags,seas_cha);
+                                              /* drop lag_max starting
+                                                 values                     
+                                                 changes, June 3, 2002 */
+    endif;
+    if printlog > 3;
+        print "rows(x_s_j) after xorig_st_nonparam in fpe_npsl_nonparam" rows(x_s_j);
+        print "rows(yorig)" rows(yorig);
+        print "xresid after call xorig_st_nonparam" xresid[1:minc(5|rows(xresid))];
+        print "xraw after call xorig_st_nonparam" xraw[1:minc(5|rows(xraw))];
+        print "yorig after call xorig_st_nonparam" yorig[1:minc(5|rows(yorig))];
+        print "x_s_j after call xorig_st_nonparam" x_s_j[1:minc(5|rows(x_s_j)),.];
+    endif;
+    if (printlog>1);
+        print /lz "fpe_npsl_nonparam: number of ddummies: " ddummies; 
+    elseif printlog;
+        print /lz "Number of ddummies: " ddummies; 
+    endif;
+    n           = rows(Yorig);
+    n_total     = rows(xraw);
+    d_w         = d - ddummies;
+    lags_so     = sortc(lags,1);
+    seasden_sta = yorig_seas[1];
+    X_t_j       = X_s_j[1:rows(Yorig),.];
+
+    if (printlog>1);
+        print /lz "fpe_npsl_nonparam: rows(Yorig):        " rows(Yorig);
+        print /lz "                   rows(x_t_j):        " rows(x_t_j);
+        print /lz "                   rows(X_s_j):        " rows(X_s_j);
+    endif;
+
+@ -------------------- robustification of dens. est.--------------- @
+
+    if seas_cha $== "periodic" or seas_cha $== "seasD";
+        robden = "no";
+        /*"fpe_npsl_nonparam: for seas_cha = periodic or seasD";
+        "          robden automatically set to no";         /* 8/8/1998 */
+        */
+    endif;
+    if robden $== "no";       /* to choose robustification of density estimation */
+        X_s_j   = x_t_j;      /* a la Auestad */
+    elseif robden $== "yes";
+        X_s_j   = X_s_j;
+    endif;
+
+
+@ ================== prepare computation of AFPE, CAFPE ===================== @
+
+    if ((seas_cha $== "periodic" or seas_cha $== "standard") and not(lags_so[1] > lag_max)) or
+        (seas_cha $== "seasD" and  not(seas > 1 and lags_so[1] > lag_max+dexog-seas+1));
+
+        if estimator $== "nw" or
+        (estimator $== "loclin" and selmet $== "lg");  /* compute only B_hat */
+
+            { B_hat,B_hat_r,hB,C_hat,C_hat_r,hC,hA,
+                y_adj,beta_hat,X_t_j_adj,X_s_j_adj,seas_cha,ddummies } =
+                fpe_pres_nonparam(X_s_j,Yorig,0,-1,X_t_j,estimator,kernel,
+                        seas,seas_cha,yorig_seas,ddummies,method_dum,n_total,sig_y2,
+                        per_B,Ksq_int,meth_hB,meth_hB_d,partial_cub,hCd_fac,lag_max,
+                        robden,printlog,hC_Silv_fac);
+
+
+        elseif estimator $== "loclin" and selmet $== "lq";/* compute B_hat, C_hat */
+
+            { B_hat,B_hat_r,hB,C_hat,C_hat_r,hC,hA,
+                y_adj,beta_hat,X_t_j_adj,X_s_j_adj,seas_cha,ddummies } =
+                fpe_pres_nonparam(X_s_j,Yorig,0,0,X_t_j,estimator,kernel,
+                        seas,seas_cha,yorig_seas,ddummies,method_dum,n_total,sig_y2,
+                        per_B,Ksq_int,meth_hB,meth_hB_d,partial_cub,hCd_fac,lag_max,
+                        robden,printlog,hC_Silv_fac);
+
+        endif;
+    endif;
+
+@ ==================== compute selection criteria =========================== @
+
+@ ------------------- linear criteria based on AR models -------------------- @
+
+    if estimator $== "ar";
+
+        if seas_cha $== "standard" or seas_cha $== "seasD" or seas_cha $== "shift";
+
+            { crit,sig2wn_hat,garb,resid } = fpe_lin_nonparam(X_t_j,Yorig,xexog_2SLS,
+                        lags,lag_max,xexog_com,printlog,seas_cha,seas);
+                /* note only here crit stores fpe,aic,sc,hq */
+                /* seas_cha,seas added March 17, 2002 */
+            if selcrit $== "arfpe";
+                crit_o = crit;
+            elseif selcrit $== "araic";
+                crit_o = crit[2:4 1];
+            elseif selcrit $== "arsc";
+                crit_o = crit[3:4 1:2];
+            elseif selcrit $== "arhq";
+                crit_o = crit[4 1:3];
+            else;
+                if _print_cafpejm;
+                    "lag_crit: check selected criterion";
+                endif;
+            endif;
+
+            A_hat       = sig2wn_hat;
+            hA          = 1e10;
+            hB          = 1e10;
+            hC          = 1e10;
+            crit_grid       = crit_o';
+            h_grid  = hA;
+            X_t_j_adj   = X_t_j;
+            X_s_j_adj   = X_t_j;
+            Y_adj       = Yorig;
+
+
+        elseif seas_cha $== "periodic";
+
+            { garb,garb,garb,sig2wn_hat,garb,garb,crit } =
+                 par_nonparam(xraw,lags,seas,printlog);
+                /* note only here crit stores fpe,aic,sc,hq */
+            if selcrit $== "arfpe";
+                crit_o = crit;
+            elseif selcrit $== "araic";
+                crit_o = crit[2:4 1];
+            elseif selcrit $== "arsc";
+                crit_o = crit[3:4 1:2];
+            elseif selcrit $== "arhq";
+                crit_o = crit[4 1:3];
+            else;
+                if _print_cafpejm;
+                    "fpe_npsl_nonparam: check selected criterion";
+                endif;
+            endif;
+
+            A_hat       = sig2wn_hat;
+            hA          = 1e10;
+            hB          = 1e10;
+            hC          = 1e10;
+            crit_grid       = crit_o';
+            h_grid  = hA;
+            X_t_j_adj   = X_t_j; /* March 3, 2000 */
+            X_s_j_adj   = X_t_j;
+            Y_adj       = Yorig;
+            resid       = 1e10;
+
+        else;
+             if _print_cafpejm;
+                "fpe_npsl_nonparam: check seas_cha";
+             endif;
+
+        endif;
+
+
+
+@ ------------- compute local linear (C)AFPE with plug-in bandwidth ---------- @
+
+    elseif estimator $== "loclin" and selmet $== "lq";
+
+
+
+        @ ------------- if regressors are only seasonal dummies -------------- @
+
+        if (seas_cha $== "seasD" and seas > 1 and lags_so[1] > lag_max+dexog-seas+1);
+                                /* in case X_t_j only contains seasonal dummies
+                                   use linear estimation */
+
+            kk = 1;     /* check whether regressors are really seas. dummies */
+            do while kk <= d;
+                if xexog_com[lags[kk]-lag_max] $/= "SD";
+                    if _print_cafpejm;
+                        "fpe_npsl_nonparam: there is confusion with the definition";
+                        "                   of the exogenous variables and seasonal dummies;";
+                        "                   Please check xexog, xexog_com,seas,lag_max";
+                    endif;
+                    end;
+                endif;
+                kk = kk + 1;
+            endo;
+
+            { crit,sig2wn_hat,garb,resid } = fpe_lin_nonparam(X_t_j,Yorig,xexog_2SLS,
+                        lags,lag_max,xexog_com,printlog,seas_cha,seas);
+                                /* note only here crit stores fpe,aic,sc,hq */
+            if selcrit $== "lqafpe" or selcrit $== "lqcafpe";
+                crit_o              = crit;
+            else;
+                if _print_cafpejm;
+                    "fpe_npsl_nonparam: check selected criterion";
+                endif;
+            endif;
+                if _print_cafpejm;
+                    "fpe_npsl_nonparam: SD, crit_o" (lags')~crit_o[1];"";
+                endif;
+
+            A_hat   = sig2wn_hat;
+            hA      = 1e10;
+            hB      = 1e10;
+            hC      = 1e10;
+            crit_grid       = crit_o';
+            h_grid  = hA;
+
+
+        @ ----------- also continuous regressors in X_t_j ------------------- @
+
+        else;
+
+            h_user  = bw_factor * hA;           /* added 030317 */
+            { afpe,cafpe,sig2wn_hat,A_hat,resid }
+                            = fpe_fsv_nonparam(X_s_j_adj,Y_adj,h_user,X_t_j_adj,kernel,
+                                            seas,seas_cha,yorig_seas,ddummies,
+                                            estimator,method_dum,B_hat,C_hat,per_A,
+                                            Ksq_int,n_total,printlog,lag_max);
+
+
+            if selcrit $== "lqafpe";
+                crit_o      = afpe|cafpe;
+            elseif selcrit $== "lqcafpe";
+                crit_o      = cafpe|afpe;
+            else;
+                if _print_cafpejm;
+                    "fpe_npsl_nonparam: check selected criterion";
+                endif;
+            endif;
+        endif;
+        crit_grid       = crit_o';
+        h_grid          = meanc(hA);    
+                        /* stores mean of all seasonal bandwidths, May 16, 2000 */
+
+
+@ ----- compute local constant, local linear (C)AFPE, CV with grid search --- @
+
+    elseif estimator $== "nw"
+    or (estimator $== "loclin" and not(selmet $== "lq"));
+
+    crit_grid   = 0;
+    h_grid      = 0;
+
+    endif;
+
+    if _print_cafpejm;
+        if printlog>1;  
+            print "fpe_npsl_nonparam:";  
+        endif;
+        if selcrit $== "lqcafpe" or selcrit $== "lqafpe";
+            print "Plug-in bandwidth was modified by user";
+            Print /lz "    by multiplying it with             " bw_factor;
+            print /lz "The user-specified bandwidth is        " h_user;
+        endif;            
+        print /lz "Estimated criterion value:             " crit_o[1];
+        if selcrit $== "lqcafpe" or selcrit $== "lqafpe";        
+            print /lz "Estimated error variance (bias cor.):  " sig2wn_hat;            
+            if (bw_factor /= 1) and (sig2wn_hat < 0);
+                "WARNING: User-specified bandwidth is so large that";
+                "         bias correction makes variance estimate";
+                "         negative.";
+                "         Any further computations including the";
+                "         the calculation of confidence intervals for";
+                "         homoskedastic errors will therefore be done";
+                "         with the uncorrected variance estimate.";
+                sig2wn_hat    = meanc(resid^2);
+                print /lz "Estimated error variance (uncorr):     " sig2wn_hat;
+            endif;                
+        else;                                                                          
+            print /lz "Estimated error variance :             " sig2wn_hat;                    
+        endif;                  
+    endif;
+retp(crit_o[1],meanc(A_hat),meanc(sig2wn_hat),meanc(hA),meanc(hB),meanc(hC),crit_grid,
+        h_grid,X_s_j_adj,Y_adj,X_t_j_adj,resid,meanseas);
+                    /* returns mean of all seasonal bandwidths, May 16, 2000 */
+endp;
+
+/* ========================================================================== */
+
+
+
+/*  RT and LY, August 1999, March 2003
+**
+**  -------------------------------------------------------------------------
+**                      FPE_PRES_NONPARAM.G
+**  -------------------------------------------------------------------------
+**
+**  Subroutine to prepare lag and variable selection using
+**  linear or nonparametric (local constant or local linear)
+**  methods and compute plug-in bandwidth
+**
+**  For explanation of variables marked by H see CAFPE_PAR.SRC
+**
+**  Protocol:   980808  correction n in hdamise 
+**              030318  nxest replaced by sumc(wC)
+**                      x_t_j replaced by x_s_j in density estimation
+**                      rows(x_t_j) replace by n_total in h_p calculation standard 
+*/
+
+proc (13) = fpe_pres_nonparam(X_s_j,Yorig,hB,hC,X_t_j,estimator,kernel,
+                    seas,seas_cha,yorig_seas,ddummies,method_dum,
+                    n_total,sig_y2,per_B,Ksq_int,
+                    meth_hB,meth_hB_d,partial_cub,hCd_fac,
+                    lag_max,robden,printlog,hC_Silv_fac);
+
+
+local d,d_w,sig_Y,err,i,lorq,fandg,loo,g_hat,mA,g_sqA,beta_hat,
+      eps_hat,denA,wB,B_hat_r,res2,B_hat,C_hat,hA,wC,C_hat_tr,
+      garb,nxest,sig_K,seasden_sta,msecdir,block_ind,Brot_hat,
+      Crot_hat,p,y_adj,X_t_j_adj,X_s_j_adj,err_s,w_beta,
+      kern_den,sig2_x,h_p,g,Xgarb,seas_c,ind_seas,loo_den,
+      hB_pe,Brot_hat_pe,Crot_hat_pe,X_t_j_pe,yorig_pe,p_pe,
+      hC_pe,X_t_j_adj_pe,y_adj_pe,X_s_j_adj_pe,mA_pe,g_sqA_pe,denA_pe,
+      B_hat_pe,wB_pe,B_hat_r_pe,res2_pe,wC_pe,msecdir_pe,
+      C_hat_pe,
+      garb1,garb2,garb3,garb4,garb5,
+      i_MS,betaplus,d_ols,n_S,
+      imax;
+
+      i_MS      = 1;
+      imax      = 30;
+
+@ -------------------- initialize --------------------------------- @
+
+    d           = cols(X_t_j);
+    if printlog > 1; 
+        print /lz "fpe_pres_nonparam: X_t_j[1,.]: ";
+        print /lz  x_t_j[1,.]; 
+    endif;
+    d_w         = d - ddummies;
+    nxest       = rows(X_t_j);
+    if i_MS;
+        n_S     = trunc(n_total/seas);
+    endif;
+
+    sig_K       = 1;
+    seasden_sta = yorig_seas[1];
+
+@ ------------------ estimate density p(x)     -------------------- @
+
+
+    kern_den    = "gaussian";
+    if printlog > 1; 
+        print /lz "fpe_pres_nonparam: ddummies:          " ddummies; 
+    endif;
+    if meth_hB $== "ROT" or meth_hB $== "Silv";
+
+        loo_den = 1;
+
+        if (seas_cha $== "periodic" or seas_cha $== "seasD")
+        and not (meth_hb_d $== "sd_rem_loo" );
+            p           = zeros(rows(x_t_j),1);
+            sig2_x      = zeros(seas,1);
+            seas_c      = 1;
+            do while seas_c <= seas;
+                ind_seas    = indexcat(yorig_seas,seas_c);
+                Xgarb       = X_t_j[ind_seas,1:d_w];
+                sig2_x[seas_c]  = (prodc( (stdc(Xgarb))^2 ))^(1/d_w);
+                h_p         = h_silv_nonparam(sqrt(sig2_x[seas_c]),
+                                    d_w,n_S,kern_den)*ones(d_w,1);
+
+                p[ind_seas] = den_c_p_nonparam(Xgarb,h_p,Xgarb,loo_den,kern_den);
+                if printlog;    /* print statement moved and changed, 040617 */
+                    print /lz "Season" seas_c ;
+                    print /lz "Rule-of-thumb bandwidth for estimating density" h_p[1];
+                endif;
+
+                seas_c      = seas_c + 1;
+            endo;
+
+        else;
+
+
+/*
+            sig2_x  = (prodc( (stdc(X_t_j[.,1:d_w]))^2 ))^(1/d_w);
+            h_p     = h_silv_nonparam(sqrt(sig2_x),d_w,rows(X_t_j),kern_den)*ones(d_w,1);
+                                    /* sig_y2 replaced 8/8/1998 */
+            p       = den_c_p_nonparam(X_t_j[.,1:d_w],h_p,X_t_j[.,1:d_w],loo_den,kern_den);
+*/
+            sig2_x  = (prodc( (stdc(X_s_j[.,1:d_w]))^2 ))^(1/d_w);
+            h_p     = h_silv_nonparam(sqrt(sig2_x),d_w,n_total,kern_den)*ones(d_w,1);
+                                    /* sig_y2 replaced 8/8/1998 */
+                                    /* rows(x_t_j) replace by n_total, 030319 */
+            p       = den_c_p_nonparam(X_s_j[.,1:d_w],h_p,X_t_j[.,1:d_w],loo_den,kern_den);
+                                /* x_t_j replaced by x_s_j, 030318 */
+
+            if printlog;    /* print statement moved and changed, 040617 */
+                print /lz "Rule-of-thumb bandwidth for estimating density:     " h_p[1];
+            endif;
+        endif;
+
+        
+
+    endif;
+
+
+@ ----------- compute hB by rule-of-thumb ------------------- @
+    if robden $== "yes";    /* robustification only needed for density
+                                estimation */
+        x_s_j   = x_t_j;    /*  robustification used for density estimation cannot be 
+                                used for function estimation; therefore eliminated
+                                print statements deleted, 040205 */
+    endif;
+    block_ind   = ones(1,d_w);
+    if hB   == 0;
+
+        if meth_hB $== "ROT";
+            if _print_cafpejm;
+                "fpe_pres_nonparam: meth_hB = ROT not supported, choose meth_hB = Silv";
+            endif;
+        elseif meth_hB $== "Silv";
+
+            if seas_cha $== "periodic";
+                hB_pe       = zeros(seas,1);
+                if rows(sig2_x) == 1; sig2_x = ones(seas,1) * sig2_x; endif;
+                seas_c   = 1;
+                do while seas_c <= seas;
+                    hB_pe[seas_c]  = h_silv_nonparam(sqrt(sig2_x[seas_c]),d_w,n_S,kernel);
+                    seas_c      = seas_c + 1;
+                endo;
+                if method_dum $== "perio_one_h";
+                    hB          = meanc(hB_pe) * ones(seas,1);
+                else;
+                    hB          = hB_pe;
+                endif;
+
+            else;
+
+                sig_Y   = sqrt(sig_y2);
+                hB      = h_silv_nonparam(sqrt(sig2_x),d_w,n_total,kernel);
+
+            endif;
+        endif;
+
+    endif;
+
+
+
+    @ --------------- remove seasonal dummies --------------------   @
+
+    w_beta  = 0;
+    if seas_cha $== "seasD" and ddummies > 0 and
+            strsect(meth_hb_d,1,6) $== "sd_rem";
+
+        lorq    = 1;
+        fandg   = 0;
+        if meth_hB_d $== "sd_rem_loo";
+            loo     = 1;
+        else;
+            loo     = 0;
+        endif;
+        betaplus    = 0;
+
+        err_s   = 1;
+        i       = 1;
+        do while err_s == 1;
+            if method_dum $== "f_0_f_s";
+
+                { garb,garb,garb,beta_hat,y_adj,garb,garb,err_s } =
+                    fsv_lcr_nonparam(X_s_j,Yorig,hB,X_t_j,estimator,
+                    kernel,lorq,fandg,loo,seas,yorig_seas,ddummies,
+                    w_beta,betaplus,printlog);
+
+            elseif method_dum $== "dummies";
+
+                d_ols   = 0;
+                { garb,garb,garb,beta_hat,y_adj,garb,garb,err_s } =
+                    fsv_lc_nonparam(X_s_j,Yorig,hB,X_t_j,estimator,
+                    kernel,lorq,fandg,loo,seas,seasden_sta,ddummies,
+                    w_beta,betaplus,d_ols,printlog);
+            endif;
+
+            if err_s == 1 and i > imax;
+                if _print_cafpejm;
+                    print "fpe_pres_nonparam: iteration limit of " imax "exceeded for computing";
+                    print "                   seas. dummies; current bandwidth hB= " hB;
+                    print "                   returns missing value for B_hat and C_hat";
+                endif;
+                garb = {.};
+                retp(B_hat,B_hat_r,hB,C_hat,0,hC,hA,
+                     y_adj,beta_hat,X_t_j_adj,X_s_j_adj,seas_cha,ddummies);
+
+            elseif err_s == 1 and i <= imax;
+                
+                hB  = hB * 1.05;
+                if _print_cafpejm;
+                    print "Inversion in local linear estimator for removing seasaonal dummies";
+                    print "failed. Therefore rule-of-thumb bandwidth hB multiplied by 1.05";
+                    print /lz "New bandwidth hB = " hB;
+                endif;                    
+            endif;
+            i   = i + 1;
+        endo;
+
+        betaplus   = 1;
+        if _print_cafpejm;
+            if printlog>1;
+                print /lz "fpe_pres_nonparam:";
+            endif;
+            if printlog;
+                print /lz "Estimated seasonal dummies:           ";            
+                if rows(beta_hat) > 1;
+                    print /lz "    Season   1 (by definition)         " 0;
+                    garb = printfm( ((ones(rows(beta_hat),1).*.("    "))
+                            ~(ones(rows(beta_hat),1).*.("Season"))
+                            ~seqa(2,1,rows(beta_hat))~beta_hat)
+                            ,(0~0~1~1),((("- *.*s")~4~4)|(("- *.*s")~8~8)
+                            |(("- *.*lf")~22~ 0)|(("*.*lf")~16~8)));                
+                else;
+                    print /lz "    Season   1 (by definition)         " 0;
+                    print /lz "    Season 2                          " beta_hat;
+                endif;
+                                        /* print always, November 26, 2000 */
+            endif;
+        endif;
+        if printlog; 
+            print /lz "Rule-of-thumb bandwidth for estimating B:     " hB;
+        endif;
+
+        X_s_j_adj   = X_s_j[.,1:d_w];
+        X_t_j_adj   = X_t_j[.,1:d_w];
+        ddummies    = 0;
+        seas_cha    = "standard";
+
+
+        if err_s==1;
+            retp(B_hat,B_hat_r,hB,C_hat,sumc(wC),hC,hA,
+            y_adj,beta_hat,X_t_j_adj,X_s_j_adj,method_dum,ddummies);
+        endif;
+
+    else;
+
+        y_adj       = yorig;
+        X_s_j_adj   = X_s_j;
+        X_t_j_adj   = X_t_j;
+        beta_hat    = 0;
+    endif;
+
+    @ ----------- compute hC by rule-of-thumb ------------------- @
+
+    if hC   == 0;   /* rule of thumb for derivative
+                       estimation (Y/T, 1998), June, 1998
+                       local partial cubic est. for C only
+                       possible for nonseasonal series */
+
+        if meth_hB $== "ROT";
+            if _print_cafpejm;
+                "fpe_pres_nonparam: meth_hB = ROT not supported, choose meth_hB = Silv";
+            endif;
+        elseif meth_hB $== "Silv";
+            if seas_cha $== "periodic";
+                hC_pe       = zeros(seas,1);
+                seas_c      = 1;
+                do while seas_c <= seas;
+                    hC_pe[seas_c]  = hC_Silv_fac * sqrt(sig2_x[seas_c])  
+                                                    /* hC_Silv_fac, April 25, 2000 */
+                                    * ( 4/(d_w+4) )^( 1/(d_w+6) ) *
+                                    n_S^( -1/(d_w+6) );
+                    seas_c      = seas_c + 1;
+                endo;
+                if method_dum $== "perio_one_h";
+                    hC      = meanc(hC_pe)*ones(seas,1);
+                else;
+                    hC      = hC_pe;
+                endif;
+
+            else;
+                hC  =  hC_Silv_fac * sqrt(sig2_x) * ( 4/(d_w+4) )^( 1/(d_w+6) ) *
+                            n_total^( -1/(d_w+6) );
+                            /* hC_Silv_fac , April 25, 2000 */
+            endif;
+
+
+
+        endif;
+
+    endif;
+
+@ -------------- compute B_hat ------------------------------------- @
+
+
+
+    @ ---------------- estimate mean functions  -------------------- @
+
+
+    fandg   = 0;    /* only cond. mean  */
+    loo     = 1;    /* leave-one out    */
+    if estimator $== "nw";
+        lorq    = 0;    /* local constant     */
+    elseif estimator $== "loclin";
+        lorq    = 1;    /* local linear     */
+    endif;
+
+    err     = 1;
+    i       = 1;
+    do while err == 1;
+
+
+        if seas_cha $== "periodic";
+            denA    = zeros(rows(y_adj),1);
+            g_hat   = zeros(rows(y_adj),1);
+            seas_c       = 1;
+            do while seas_c <= seas;
+                ind_seas    = indexcat(yorig_seas,seas_c);
+                X_t_j_adj_pe= X_t_j_adj[ind_seas,.];
+                X_s_j_adj_pe= X_s_j_adj[ind_seas,.];
+                y_adj_pe    = y_adj[ind_seas,.];
+
+                { mA_pe,g_sqA_pe,denA_pe,err } =
+                        f_v_llc_nonparam(X_s_j_adj_pe,y_adj_pe,
+                                hB[seas_c],X_t_j_adj_pe,kernel,
+                                lorq,fandg,loo,
+                                1,1,0); /* seas=1, seas_sta=1, ddummies =0, May 15, 2000 */
+
+                if err == 1;
+                    goto again;
+                endif;
+
+                g_hat[ind_seas]     = mA_pe[.,1];
+                denA[ind_seas,.]    = denA_pe;
+                seas_c              = seas_c + 1;
+            endo;
+
+
+        elseif seas_cha $== "seasD" and estimator $== "loclin"
+            and ddummies > 0;
+            betaplus    = 1;
+            if method_dum $== "f_0_f_s";
+
+                { g_hat,mA,g_sqA,beta_hat,garb,eps_hat,denA,err } =
+                    fsv_lcr_nonparam(X_s_j_adj,Y_adj,hB,X_t_j_adj,estimator,
+                    kernel,lorq,fandg,loo,seas,yorig_seas,ddummies,
+                    w_beta,betaplus,printlog);
+
+            elseif method_dum $== "dummies";
+                d_ols   = 0;
+                { g_hat,mA,g_sqA,beta_hat,garb,eps_hat,denA,err } =
+                    fsv_lc_nonparam(X_s_j_adj,Y_adj,hB,X_t_j_adj,estimator,
+                    kernel,lorq,fandg,loo,seas,seasden_sta,ddummies,
+                    w_beta,betaplus,d_ols,printlog);
+            endif;
+
+        elseif seas_cha $== "standard" and estimator $== "nw"
+            and ddummies == 0;
+
+        elseif seas_cha $== "standard" and estimator $== "loclin"
+            and ddummies == 0;
+
+            { mA,g_sqA,denA,err } = f_v_llc_nonparam(X_s_j_adj,Y_adj,hB,
+                                X_t_j_adj,kernel,lorq,fandg,loo,
+                                seas,seasden_sta,ddummies);
+
+            g_hat       = mA[.,1];
+
+        else;
+             if _print_cafpejm;
+                "fpe_pres_nonparam: choose a valid and available combination";
+                "          of seas_cha, estimator and seasonal dummies";
+            endif;
+
+        endif;
+
+        again:
+
+        if err == 1 and i > imax;
+            if _print_cafpejm;
+                print "fpe_pres_nonparam: iteration limit of " imax "exceeded for computing";
+                print "                   B_hat; current bandwidth hB= " hB;
+                print "                   returns missing value for B_hat and C_hat";
+            endif;
+            garb = {.};
+            retp(B_hat,B_hat_r,hB,C_hat,0,hC,hA,
+                 y_adj,beta_hat,X_t_j_adj,X_s_j_adj,seas_cha,ddummies);
+        elseif err == 1 and i <= imax;
+            hB  = hB * 1.05;
+            if _print_cafpejm;
+                print "Inversion in local linear estimator for computing B";
+                print "failed. Therefore rule-of-thumb bandwidth hB multiplied by 1.05";
+                print /lz "New bandwidth hB = " hB;
+            endif;                    
+            
+        endif;
+        i   = i + 1;
+
+    endo;
+
+
+    @ ---------------------- compute B_hat ---------------------------- @
+    if printlog > 3;
+        print "fpe_pres_nonparam: p[1:10], denA[1:10,.]" p[1:10]~denA[1:10,.];
+    endif;
+
+    if seas_cha $== "periodic";
+        B_hat_pe    = zeros(seas,1);
+        seas_c   = 1;
+        do while seas_c <= seas;
+            ind_seas    = indexcat(yorig_seas,seas_c);
+           
+            if i_MS; /* assures that there are the same numbers of observations
+                        for each season, comment added 040205 */
+                if printlog > 3;
+                    print "seas_c" seas_c;
+                    print "rows(ind_seas)" rows(ind_seas);
+                    print "trunc(n_total/seas)" trunc(n_total/seas);
+                    print "trunc(lag_max/seas)" trunc(lag_max/seas);
+                    print "ceil(lag_max/seas)" ceil(lag_max/seas);
+                    print "rows(yorig_seas)" rows(yorig_seas);                    
+                endif;
+                /*
+                ind_seas  = ind_seas[rows(ind_seas)-(trunc(n_total/seas)
+                                    -ceil(lag_max/seas))+1:rows(ind_seas)];
+                                    /* trunc -> ceil, Feb 21, 2000 */
+                */
+                /* corrected, 040205, n_M,S = [n_total/seas]-1+1-i_M,S 
+                    if first observation in nonseasonal time index runs from 1,..,n_total
+                */
+                ind_seas  = ind_seas[(rows(ind_seas)
+                            -(trunc(n_total/seas)-ceil(lag_max/seas))+1):rows(ind_seas)];
+
+            endif;
+            wB_pe       = wei_nonparam(p[ind_seas,.],per_B/seas,1);
+            B_hat_r_pe  = sumc(wB_pe);
+            if printlog>1; print "fpe_npsl_nonparam: B_hat_r_pe:" B_hat_r_pe; endif;
+            res2_pe     = (y_adj[ind_seas,.] - g_hat[ind_seas,.])^2
+                            .* wB_pe;
+            B_hat_pe[seas_c] = sumc(res2_pe ./ p[ind_seas,.] .* wB_pe) /
+                            B_hat_r_pe;
+                                        /* index added to B_hat_pe, May 16, 2000 */
+            seas_c           = seas_c + 1;
+        endo;
+        if method_dum $== "perio_dif_h";    /* added May 16, 2000 */
+            B_hat   = B_hat_pe;
+        else;
+            B_hat   = meanc(B_hat_pe);
+        endif;
+            B_hat_r = B_hat_r_pe;
+    else;
+
+        wB          = wei_nonparam(p,per_B,1);
+        B_hat_r     = sumc(wB);
+        res2        = (Y_adj - g_hat)^2 .* wB;
+        B_hat       = sumc(res2 ./ p .* wB) / B_hat_r;
+    endif;
+
+
+@ -------------- compute C_hat ------------------------------------- @
+
+
+    @ ---------------- estimate mean functions  -------------------- @
+
+
+    if estimator $== "nw";
+
+        C_hat   = -1;
+        hA      = 0;
+        if _print_cafpejm;
+            "fpe_pres_nonparam: C_hat not computed if estimator = nw";
+        endif;
+
+        retp(B_hat,B_hat_r,hB,C_hat,0,hC,hA,
+             y_adj,beta_hat,X_t_j_adj,X_s_j_adj,seas_cha,ddummies);
+
+    elseif hC < 0;  /* no computation of C_hat done since hC < 0 */
+
+        C_hat   = -1;
+        hA      = 0;
+
+        retp(B_hat,B_hat_r,hB,C_hat,0,hC,hA,
+             y_adj,beta_hat,X_t_j_adj,X_s_j_adj,seas_cha,ddummies);
+    endif;
+
+
+    err     = 1;
+    i       = 1;
+    do while err == 1;
+
+        fandg   = 0;    /* only cond. mean  */
+        loo     = 0;    /* leave-one out    */
+        lorq    = 2;    /* local quadratic  */
+
+        if seas_cha $== "periodic";
+
+            msecdir = zeros(rows(X_t_j),d_w);
+            seas_c  = 1;
+            do while seas_c <= seas;
+                ind_seas    = indexcat(yorig_seas,seas_c);
+                X_t_j_adj_pe= X_t_j_adj[ind_seas,.];
+                X_s_j_adj_pe= X_s_j_adj[ind_seas,.];
+                y_adj_pe    = y_adj[ind_seas,.];
+
+                if partial_cub $== "yes";
+                    lorq    = 3;
+                    g       = 1;
+                    do while g <= d;
+                        { mA,g_sqA,denA,err } = f_v_lpc_nonparam(X_s_j_adj_pe,y_adj_pe,
+                                        hC[seas_c]*ones(d,1),X_t_j_adj_pe,
+                                        kernel,lorq,fandg,loo,
+                                        1,1,0,g);
+                        msecdir[ind_seas,g] = mA[.,d+1+g];
+                        g                   = g + 1;
+                    endo;
+                else;
+                    { mA,g_sqA,denA,err } =
+                        f_v_llc_nonparam(X_s_j_adj_pe,y_adj_pe,
+                                hC[seas_c],X_t_j_adj_pe,kernel,
+                                lorq,fandg,loo,
+                                1,1,0); /* seas=1, seas_sta=1, ddummies =0, May 15, 2000 */
+                    msecdir[ind_seas,.] = mA[.,d_w+2:cols(mA)];
+                    g_hat[ind_seas,.]   = mA[.,1];
+                endif;
+                if err == 1;
+                    goto again2;
+                endif;
+
+                seas_c  = seas_c + 1;
+            endo;
+
+/*
+        elseif seas_cha $== "seasD" and estimator $== "loclin"
+            and ddummies > 0;
+
+            if method_dum $== "f_0_f_s";
+
+                { g_hat,mA,g_sqA,beta_hat,garb,eps_hat,denA,err } =
+                    fsv_lcr_nonparam(X_s_j_adj,Y_adj,hC,X_t_j_adj,estimator,
+                    kernel,lorq,fandg,loo,seas,yorig_seas,ddummies,
+                    w_beta,betaplus,printlog);
+                msecdir  = mA[.,d_w+2:cols(mA)];
+
+            elseif method_dum $== "dummies";
+                d_ols   = 0;
+                { g_hat,mA,g_sqA,beta_hat,garb,eps_hat,denA,err } =
+                    fsv_lc_nonparam(X_s_j_adj,Y_adj,hC,X_t_j_adj,estimator,
+                    kernel,lorq,fandg,loo,seas,seasden_sta,ddummies,
+                    w_beta,betaplus,d_ols,printlog);
+                msecdir  = mA[.,d+2:d+d_w+1];
+            else;
+                if _print_cafpejm;
+                    "fpe_pres_nonparam: choose a valid method_dum";
+                endif;
+            endif;
+*/
+        elseif seas_cha $== "standard";
+
+            if partial_cub $== "yes";
+                lorq    = 3;
+                msecdir = zeros(rows(X_t_j),d_w);
+                g       = 1;
+                do while g <= d;
+                    { mA,g_sqA,denA,err } = f_v_lpc_nonparam(X_s_j_adj,y_adj,
+                                        hC*ones(d,1),X_t_j_adj,
+                                        kernel,lorq,fandg,loo,
+                                        seas,seasden_sta,ddummies,g);
+                    msecdir[.,g]     = mA[.,d+1+g];
+                    g               = g + 1;
+                endo;
+
+            else;
+
+                { mA,g_sqA,denA,err } = f_v_llc_nonparam(X_s_j_adj,Y_adj,hC,
+                                X_t_j_adj,kernel,lorq,fandg,loo,
+                                    seas,seasden_sta,ddummies);
+                msecdir  = mA[.,d_w+2:cols(mA)];
+                g_hat       = mA[.,1];
+            endif;
+        endif;
+        again2:
+        if err == 1 and i > imax;
+            if _print_cafpejm;
+                print "fpe_pres_nonparam: iteration limit of " imax "exceeded for computing";
+                print "                   C_hat; current bandwidth hC= " hC;
+                print "                   returns missing value for C_hat";
+            endif;
+            garb   = {.};
+            retp(B_hat,B_hat_r,hB,C_hat,0,hC,hA,
+                 y_adj,beta_hat,X_t_j_adj,X_s_j_adj,seas_cha,ddummies);
+
+        elseif err == 1 and i <= imax;
+            hC  = hC * 1.05;
+            if _print_cafpejm;
+                print "Inversion in local quadratic estimator for computing C";
+                print "failed. Therefore rule-of-thumb bandwidth hC multiplied by 1.05";
+                print /lz "New bandwidth hC = " hC;
+            endif;                    
+            
+        endif;
+        i   = i + 1;
+
+
+    endo;
+
+    @ ------------------------- compute C_hat ---------------------------- @
+
+    if seas_cha $== "periodic";
+        C_hat_pe    = zeros(seas,1);
+        seas_c      = 1;
+        do while seas_c <= seas;
+            ind_seas        = indexcat(yorig_seas,seas_c);
+            if i_MS;
+                ind_seas  = ind_seas[rows(ind_seas)-(trunc(n_total/seas)
+                                    -ceil(lag_max/seas))+1:rows(ind_seas)];
+                                    /* trunc -> ceil, Feb 21, 2000 */
+            endif;
+
+            wC_pe           = wei_nonparam(p[ind_seas],per_B/seas,1);
+            msecdir_pe      = msecdir[ind_seas,.];
+            C_hat_tr        = zeros(rows(msecdir_pe),1);
+            i = 1;
+            if (printlog>1); 
+                print /lz "fpe_pres_nonparam: d, d_w, cols(mA)" d~d_w~cols(mA); 
+            endif;
+            do while i <= rows(msecdir_pe);
+                C_hat_tr[i] = (  sumc( (msecdir_pe[i,.])' )   )^2 *wC_pe[i];
+                i           = i+1;
+            endo;
+            C_hat_pe[seas_c]= sumc( C_hat_tr ) / sumc(wC_pe);
+
+            seas_c          = seas_c + 1;
+        endo;
+        wC      = sumc(wc_pe);
+        if method_dum $== "perio_dif_h";    /* added May 16, 2000 */
+            C_hat = C_hat_pe;
+        else;
+            C_hat   = meanc(C_hat_pe);
+        endif;
+
+    else;
+
+        wC          = wei_nonparam(p,per_B,1);
+        C_hat_tr    = zeros(nxest,1);
+        i = 1;
+        if (printlog>1); 
+            print /lz "fpe_pres_nonparam: d, d_w, cols(mA)" d~d_w~cols(mA); 
+        endif;
+        do while i <= nxest;
+            C_hat_tr[i] =  (  sumc( (msecdir[i,.])' )   )^2 *wC[i];
+            i           = i+1;
+        endo;
+        C_hat       = sumc( C_hat_tr ) / sumc(wC);
+                                /* nxest replaced by sumc(wC), 030318 */
+                    
+        if ddummies > 0;
+            if _print_cafpejm;
+               "fpe_pres_nonparam: C_hat not correct if seasonal dummies in regressor matrix";
+            endif;
+        endif;
+    endif;
+
+    @ ---------------------- compute hA ------------------------------- @
+
+
+    if seas_cha $== "periodic";
+        if method_dum $== "perio_dif_h";
+            hA      = zeros(seas,1);
+            seas_c  = 1;
+            do while seas_c <= seas;
+                { hA[seas_c] } = h_amise_nonparam(B_hat[seas_c],C_hat[seas_c],
+                                        d_w,n_S,kernel);
+                                /* only scalar bandwidth September 6, 2001 */
+                seas_c = seas_c + 1;
+            endo;
+        else;
+            { hA } = h_amise_nonparam(B_hat,C_hat,d_w,n_S,kernel);
+                                /* only scalar bandwidth September 6, 2001 */
+        endif;
+    else;
+        { hA } = h_amise_nonparam(B_hat,C_hat,d_w,rows(y_adj),kernel);
+                                    /* rows(y_adj) was n 8/8/1998 */
+                                /* only scalar bandwidth September 6, 2001 */
+    endif;
+
+
+    hA = substute(hA,abs(C_hat) .< 1e-10,100*(stdc(Yorig))^2);/* for vector hA May 16, 2000 */
+                        /* take very large bandwidth
+                                            in case C_hat hints on linear
+                                           model   Aug 1 */
+    if abs(minc(C_hat)) <1e-10;
+        if _print_cafpejm;
+            if printlog>1; 
+                "fpe_pres_nonparam:"; 
+            endif;
+            screen on;
+                print /lz "Estimated C:                           " C_hat;
+                print /lz "Estimated C is tiny, DGP probably linear";
+                print /lz "use large bandwidth for A, bandwidth forA = " hA;
+            screen off;
+        endif;
+    endif;
+
+    if _print_cafpejm;
+        if printlog>1; 
+            "fpe_pres_nonparam:"; 
+        endif;
+        if printlog;
+            print /lz "Plug-in bandwidth for estimating A:    " hA';
+            if rows(hB) > 1;
+                print /lz "Rule-of-thumb bandwidths for estimating B:     ";
+                garb = printfm( ((ones(rows(hB),1).*.("    "))
+                            ~(ones(rows(hB),1).*.("Season"))~seqa(1,1,rows(hB))~hB)
+                            ,(0~0~1~1),((("- *.*s")~4~4)|(("- *.*s")~8~8)
+                            |(("- *.*lf")~22~ 0)|(("*.*lf")~16~8)));
+                print /lz "Rule-of-thumb bandwidths for estimating C:     "; 
+                garb = printfm( ((ones(rows(hC),1).*.("    "))
+                            ~(ones(rows(hC),1).*.("Season"))~seqa(1,1,rows(hB))~hC)
+                            ,(0~0~1~1),((("- *.*s")~4~4)|(("- *.*s")~8~8)
+                            |(("- *.*lf")~22~ 0)|(("*.*lf")~16~8)));
+            else;
+                print /lz "Rule-of-thumb bandwidth for estimating B:      " hB;
+                print /lz "Rule-of-thumb bandwidth for estimating C:      " hC;
+            endif;            
+            if rows(B_hat) > 1;
+                print /lz "Estimated Bs:                          ";
+                garb = printfm( ((ones(rows(B_hat),1).*.("    "))
+                            ~(ones(1,1).*.("Season"))~seqa(1,1,rows(B_hat))~B_hat)
+                            ,(0~0~1~1),((("- *.*s")~4~4)|(("- *.*s")~8~8)
+                            |(("- *.*lf")~22~ 0)|(("*.*lf")~16~8)));
+                print /lz "Estimated Cs:                          ";
+                garb = printfm( ((ones(rows(C_hat),1).*.("    "))
+                            ~(ones(rows(C_hat),1).*.("Season"))
+                            ~seqa(1,1,rows(C_hat))~C_hat)
+                            ,(0~0~1~1),((("- *.*s")~4~4)|(("- *.*s")~8~8)
+                            |(("- *.*lGf")~22~ 0)|(("*.*lf")~16~8)));
+            
+            else;
+                print /lz "Estimated B:                           " B_hat';
+                print /lz "Estimated C:                           " C_hat';
+            endif;            
+        endif;
+    endif;
+
+    retp(B_hat,B_hat_r,hB,C_hat,sumc(wC),hC,hA,
+    y_adj,beta_hat,X_t_j_adj,X_s_j_adj,seas_cha,ddummies);
+endp;
+/* ========================================================================== */
+
+
+/*
+**  ---------------------------------------------------------------------------
+**                          FSV_LC_NONPARAM.G
+**  ---------------------------------------------------------------------------
+**
+**  Subroutine to compute seasonal parameters of SDNAR model using the dummies
+**  method. It also computes the adjusted dependent variable and the 
+**  function estimates.
+*/
+
+proc (8) = fsv_lc_nonparam(X_s_j,Yorig,h,X_t_j,estimator,kernel,lorq,fandg,loo,
+                  seas,seasden_sta,ddummies,
+                  w_beta,betaplus,d_ols,printlog);
+
+local d_c,mA,g_sqA,denA,err,y_f,Z_beta,beta_hat,g_hat,eps_hat,y_adj_hat;
+
+
+@ ----------------- check data ------------------------------------ @
+
+    d_c = cols(X_t_j);
+    if cols(X_s_j) /= cols(X_t_j);
+        if _print_cafpejm;
+            "fsv_lc: regressor matrix X_s_j and evaluation matrix X_t_j";
+            "        do not have the same number of columns";
+        endif;
+        end;
+    endif;
+
+@ ------------- estimate f function with dummies in Z matrix ------ @
+
+    if estimator $== "nw";
+
+    elseif estimator $== "loclin";
+
+        { mA,g_sqA,denA,err } = f_v_llc_nonparam(X_s_j,Yorig,h,
+                                X_t_j,kernel,lorq,fandg,loo,
+                                seas,seasden_sta,ddummies);
+    else;
+        if _print_cafpejm;
+            print "fsv_lc: check estimator: must be nw or loclin";
+        endif;
+    endif;
+
+    if err == 1;
+        if _print_cafpejm;
+            print "fsv_lc: ZWZ matrix could not be inverted with h=" h;
+        endif;
+    endif;
+
+@ -------------- estimate dummies -------------------------------- @
+    Z_beta      = ones(rows(X_t_j),1)~X_t_j[.,d_c-ddummies+1:d_c];
+
+    if rows(X_t_j) == rows(Yorig) and d_ols==1;
+    @ with OLS @
+        y_f     = Yorig - mA[.,1];
+        beta_hat= inv(Z_beta'Z_beta)*Z_beta'y_f;
+        beta_hat= beta_hat[2:ddummies+1];
+        if printlog>1; 
+            print "fsv_lc: beta_hat " beta_hat'; 
+        endif;
+    else;
+    @ by averaging as in paper @
+        beta_hat= meanc(mA[.,d_c-ddummies+2:d_c+1]);
+
+        if printlog>1;
+            "fsv_lc: seasonal dummies estimated by averaging local estimates";
+            print "fsv_lc: beta_hat " beta_hat';
+        elseif printlog;
+            "Seasonal dummies estimated by averaging local estimates";
+        endif;
+    endif;
+    y_adj_hat   = yorig - (Z_beta[.,2:ddummies+1])*beta_hat;
+
+@ -------------- estimate total function -------------------------- @
+
+    g_hat       = mA[.,1] + (Z_beta[.,2:ddummies+1])*beta_hat;
+    if rows(Yorig) == rows(X_t_j);
+        eps_hat     = Yorig - g_hat;
+    else;
+        eps_hat     = 0;
+        if _print_cafpejm;
+            "fsv_lc: residuals cannot be computed since function not";
+            "        evaluated at data points";
+        endif;
+    endif;
+
+retp(g_hat,mA,g_sqA,beta_hat,y_adj_hat,eps_hat,denA,err); endp;
+
+/* ================================================================ */
+
+
+/* RT, February 6, 1998
+**
+** ----------------------------------------------------------------------------
+**                          FSV_LCR_NONPARAM.G
+** ----------------------------------------------------------------------------
+**
+**  Subroutine to compute seasonal parameters of SDNAR model using the two estimators
+**  method. It also computes the adjusted dependent variable and the 
+**  function estimates.
+
+*/
+
+
+
+proc (8) = fsv_lcr_nonparam(X_s_j,Yorig,h,X_t_J,estimator,
+                    kernel,lorq,fandg,loo,seas,yorig_seas,ddummies,
+                    w_beta,betaplus,printlog);
+
+local y_adj_hat,beta_hat,e_seas,X,Y,d,d_w,s_count,ind_seas,Xest,
+        mA,g_sqA,denA,err,resid,fxest,g_hat,garb;
+
+@ ---------------- extract data of season 1 ------------------- @
+
+    d       = cols(X_s_j);
+    d_w     = d - ddummies;
+    ind_seas= indexcat(yorig_seas,1);
+    Xest    = X_t_j[ind_seas,1:d_w];
+
+
+@ -- compute residuals, seasonal dummies and adj. series ------ @
+
+    beta_hat    = zeros(seas-1,1);
+    y_adj_hat   = yorig;
+    s_count     = 1;
+    do while s_count <= seas;
+
+        ind_seas= indexcat(yorig_seas,s_count);
+        X       = X_t_j[ind_seas,1:d_w];
+        Y       = Yorig[ind_seas];
+
+        if estimator $== "nw";
+
+        elseif estimator $== "loclin";
+            { mA,g_sqA,denA,err } = f_v_llc_nonparam(X,Y,h*seas^(1/(d_w+4)),
+                                        Xest,kernel,lorq,fandg,loo,1,1,0);
+
+        else;
+            if _print_cafpejm;
+                "fsv_lcr: check estimator: must be nw or loclin";
+            endif;
+        endif;
+
+        if err == 1;
+            if _print_cafpejm;
+                "fsv_lcr: bandwidth problem";
+            endif;
+        endif;
+
+        if s_count == 1;
+            fxest       = mA[.,1];
+        else;
+            garb                = mA[.,1] - fxest;
+            beta_hat[s_count-1] = meanc(mA[.,1] - fxest);
+        endif;
+
+        s_count     = s_count + 1;
+
+    endo;
+    y_adj_hat = yorig - X_t_j[.,d_w+1:d]*beta_hat;
+@ ------------ estimate total function on cleaned data ----------- @
+
+    if betaplus;
+        if estimator $== "nw";
+
+        elseif estimator $== "loclin";
+
+            { mA,g_sqA,denA,err } = f_v_llc_nonparam(X_s_j[.,1:d_w],y_adj_hat,h,
+                                    X_t_j[.,1:d_w],kernel,lorq,fandg,loo,
+                                    1,1,0);
+
+        else;
+            if _print_cafpejm;
+                "fsv_lcr: check estimator: must be nw or loclin";
+            endif;
+        endif;
+        g_hat       = mA[.,1] + X_t_j[.,d_w+1:d]*beta_hat;
+    else;
+        g_hat       = zeros(rows(yorig),1);
+    endif;
+
+retp( g_hat,mA,g_sqA,beta_hat,y_adj_hat,(Yorig-g_hat), denA, err );
+endp;
+/* ========================================================================== */
+
+
+/*  LY and RT, February 1999, September 2001
+**
+**  -----------------------------------------------------------------
+**                             H_AMISE_NONPARAM.G
+**  -----------------------------------------------------------------
+**
+**  originally HDAMISE.G from MULTBAND.SRC; this version only for
+**  scalar bandwidth which does not require library optmum.src.
+
+**  Subroutine to compute optimal bandwidth vector for local linear
+**  regression (Theorem 2.1 in YT) given the asymptotic constants
+**  B(g) and C(f).
+**
+**  Input variables:
+**      B_true      B in eq. (2.1) if scalar bandwidth is computed
+**      C_true      C in eq. (2.1) if scalar bandwidth is computed
+**      d           # of regressors
+**      n           # of observations
+**      kern_type   type of kernel used: use "gaussian" here
+**  Output variables:
+**      h_AMISE     asymptotically optimal scalar bandwidth
+**
+*/
+
+
+
+
+proc(1) = h_amise_nonparam(B_true,C_true,d,n,kern_type);
+local K_sq,K_sig,h_AMISE,vopt,qopt,qd,retcode,hd_AMISE,uopt;
+
+if kern_type $== "gaussian"; /* kernel constants */
+    K_sq    = 2^(-0.5)*(prodc(pdfn(0)'));
+    K_sig   = 1;
+else;
+    if _print_cafpejm;
+        "h_AMISE: programmed only for Gaussian kernel";
+    endif;
+endif;
+
+h_AMISE=  (d*K_sq^d * B_true * n^(-1) *
+          C_true^(-1) * 1 )^(1/(d+4));
+                    /*  optimal scalar bandwidth eq. (A.2) or (A.3)
+                        dep. on estimates for B_true and C_true */
+
+retp(h_AMISE);
+endp;
+
+/*  ============================================================== */
+
+/*  LY and RT, February 1999   ------- from MULTBAND.SRC
+**  ------------------------------------------------------------- @
+**                      H_SILV_NONPARAM.G
+**  ------------------------------------------------------------- @
+**
+**  Subroutine to compute Silverman bandwidth for density
+**  estimation (Silverman, 1986, eq. (4.14), p. 86) for
+**  gaussian and uniform kernel
+**
+**  Input variables:
+**          sig_Y       standard deviation of regressors
+**          d           number of continuous regressors
+**          n_total     number of observations for estimation
+**          kern_type  "gaussian" or "quartic";
+**  Output variable:
+**          h           Silverman's rule-of-thumb bandwidth
+*/
+
+proc (1) = h_silv_nonparam(sig_Y,d,n_total,kern_type);
+local h,sig_k,K_sq;
+
+
+@ ---- rule of thumb,  ------- @
+
+    if kern_type $== "gaussian";
+        sig_K   = 1;
+        K_sq    = 1/(2*sqrt(pi));
+    elseif kern_type $== "uniform";
+        sig_K   = 1/12;
+        K_sq    = 1;
+    elseif kern_type $== "quartic";
+    endif;
+
+    h   =   sig_Y
+            * ( 4*(K_sq*2*sqrt(pi))^d/(sig_K^4*(d+2)) )^( 1/(d+4) )
+            * n_total^(-1/(d+4));
+
+retp(h);
+endp;
+
+/*  ============================================================= */
+
+/* LY and RT, May 1998 -------- from MULTBAND.SRC
+**
+** -----------------------------------------------------------------
+**                     INDCOM_NONPARAM.G
+** -----------------------------------------------------------------
+**
+** Subroutine to deliver index for extracting subvector or
+** submatrix to make programs more readable. It does
+**    n*(i-1):n*i
+*/
+
+proc (1) = indcom_nonparam(n,i);
+retp(seqa(n*(i-1)+1,1,n));
+endp;
+/*  ============================================================= */
+
+/* RT and LY, May, November 1996, August 1999
+**
+** --------------------------------------------------------------------------
+**              LAG_DIR1_NONPARAM.G
+** --------------------------------------------------------------------------
+**
+** Subroutine for conducting directed search as in Tjostheim/Auestad, 1994,
+** JASA for input variable selection.
+**
+** It collects all lags which have not yet been selected into a vector
+** lag_no
+**
+** It is called from fpe_nps_nonparam.g.
+**
+** Input variables
+**
+**  seas                scalar, number of seasons
+**  seas_dum            scalar, season of first observation
+**  lag_max             scalar, largest lag to be considered for input
+**                      variable selection
+**  d_c                 scalar, number of variables to be included
+**                      in lag vector lag_no
+**  dexog               scalar, number of exogenous variables
+**  lag_d_c_1           vector that contains all input
+**                      variables which already have been
+**                      selected
+**
+**  Output variables
+**
+**  lag_no_r            scalar, number of input variables
+**                      that are included in lag_no
+**  lag_no              (lag_no_r x 1) vector that contains
+**                      all input variables that have to be
+**                      checked in the next round
+**
+*/
+
+
+proc (2) = lag_dir1_nonparam(seas,seas_dum,lag_max,
+        d_c,dexog,lag_d_c_1);
+
+local lag_no,lags_so,lag_cc,kk,lag_no_r;
+
+    lag_no  = zeros(lag_max+dexog,1); /* Init.
+                                       vector that stores all lags which have
+                                       to be tested for one given d_c;
+                                       example: d=2,k=3 and lag 1 has already
+                                                been chosen, lag_no = 2|3;
+                    Aug 1 */
+    lags_so = sortc(lag_d_c_1,1);   /* vector that includes all lags already
+                                       selected for smaller d_c; sorted    */
+
+
+
+    lag_cc  = 1;
+    kk      = 1;
+    do while lag_cc <= lag_max + dexog;     /* Aug 1 */
+
+
+        if  lag_cc == lags_so[kk];/* lag has already been selected; go on */
+
+            if kk < rows(lags_so);
+                kk      = kk + 1;
+            endif;
+
+       else;
+
+            if seas_dum $== "all";   /* from here Aug 9 */
+                if d_c < seas;
+                    if lag_cc > lag_max+dexog-seas+1;
+                        lag_no[lag_cc] = lag_cc; /* try lag */
+
+                    endif;
+                else;
+                    if lag_cc <= lag_max;
+                        lag_no[lag_cc] = lag_cc; /* try lag */
+
+                    endif;
+                endif;
+            else;                    /* to here Aug 9 */
+                        lag_no[lag_cc] = lag_cc; /* try lag */
+            endif;
+
+       endif;
+       lag_cc   = lag_cc + 1;
+    endo;
+    lag_no      = delif(lag_no,lag_no .== 0);   /* due to init. possibly more
+                                                   rows in lag_no than sel.
+                                                   lags; delete those    */
+    lag_no_r    = rows(lag_no);              /* number of lags to be tested*/
+
+retp(lag_no,lag_no_r);
+endp;
+
+/* =================================================================== */
+
+
+/*  RT and LY, November 1996, August 1999
+**
+**  -------------------------------------------------------------------
+**                              LAG_FULL_NONPARAM.G
+**  --------------------------------------------------------------------
+**
+**  Subroutine to generate matrix of all possible combinations of input
+**  variables in order to conduct a full search for input variable or lag
+**  selection.
+**
+**  The routine is used in the GAUSS library CAFPE and called from
+**  fpe_nps_nonparam.g
+**
+**  Input variables:
+**
+**      lag_no_r        scalar, total number of input variables
+**      d_max           scalar, max number of input variables to be allowed
+**      lag_comb        vector, gives number of possible input variable
+**                      combinations for an increasing sequence of
+**                      the number of lags
+**  Output variables
+**      lag_comb_all    (d_max x sumc(lag_comb)) matrix that contains
+**                      all valid input variable combinations.
+*/
+
+
+proc lag_full_nonparam(lag_no_r,d_max,lag_comb);
+local l_c,d_c,garb,lags_al,lag_min,
+      lag_comb_tot,lag_comb_all,lag_comb_all_c,lag_comb_c;
+
+
+
+   lag_comb_tot = sumc(lag_comb);   /* total number of combinations */
+   lag_comb_all = zeros(d_max,lag_comb_tot);  /* init. matrix to store
+                         all combinations */
+
+
+   lag_comb_all[1,1:lag_no_r] = (seqa(1,1,lag_no_r))'; /* do lags for d_c = 1 */
+   lag_comb_all_c  = lag_no_r+1;
+
+            @ print "lag_comb_all" lag_comb_all; @
+
+   d_c      = 2;
+   do while d_c <= d_max;
+
+    lag_comb_c = 1;
+    do while lag_comb_c <= lag_comb[d_c-1]; /* get vector of lags of d_c-1
+                                       to add all possible lags
+                           later */
+
+        if d_c > 2;
+            garb = sumc(lag_comb[1:d_c-2]);
+        else;
+            garb = 0;
+        endif;
+
+        lags_al = lag_comb_all[1:d_c-1,garb+lag_comb_c];
+            @ print "lags_al" lags_al; @
+
+        lag_min = maxc(lags_al);
+            @ print "lag_min" lag_min; @
+        l_c = lag_min+1;
+
+        do while l_c <= lag_no_r;
+                @ print "lag_comb_all_c" lag_comb_all_c; @
+            lag_comb_all[1:d_c,lag_comb_all_c] = lags_al|l_c;
+        @ print "lag_comb_all"  lag_comb_all[1:d_c,lag_comb_all_c]; @
+
+            lag_comb_all_c = lag_comb_all_c + 1;
+            l_c     = l_c + 1;
+        endo;
+        lag_comb_c = lag_comb_c + 1;
+
+    endo;
+    d_c     = d_c + 1;
+
+   endo;
+        @ print "lag_comb_all" (lag_comb_all)'; @
+
+retp(lag_comb_all);
+endp;
+
+/* =================================================================== */
+
+
+/*  RT, August 1998
+**
+**  -----------------------------------------------------------------
+**                          PAR_NONPARAM.G
+**  -----------------------------------------------------------------
+**
+**  Subroutine to compute lag selection criteria for
+**  periodic autoregressive models. The model includes
+**  a constant
+**
+**  Protocol:   March 17, 2002  FPE, HQ corrected 
+**                              now number of lags multiplied with seas
+**                              all criteria corrected: now constants
+**                              included
+**              040213          printlog added
+*/
+
+
+proc (7) = par_nonparam(y,lags,seas,printlog);
+local T,n_S,dum,ylags,Tnew,yright,y_par,i,
+        vnam,m,b,stb,vc,stderr,sigma,cx,rsq,resid,garb,
+        sig_ml,k,crit,garb1,garb2;
+
+T       = rows(y);
+n_S     = trunc(T/seas);
+dum     = ones(n_S+1,1) .*. eye(seas);
+
+if lags[1] > 0;
+    ylags   = shiftr( (ones(1,rows(lags)) .*. y)',lags,-exp(20) )' ;
+    garb2       = sumc((ylags .== -exp(20))'); /* 040602 now condition vector */
+    ylags   = delif(ylags,garb2);
+    Tnew    = rows(ylags);
+    yright  = ones(Tnew,1) ~ ylags;
+else;
+    yright  = ones(T,1);
+endif;
+
+y_par   =   dum[1:Tnew,.] .* yright[.,1];
+i       = 2;
+do while i <= cols(yright);
+    y_par   =   y_par~(dum[1:Tnew,.] .* yright[.,i]);
+    i       = i + 1;
+endo;
+
+/*
+print "y" y;
+print "yright" yright;
+print "y_par" y_par;
+*/
+__con   = 0;
+_olsres = 1;
+garb1   = __output;
+__output= 0;
+{ vnam,m,b,stb,vc,stderr,sigma,cx,rsq,resid,garb } =
+                      ols(0,y[rows(y)-Tnew+1:rows(y)],
+                            y_par);
+__output= garb1;                            
+__con   = 1;
+sig_ml  = resid'resid /Tnew;
+
+if lags[1] > 0;
+    k   = rows(lags)+1;
+else;
+    k   = 0;
+endif;
+crit    = zeros(4,1);
+crit[1] = sig_ml * (Tnew+k*seas) / (Tnew-k*seas);    /* FPE */
+                        /* seas included March 17, 2002 */
+crit[2] = ln( sig_ml ) + 2*seas*k/Tnew;             /* AIC */
+crit[3] = ln( sig_ml ) + ln(Tnew)*seas*k/Tnew;      /* SC */
+crit[4] = ln( sig_ml ) + 2*ln(ln(Tnew))*k*seas/Tnew;     /*HQ */
+                        /* seas included March 17, 2002 */
+
+if printlog;
+    garb = printfm( ((ones(seas,1).*.("    "))
+                    ~(0 $+ "cons" $+ ftocv(seqa(1,1,seas),1,0))
+                    ~b[1:seas]),
+                    (0~0~1),
+                    ((("- *.*s")~4~4)|(("- *.*s")~30~30)|(("*.*lf")~16~8)));
+    garb = printfm( ((ones(rows(b)-seas,1).*.("    "))
+                     ~(0 $+ "ar" $+ ftocv( lags .*. ones(seas,1),1,0) $+ 
+                        ftocv( ones(rows(lags),1).*.seqa(1,1,seas),1,0) )
+                     ~b[seas+1:rows(b)]),
+                     (0~0~1),
+                     ((("- *.*s")~4~4)|(("- *.*s")~30~30)|(("*.*lf")~16~8)));
+    print /lz "    ML-estimate of white noise variance: " sig_ml;                                 
+    garb = printfm( ((ones(4,1).*.("    "))~("FPE"|"AIC"|"Schwarz"|"HQ")~crit)
+                    ,(0~0~1),((("- *.*s")~4~4)|(("- *.*s")~30~30)|(("*.*lf")~16~8)));
+endif;
+
+retp( vnam,b,stderr,sigma^2,resid,y_par,crit);
+endp;
+/* ========================================================================== */
+
+
+
+/*  RT and LY, August 1998, August 1999
+**
+**  --------------------------------------------------------
+**                      RSEASSHD_NONPARAM.G
+**  --------------------------------------------------------
+**
+**  Subroutine to remove seasonal mean of seasonal time series
+**  Y_{s+tau S} with different mean b_s for each season s =
+**  0,1,...,S such that new time series
+**          tilde Y_{s+tau S} = Y_{s+tau S} - b_s
+**  is stationary.
+**
+**  Lit.: see Yang/Tschernig (1998, Sec. 4.2).
+**
+**  Input:      xraw        original time series Y_t
+**              seas        number of seasons S
+**              seas_sta    season of first obs. s
+**
+**  Output:     xnew        new time series tilde Y_t
+**
+**  Protocol:   former yhift.g 8/8/1998
+*/
+
+proc(2) = rseasshd_nonparam(xraw,seas,seas_sta,printlog);
+    /* rseasshD -> rseasshd, Feb 23, 2000 */
+local garb,xraw_seas,seas_c,
+ind_seas,xnew,meanseas,meanseas1;
+
+    /* assign season index to each observation */
+    garb        = ones(trunc(rows(xraw)/seas)+3,1) .*.seqa(1,1,seas);
+    Xraw_seas   = garb[seas_sta:rows(xraw)+seas_sta-1];
+
+    /* remove mean of each season (except for first season , May 9, 2000)*/
+
+    seas_c      = 1;
+    meanseas    = zeros(seas-1,1);
+    xnew        = zeros(rows(xraw),1);
+    do while seas_c <= seas;
+        ind_seas    = indexcat(xraw_seas,seas_c);
+    if seas_c == 1;
+        meanseas1       = meanc(Xraw[ind_seas]);
+            Xnew[ind_seas]      = Xraw[ind_seas];
+    else;
+            meanseas[seas_c-1]  = meanc(Xraw[ind_seas])-meanseas1;
+            Xnew[ind_seas]      = Xraw[ind_seas] - meanseas[seas_c-1];
+        endif;
+        seas_c      = seas_c + 1;
+    endo;
+    if printlog>1;
+        print "rseasshd_nonparam:";
+    endif;      
+    if _print_cafpejm;
+        print "Variance of time series";
+        print /lz "    prior to removing seasonal shifts: " (stdc(xraw))^2;
+        print /lz "    after removing seasonal shifts:    " (stdc(xnew))^2;
+    endif;        
+    if printlog;
+        print /lz "Number of observations";
+        print /lz "    prior to removing seasonal shifts:  " rows(xraw);
+        print /lz "    after removing seasonal shifts:     " rows(xnew);        
+    endif;
+retp(xnew,meanseas);
+endp;
+
+/* =================================================================== */
+
+/* RT, June 1996 ------- from MULTBAND.SRC
+**
+** --------------------------------------------------------------------------
+**              WEI_NONPARAM.G
+** --------------------------------------------------------------------------
+**
+** Subroutine for weighting the observations. It returns either a 1 or 0 for
+** each observation according to whether it should be kept or ignored.
+** This is decided on whether its conditional density is larger than
+** a certain threshold which is computed such that per*#obs observations
+** are thrown away which are those for which the cond. density is lowest.
+** If a density matrix is handed over, the operation is done on column i.
+**
+** This weighting procedure is used by Tjostheim/Auestad, JASA, 1994
+*/
+
+proc (1) = wei_nonparam(den,per,i);
+local n,den_s,w,co;
+
+if per > 0;
+    n   = rows(den);
+        co      = cols(den);
+    den_s   = den;
+
+    den_s   = sortc(den_s,i);
+    w       = ( den[.,i] .> den_s[ceil( per * rows(den) ),i] *
+                ones( n,1 ) );
+else;
+    w   = ones(rows(den),1);
+endif;
+
+
+
+
+retp(w);
+endp;
+/* ======================================================================== */
+
+
+/* RT, August 1996, June 2003
+**
+** --------------------------------------------------------------------------
+**                      XEXOG_SE_NONPARAM.G
+** --------------------------------------------------------------------------
+**
+** Subroutine to construct matrix of seasonal dummy variables.
+**
+**  Protocoll: June 15, 2003    seas_sta now also considered
+*/
+
+
+proc (1) = xexog_se_nonparam(xraw_ro,seas,xraw_var,seas_sta);
+local seasmat,fullyear,xexog,garb,remain;
+
+        /* 030615, the next three lines are new */
+    seasmat     = zeros(1,seas-1)|eye(seas-1);
+    garb        = ones(trunc(xraw_ro/seas)+1,1) .*.seasmat;
+    xexog       = garb[seas_sta:xraw_ro+seas_sta-1,.];
+
+        /*  old
+    fullyear    = trunc(xraw_ro/seas_per);
+    xexog       = ones(fullyear,1) .*. seas;
+
+    remain    = xraw_ro - fullyear*seas_per;
+    /* print "remain" remain;*/
+    if remain > 0;
+        garb    = seas[1:remain,.];
+        xexog   = xexog|garb;
+    endif;
+        */
+retp(xexog);
+endp;
+
+/* =================================================================== */
+
+
+/* RT and LY, Aug 1996, ok, May 1997, January 1998 ok
+**
+**  --------------------------------------------------------------------
+**                          XORIG_EX_NONPARAM.G
+**  --------------------------------------------------------------------
+**
+**  Subroutine to create matrix of lagged variables for
+**  density estimation or regression in univariate autoregressive
+**  time series models. It also allows for exogenous variables.
+**  Moreover, the returned matrix contains all observations
+**  that are available for density estimation. Therefore,
+**  Input variables:
+**          Xraw        (T x 1) vector or time series
+**          Xresid      (T x 1) vector of residuals of time series
+**          Xexog       (T x dexog) matrix
+**          lags        (d x 1) vector of lags to be considered
+**          lexog       scalar, all values in lags that are
+**                      larger than lexog refer to choice of
+**                      columns  of Xexog
+**          xexog_com   dexog vector that contains description of
+**                      variables in Xexog matrix. It should contain
+**                      a "SD" in the row for the column in Xexog with
+**                      seasonal dummies
+**                      NOTE: xexog_com must contain a description for each
+**                      column in xexog.
+**          seas        contains the number of seasons. If there are no
+**                      seasonal dummies in the xexog set it to 1
+**          seas_sta    contains the season of observation 1 in Xraw. Note
+**                      that the seasons are counted from 1,2, ..., seas
+**          seas_cha    character:  "seasD" if seasonal dummies are used
+**                                  "periodic" for periodic models
+**          volat       see fp_nlaur.g
+
+**
+** Output variable:
+**          Xorig_au    matrix of regression values
+**                      #rows depends on seas_cha: simple T-lag_max+lag_min
+**                                                 "periodic","seasD": number
+**                                                  of full years
+**          Yorig       vector of dependent variables, #rows depends on
+**                      seas_cha, either T-lag_max or #full years
+**          yorig_seas  vector that contains season of each obs. in Yorig
+**          ddummies    scalar, number of dummies in regressor matrix Xorig_au
+**
+**  Protocol:   8/8/1998    returns no seasonal dummies in xorig_au
+**                          if seas_cha = periodic
+**              030615      +3,1 instead of +1,1  in garb
+*/
+
+
+proc (4)    =  xorig_ex_nonparam(Xraw,Xresid,Xexog,lags,lexog,xexog_com,seas,
+                        seas_sta,seas_cha,volat);
+local   T,i,lag_rows,lag_max,lag_min,Xorig_au,c_lag,garb,ddummies,yorig_seas,
+        yorig,Xraw_seas,n,n_s,yorig_ga,yorig_seas_ga,Xorig_au_ga;
+
+
+    if seas > 1;                /* vector contains season of each observation */
+        garb        = ones(trunc(rows(xraw)/seas)+3,1) .*.seqa(1,1,seas); 
+                            /* 060315, +3,1 instead of +1,1 */
+        Xraw_seas   = garb[seas_sta:rows(xraw)+seas_sta-1,.];
+    else;
+        Xraw_seas   = ones(rows(xraw),1);
+    endif;
+
+
+    /* adjust Xraw for volat $== "resid" if necessary */
+
+    if volat $== "resid";  /* May 28 */
+        if rows(Xresid) /= rows(Xraw);
+            /*
+            "first Xraw - Xresid rows cut off of Xraw and Xexog.";
+            "This is done since Xresid has less rows";
+            "due to the estimation of f";
+            */
+            Xraw        = Xraw[rows(Xraw)-rows(Xresid)+1:rows(Xraw),.];
+            Xraw_seas   = Xraw_seas[rows(Xraw)-rows(Xresid)+1:rows(Xraw),.];
+            if not(xexog_com $== "none");   /* fixed October 1999 */
+                Xexog       = Xexog[rows(Xexog)-rows(Xresid)+1:rows(Xexog),.];
+            endif;
+        endif;
+
+    endif;
+
+    /* init. local variables */
+
+    T           = rows(Xraw);
+    lags        = sortc(lags,1);
+    lag_rows    = rows(lags);
+        /*
+        print "T in xorig_ex_nonparam" T;
+        print "lags" lags;
+        print "lag_rows" lag_rows;
+        */
+
+    /* determine smallest lag and largest lag to be constructed from xraw */
+
+    if lags[lag_rows] > lexog;
+
+        if lags[1] > lexog;
+            lag_min = 0;
+            lag_max = 0; /* lexog changed to 0, Jan 30, 1998 */
+        else;
+            lag_min = lags[1];
+            lag_max = 0;
+            i   = 1;
+            do while lags[i] <= lexog;
+                lag_max = lags[i];
+                i = i + 1;
+            endo;
+        endif;
+    else;
+        lag_min = lags[1];
+        lag_max = lags[lag_rows];
+
+    endif;
+
+    Xorig_au    = zeros(T-lag_max+lag_min,lag_rows);
+
+    i   = 1;
+    ddummies = 0;
+    do while i <= t-lag_max+lag_min;
+        c_lag    = 1;
+        do while c_lag <= lag_rows;
+
+            if lags[c_lag] > lexog;
+
+                if i > t-lag_max;
+                    garb = {.};
+                    Xorig_au[i,c_lag] = garb;
+
+                else;
+                    garb = lags[c_lag] - lexog;
+                    Xorig_au[i,c_lag]  = Xexog[i+lag_max,garb];
+                    if (i == 1 and xexog_com[garb] $== "SD");
+                        ddummies = ddummies + 1;
+                    endif;
+                endif;
+
+            else;
+
+                Xorig_au[i,c_lag]  = Xraw[i+lag_max-lags[c_lag]];
+
+            endif;
+
+            c_lag           = c_lag + 1;
+        endo;
+        i        = i + 1;
+    endo;
+
+        /* 
+        print "xresid in xorig_ex_nonparam" xresid[1:minc(5|rows(xresid))];
+        print "xraw in xorig_ex_nonparam" xraw[1:minc(5|rows(xraw))];
+        print "xorig_au in xorig_ex_nonparam" xorig_au[1:minc(5|rows(xorig_au)),.];
+        print "volat" volat;
+        */
+    yorig       = Xraw[lag_max+1:T]; /* Dec 17 */
+    yorig_seas  = Xraw_seas[lag_max+1:T]; /* Jan 30, 1998 */
+    if volat $== "yes";
+        yorig = yorig^2;
+    elseif volat $== "resid"; /* May 28, no squares October 1999 */
+        yorig = (Xresid[lag_max+1:T]);
+    endif;
+        /*
+        print "xresid in xorig_ex_nonparam" xresid[1:minc(5|rows(xresid))];
+        print "xraw in xorig_ex_nonparam" xraw[1:minc(5|rows(xraw))];
+        print "yorig in xorig_ex_nonparam" yorig[1:minc(5|rows(yorig))];
+        print "xorig_au in xorig_ex_nonparam" xorig_au[1:minc(5|rows(xorig_au)),.];
+        print "volat" volat;
+        */
+    if ddummies > 0 and seas_cha $/= "seasD";
+print "ddummies" ddummies; /* 040602 */
+print "seas_cha" seas_cha;
+        if _print_cafpejm;
+            "xorig_ex: set seas_cha to seasD since ddummies > 0";
+        endif;
+        return;
+    endif;
+    if seas_cha $== "periodic" or seas_cha $== "seasD";
+
+        n           = rows(yorig);
+        n_s         = trunc(n/seas);
+        yorig       = yorig[n-n_s*seas+1:n];
+        yorig_seas  = yorig_seas[n-n_s*seas+1:n];
+        Xorig_au    = Xorig_au[n-n_s*seas+1:n,.];
+
+
+        if seas_cha $== "periodic";
+
+            garb    = cols(Xorig_au);
+                        /*  returns no seasonal dummies
+                            if seas_cha = periodic, 8/8/1998 */
+            if ddummies > 0;
+                ddummies    = 0;
+                if _print_cafpejm;
+                    "xorig_ex: since seas_cha = periodic";
+                    "seasonal dummies are deleted from xexog, xexog_com";
+                endif;
+            endif;
+            yorig_ga    = yorig;
+            yorig_seas_ga= yorig_seas;
+            Xorig_au_ga = Xorig_au[.,1:garb-ddummies];
+
+            i = 1;
+            do while i <= seas;
+                yorig_ga[(i-1)*n_s+1:i*n_s,.]       = yorig[seqa(i,seas,n_s),.];
+                yorig_seas_ga[(i-1)*n_s+1:i*n_s,.]  = yorig_seas[seqa(i,seas,n_s),.];
+                Xorig_au_ga[(i-1)*n_s+1:i*n_s,.]    =
+                                    Xorig_au[seqa(i,seas,n_s),1:garb-ddummies];
+                i   = i + 1;
+            endo;
+            yorig       = yorig_ga;
+            yorig_seas  = yorig_seas_ga;
+            Xorig_au    = Xorig_au_ga;
+        endif;
+    endif;
+
+retp(Xorig_au,yorig,yorig_seas,ddummies);
+endp;
+
+/* ===================================================================== */
+
+
+
+
+
+
+
+
+
+
+/* RT, January 1996, Spring 2002
+**
+** -----------------------------------------------------------------------
+**                          XORIG_ST_NONPARAM.G
+** -----------------------------------------------------------------------
+**
+** Subroutine to chop off starting values from xorig and yorig such
+** that the number of starting values is always lag_max even smaller
+** lags are used. If there are T observations in the raw data Xraw, then
+** the output are (T-lag_max x number of lags), T-lag_max x 1)
+** matrices
+**
+**  Protocol:   March 17, 2002  seas added to allow the "same" also for
+**                              seasonal processes
+**              April 19, 2002  also adjusted for volatility analysis
+**              June 3, 2002    corrects start values for seas_cha "periodic"
+**              Feb 5, 2004     corrects maxc(lag_max) in line 3725
+*/
+
+proc (3) = xorig_st_nonparam(Xorig,Yorig,Xraw,lag_max,seas,Xresid,yorig_seas,lags,seas_cha);
+local Xraw_rows,Yorig_rows,Xnew,Ynew,startind,xresid_rows,ynew_seas,
+        iMS,ihere,n_S,seas_c,garb;
+
+Xraw_rows   = rows(Xraw);
+Yorig_rows  = rows(Yorig);
+xresid_rows = rows(xresid);
+
+    /*
+    print "lag_max" lag_max;
+    print "rows(xorig)" rows(xorig);
+    print "xraw_rows" xraw_rows;
+    print "yorig_rows" yorig_rows;
+    */
+
+if seas == 1;
+    if xresid_rows == 1;
+        Ynew        = Yorig[lag_max-(Xraw_rows-Yorig_rows)+1:Yorig_rows,1];
+        Xnew        = Xorig[lag_max-(Xraw_rows-Yorig_rows)+1:Yorig_rows,.];
+        Ynew_seas   = Yorig_seas[lag_max-(Xraw_rows-Yorig_rows)+1:Yorig_rows,1];        
+    else;
+        Ynew        = Yorig[lag_max-(Xresid_rows-Yorig_rows)+1:Yorig_rows,1];    
+        Xnew        = Xorig[lag_max-(Xresid_rows-Yorig_rows)+1:Yorig_rows,.];
+        Ynew_seas   = Yorig_seas[lag_max-(Xresid_rows-Yorig_rows)+1:Yorig_rows,1];   
+    endif;        
+else; 
+    if seas_cha $== "periodic"; /* June 3, 2002 */
+        if rows(Xorig) == rows(Yorig);
+            iMS     = ceil(lag_max/seas);
+            ihere   = ceil(maxc(lags)/seas); /* maxc() added, 040205 */
+            n_S     = rows(yorig)/seas;            
+            seas_c  = 1;
+            garb    = {};
+            do while seas_c <= seas;
+                garb    = garb|(seqa(iMS-ihere+1,1,n_S-(iMS-ihere))+(seas_c-1)*n_S);
+                seas_c  = seas_c + 1;
+            endo;
+                /*
+                print "iMS" iMS;
+                print "ihere" ihere;
+                print "n_S" n_S;
+                print "garb[1]" garb[1];
+                print "garb[rows(garb)]" garb[rows(garb)];
+                */
+                
+            Ynew        = Yorig[garb];
+            Xnew        = Xorig[garb,.];
+            Ynew_seas   = Yorig_seas[garb];
+        else;
+            if _print_cafpejm;
+               "f_seas_prep_nonparam: startval = same not possible ";
+            endif;               
+        endif;
+    
+    else;       /* added March 17, 2002 */
+        if xresid_rows == 1;
+            startind    = Yorig_rows -  (trunc(Xraw_rows/seas)-ceil(lag_max/seas))*seas+1;  
+        else;
+            startind    = Yorig_rows -  (trunc(Xresid_rows/seas)-ceil(lag_max/seas))*seas+1;      
+        endif;
+        Ynew        = Yorig[startind:Yorig_rows,1];
+        Xnew        = Xorig[startind:Yorig_rows,.];
+        Ynew_seas   = Yorig_seas[startind:Yorig_rows,1];        
+    endif;
+endif;
+
+retp(Xnew,Ynew,Ynew_seas);
+endp;
+
+/* ========================================================================== */

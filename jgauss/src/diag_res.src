@@ -1,0 +1,351 @@
+/*
+ This file is part of the econometric software package JMulTi.
+ Copyright (C) 2000-2005  Paul Soderlind, Markus Kraetzig
+
+ This program is free software; you can redistribute it and/or
+ modify it under the terms of the GNU General Public License
+ as published by the Free Software Foundation; either version 2
+ of the License, or (at your option) any later version.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, write to the Free Software
+ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ */
+
+#ifos2win 
+/* to be used by library creation, windows only */
+#include extern.dec
+#endif
+
+/*-----------------------------------------------------------------------
+**  portman_resanal
+**
+**  Purpose:   Portmanteau test of autocorrelation.
+**
+**
+**
+**  Usage:     ArPort = portman_resanal( umat,h,p );
+**
+**  Input:     uMat -  TxK matrix of residuals
+**             h       scalar, test up to hth order serial corrlation
+**             p       scalar, lags in VAR system behind uMat
+**             r       number of restrictions in subset model
+**
+**  Output:    ArPort is a 5x1 vector pf Test value|p-value|adjvalue|p-value|df
+**
+**
+**  Reference: Lutkepohl (1993), Introduction to Multiple Time Series
+**             Analysis, 2ed, p. 150.
+**
+**
+**
+**  Paul Soderlind (Paul.Soderlind@hhs.se), 1995
+-------------------------------------------------------------------------*/
+
+proc(1)= portman_resanal( uMat,h,p,r );
+
+  local k,N,CovU,Ph,C0_1,i,ci,Ardf,Phpval,ArPort, adjPh,adjPhpval;
+  k = cols(uMat);
+  n = rows(uMat);
+  uMat = uMat - meanc(uMat)';
+  Covu = uMat'uMat/rows(uMat);
+  Ph = 0;
+  adjPh = 0;
+  c0_1 = invpd(CovU);
+  i = 1;
+
+  do until i > h;                   /*loop over lags*/
+    ci = packr(lagn(uMat,i)~uMat) ;
+    ci = 1/n*ci[.,1:k]'ci[.,k+1:2*k];
+    Ph = Ph + sumc(  diag( ci'c0_1*ci*c0_1 )  );
+    adjPh = adjPh + sumc(diag( ci'c0_1*ci*c0_1))/(n-i);
+    i = i + 1;
+
+  endo;
+  
+  Ph = Ph * n;
+  adjPh = adjPh * n^2;
+  Ardf = k^2 *( h-p ) + r ;               /* - k*cols(z);*/
+  Phpval = cdfchic( Ph,Ardf );
+  adjPhpval = cdfchic( adjPh,Ardf );
+  ArPort = Ph|Phpval|adjPh|adjPhpval|Ardf;
+
+  retp( ArPort );
+
+endp;
+/*-----------------------------------------------------------------------*/
+
+
+/*-----------------------------------------------------------------------
+**  archlm_resanal
+**
+**  Purpose:   multivariate ARCH-LM test
+**
+**
+**
+**  Usage:     ArPort = portman_resanal( umat,h,p );
+**
+**  Input:     uhat -  TxK matrix of residuals
+**             lags    scalar, tested lag order
+**             
+**
+**  Output:    archlm-stat|p-value(chi^2,lags*k*k(k+1)^2/4)|df
+**
+**
+**  Reference: Doornik & Hendry (1997, Sec. 10.9.2.4)
+**
+**
+**
+**  Markus Kraetzig (June 2001)
+-------------------------------------------------------------------------*/
+
+proc(1)= archlm_resanal( uhat,lags );
+local i,j,k,utut,UUT,tmp,out,Y,Z,A,omega,omega0,VARCHLM,R2;
+uhat = uhat - meanc(uhat)';
+if lags >= rows(uhat)/2; /*check input*/
+    retp(zeros(1,2));
+endif;
+if lags > 0 ;
+  out = zeros(lags,cols(uhat)^2);
+else;
+  retp(zeros(1,2));
+endif;
+i = 1; 
+k = cols(uhat);
+/*initialize matrices*/
+UUT = zeros(k*(k+1)/2,1);
+do while i <= rows(uhat);
+  utut = uhat[i,.]'uhat[i,.];
+  j = 1;
+  tmp = 0;
+  /* the vech operator*/
+  do while j <= cols(utut); 
+    tmp = tmp | utut[j:cols(utut),j]; 
+    j = j+1; 
+  endo;
+  UUT = UUT ~ trimr(tmp,1,0);
+  i = i+1;
+endo;
+/*trim zeros */
+UUT = trimr(UUT' ,1,0)';
+/*create ma trices of regressors*/
+Y = UUT[.,1+lags:cols(UUT)];
+Z = ones (1,rows(uhat)-lags); 
+i = 1;
+do while i <= lags;
+  Z = Z | UUT[.,1+lags-i:cols(UUT)-i];
+  i = i+1;
+endo;
+trap 1;
+tmp = invpd(Z*Z');
+trap 0;
+if scalerr(tmp);
+    retp(-1000|-1000|-1000);
+endif;
+A=Y*Z'*tmp;
+omega = (Y-A*Z)*(Y-A*Z)';
+omega = omega /cols(Y);
+/*compute omega0*/
+A=meanc(Y');
+omega0 = (Y-A)*(Y-A)';
+omega0 = omega0 /cols(Y);
+R2 = 1-2/(k*(k+1))*sumc(diag(omega*inv(omega0)));
+
+VARCHLM = cols(y)*k*(k+1)*R2/2 ;
+k = lags*k^2*(k+1)^2/4;
+retp(VARCHLM|cdfchic(VARCHLM,k)|k);
+endp;
+
+
+/*-----------------------------------------------------------------------
+**  multnorm_resanal
+**
+**  Purpose:   Multivariate test on normality.
+**
+**
+**  H0:        gaussian data generation process
+**  Usage:     NormPort = multnorm_resanal( umat );
+**
+**  Input:     uMat    is a TxK matrix of residuals
+**
+**  Output:    NormPort is a 7x2 vector (Hendry~Luetkepohl standardization) 
+**             value|p-value|df|skew|pskew|kurt|pkurt
+**
+**
+**
+**  Reference: Lutkepohl (1993), Introduction to Multiple Time Series
+**             Analysis, 2ed, p. 150. (cholesky variant); 
+**             Doornik/Hansen (1994) (jordan variant)
+**             
+**
+**
+**
+**  Markus Kraetzig (mk@mk-home.de), 2001
+-------------------------------------------------------------------------*/
+
+proc(1)= multnorm_resanal( uMat,l);
+
+  local k,n,l11,l12,l21,l22,l31,l32,pskew1,pskew2,pkurt1,pkurt2,b21,b11,b22,b12,NormDf,Normpv1,Normpv2,Norm,v1,v2,Su,Q,lambda,x,i,p;
+
+  k = cols(uMat);
+  n = rows(uMat);
+  uMat = uMat - meanc(uMat)';
+  Su = 1/n  * (uMat )'(uMat );
+  {lambda,P} = eigv(Su); 
+  i = 1;
+  x = sqrt(diag(P'P));
+  do while i <= cols(P);
+    P[.,i] = P[.,i]./x[i];
+    i = i + 1;
+  endo;
+  Q = P*diagrv(zeros(rows(lambda),rows(lambda)),lambda^0.5)*P';
+  v1= inv(Q) * (uMat)';
+  v2= inv(chol(Su)') * (uMat)';
+  b21 = sumc(v1'^4)/n;
+  b11 = sumc(v1'^3)/n;
+  b22 = sumc(v2'^4)/n;
+  b12 = sumc(v2'^3)/n;
+  
+  l11 = n*b11'b11/6; 
+  pskew1= cdfchic( l11,k ); 
+  l12 = n*b12'b12/6; 
+  pskew2 = cdfchic( l12,k ); 
+  
+  l21 = n*(b21 - 3)'(b21 - 3)/24; 
+  pkurt1 = cdfchic( l21,k ); 
+  l22 = n*(b22 - 3)'(b22 - 3)/24; 
+  pkurt2 = cdfchic( l22,k ); 
+  
+  NormDf = 2*k;  
+  l31 = l11 + l21;
+  NormPv1 = cdfchic( l31,NormDf );
+  l32 = l12 + l22;
+  NormPv2 = cdfchic( l32,NormDf );
+  
+
+  Norm = l31~l32|Normpv1~Normpv2|NormDf~NormDf|l11~l12|pskew1~pskew2|l21~l22|pkurt1~pkurt2;
+  retp( Norm );
+endp;
+
+
+/**
+LM-Type test of vector error autocorrelation
+  Doornik(1996)
+  var - buffer with model information
+  
+  Resorig: residuals of the original estimation
+  Restest: residuals after plugging lagged residuals in 
+  original estimation (this is done by using the original
+  estimation routine, it is not provided here)
+  kk: number of regressors in original system
+  lags: number of lagged residuals added in auxiliary regression
+**/
+proc(1)= LMautocorr_resanal(var,lags);
+local df,LL,k,t,Rr,p,r,q,N,df1,df2,SSR,SSU,LM,LMF,ar1,ar2,cx,cy,py;
+local resorig, restest, kk, varHat, cd,Ax,Ay,Ad, d, nd, tmp, lm_u,isSubset,tmpindex;
+
+/* original estimation */
+varHat=var_estimateModel(var);
+resorig = vml_VeRead(varHat,"u");
+cd = vml_VeRead(varHat,"S_C_VAR");
+cy = vml_VeRead(varHat,"S_A");
+cx = vml_VeRead(varHat,"S_B");
+Ax = vml_VeRead(varHat,"B");
+Ad = vml_VeRead(varHat,"C_VAR");
+Ay = vml_VeRead(varHat,"A");
+d = vml_VeRead(varHat,"d");
+Nd = vml_VeRead(varHat,"Nd");
+py = vml_VeRead(varHat,"py");
+
+isSubset = 0;
+if rows(cd);
+  isSubset = isSubset + sumc(vec(cd).==0);
+endif;
+if rows(cy);
+  isSubset = isSubset + sumc(vec(cy).==0);
+endif;
+if rows(cx);
+  isSubset = isSubset + sumc(vec(cx).==0);
+endif;
+
+SSR = Resorig'*Resorig;
+t = rows(resorig);
+k = cols(resorig);	
+
+/* count number of estimated parameters */
+kk=cols(Ay)+cols(Ax)+cols(Ad);
+
+/* prepare test estimation */
+for i(1,lags,1);
+  tmpindex = i;
+  tmp = "ulm_"$+ftocv(tmpindex,1,0);
+  Nd = Nd | tmp;
+endfor;
+
+lm_u = lag_resanal(resorig, lags);
+if py > 0;
+  lm_u = zeros(py,cols(lm_u))|lm_u;
+endif;
+d = d~lm_u;
+if rows(cd) > 0;
+  cd = cd ~ ones(k, lags*k);
+  var = vml_vput(var,cd,"S_C_VAR");
+endif;
+var = vml_vput(var,Nd,"Nd");
+var = vml_vput(var,d,"d");
+
+/* augmented test regression */
+varHat=var_estimateModel(var);
+restest = vml_VeRead(varHat,"u");
+   
+   
+   LL = -1*T/2*(ln(det(SSR))-k*ln(T));
+   
+   SSU = Restest'*Restest;
+	
+   /* the LM test		   */
+	
+   /* the F approximation */			
+   Rr  = 1- det(SSU/T)/det(SSR/T);	
+   p   = k*lags;	
+   LMF = miss(ones(1,4),1);
+   if (k<=2 and p<=1) or (k<=1 and p<=2) == 1;
+     r  = 1;
+   else;
+     r  = sqrt((k^2*p^2-4)/(k^2+p^2-5));
+   endif;
+   q   = k*p/2-1;			
+   N   = T-kk-p-(k-p+1)/2;					
+   LMF = (1 - (1-Rr)^(1/r) )/ ((1-Rr)^(1/r)) * (N*r-q)/(k*p);	
+   df1 = floor(k*p);	
+   df2 = floor(N*r-q);
+   LMF = LMF~cdffc(LMF,df1,df2)~df1~df2;
+
+   if isSubset;
+     LMF = miss(ones(1,4),ones(1,4));
+   endif;
+   /* the Chi^2 statistic */
+   LM = T*K*(1 - sumc(diag(SSU * inv(SSR))) / K );
+   df = lags * K^2;
+   LM = LM~cdfchic(LM,df)~df~0;	
+  retp(LM|LMF);
+endp;
+
+
+/*helper method for lagging and filling with zeros*/
+proc(1) = lag_resanal(U,lags);
+local Ul,mu;
+/* construct lagged residuals, fill missing with zeros */
+mU = {};
+for i(1,lags,1);
+  Ul = lagn(U,i);
+  Ul = missrv(Ul,0);
+  mU  = mU~Ul;	       
+endfor; 	
+retp(mU);
+endp;

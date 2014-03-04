@@ -1,0 +1,258 @@
+/*
+ This file is part of the econometric software package JMulTi.
+ Copyright (C) 2000-2005  Helmut Herwartz, Christian Kascha, Markus Kraetzig
+
+ This program is free software; you can redistribute it and/or
+ modify it under the terms of the GNU General Public License
+ as published by the Free Software Foundation; either version 2
+ of the License, or (at your option) any later version.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, write to the Free Software
+ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ */
+/**
+ * Procedures  Estimation of ARCH with GED Errors
+ */
+ 
+/**
+ * AUTHORS	    
+ * PD Dr. Helmut Herwartz     helmut@wiwi.hu-berlin.de
+ * Christian Kascha	      christian_kascha@gmx.de
+ *
+ * Chair of Econometrics
+ * Humboldt University Berlin
+ * Spandauer Str. 1
+ * 10178 Berlin
+ * ise.wiwi.hu-berlin.de/oekonometrie/engl/indexeng.html		
+ * Berlin, January 2003
+ */
+
+/**
+ * output:
+ * g = intercept | q parameters | likelihood | degfree  
+ * S = variance covariance mat
+ * tvalues = intercept | q parameters 
+ * psi = residuals
+ * ivar = variance process
+ */
+proc(5)=archged_wrapper_arch(r,q);
+
+local T,ra,rmin,y,r2,e2,Z,theta,ucvar,s1,s,sh,tvalues,z0,ivar0,ivar,psi,g;
+
+T=rows(r);
+ra=abs(r);
+rmin=ra[1,1];
+
+for i (2,T,1);
+  if (ra[i,.] lt rmin) and (ra[i,.] ne 0);
+    rmin=ra[i,.];
+    
+  endif;
+endfor;
+rmin=rmin/100;
+
+for i (1,T,1);
+  if r[i,.] == 0;
+    y=rndn(1,1);
+    if y<0;
+      r[i,.]=rmin;
+    else;
+      r[i,.]=-rmin;
+    endif;
+  endif;
+endfor;
+
+r2=r.*r;                      /* ***** original squared errors ********** */
+e2=abs(r[q+1:T,.]); 	      /* ***** "explained" absolute errors ****** */
+Z=genZ_arch_arch(r2,T,q);	              /* ***** Matrix of squared explanatory errors ***** */
+
+theta=ones(q+2,1)*(0.5/q);    /* ***** Initial Parameters **************** */
+ucvar=sumc(r2)/T;
+theta[2,1]=ucvar*(1-0.5);     /* ***** initial value  constant term **** */
+theta[1,1]=2;
+
+format 0,4;
+/****** Estimation of Parameters *********/
+g=BHHH_arch_arch(r2,q,theta,e2,Z,T,&ableit_arched_arch,&lik_arched_arch);   
+  
+theta=g[1:q+2,.];
+S1=Ableit_arched_arch(e2,Z,theta);
+S=(S1*S1')/T;
+S=inv(S)/T;	         /* ***** Variance-Covariance Matrix ****** */
+SH=diag(S);
+SH=sqrt(SH);
+tvalues=theta./SH;
+/* Reordering degfree to the end */
+tvalues=tvalues[2:rows(tvalues),.]|tvalues[1,.];
+
+Z0=genZ0_arch_arch(r2,T,q,ucvar);
+ivar0=Z0*theta[2:rows(theta),.];
+ivar=Z*theta[2:rows(theta),.];										
+ivar=ivar0|ivar;
+ivar=sqrt(ivar);	/****** Vector of implied standard deviations *******/	
+
+psi=r./ivar;	        /****** Residuals ******/
+
+g=g[2:rows(g)]|g[1];
+
+retp(g,S,tvalues,psi,ivar);
+endp;
+
+
+
+
+
+/* ******************************************************************************* */
+/* ** Estimation of ARCH with GED Errors using  BHHH-Algorithm *********** */
+/*     
+INPUT 
+			r    (T x 1) 		Vector of Residuals
+
+PARAMETERS 
+
+			q  (1 x 1) 			ARCH - Order
+
+OUTPUT 
+			g ((q+3) x 1)		Vector of Parameters starting with degrees of freedom
+							    then the constant term plus value of log-likelihood at 
+							    the end
+
+			S ((q+2)x(q+2)) 	Variance-Covariance Matrix
+
+			tvalues ((q+2)x1)	tvalues of parameters
+
+AUTHORS	    PD Dr. Helmut Herwartz	helmut@wiwi.hu-berlin.de
+			Christian Kascha		christian_kascha@gmx.de
+
+			Chair of Econometrics
+			Humboldt University Berlin
+			Spandauer Str. 1
+			10178 Berlin
+			
+			ise.wiwi.hu-berlin.de/oekonometrie/engl/indexeng.html			
+
+			Berlin, January 2003
+*/
+/* ******************************************************************************** */ 
+/* ******************************************************************************** */
+
+/* ******************************************************************************* */
+/* ***************** Calculation of Gamma Functions ************************** */
+/*
+OUTPUT
+		z	values of resp. Gamma Functions(1 x 1)
+			This is done in order to evaluate numerically the derivatives
+			of the Gamma Functions in the pdf. 
+*/
+/* ******************************************************************************* */
+proc(1)=gam1_arched_arch(df);
+local z;
+z=gamma(1/df);
+
+retp(z);
+endp;
+
+proc(1)=gam2_arched_arch(df);
+local z;
+z=gamma(3/df);
+
+retp(z);
+endp;
+
+proc(1)=lulu_arched_arch(df);
+local z;
+z=sqrt(gamma(1/df)/(2^(2/df)*gamma(3/df)));
+
+retp(z);
+endp;
+
+
+/* ******************************************************************************* */
+/* ***************** Calculation of GED log-likelihood ************************* */
+/*
+OUTPUT
+		loglik	negative Log-likelihood (1 x 1)
+*/
+/* ******************************************************************************* */
+proc(1)=LIK_arched_arch(Z,T,q,theta,e2);
+
+local loglik,v,b,bb,zv,the,lambda,ga1,ga2,c,zwei,zwe,b2;
+
+v=theta[1,1]; 					/* ***** Degrees of Freedom ***** */
+the=theta[2:rows(theta),.];
+zv=Z*the; 					/* ****** Vector of Variances  ((T-q) x 1) ***** */
+ga1=gamma(1/v);
+ga2=gamma(3/v);
+zwei=2^(2/v);
+zwe=2^((v+1)/v);
+lambda=sqrt(ga1/(zwei*ga2));
+
+b2=sqrt(zv);
+b=e2./b2;
+
+c=v/(zwe*ga1*lambda);
+b=b/lambda;
+b=b^v;
+
+
+zv=ln(zv);
+loglik=(T-q)*ln(c)-0.5*sumc(b)-0.5*sumc(zv);
+
+loglik=(-1)*loglik;
+
+if imag(loglik) ne 0;
+loglik=0;
+endif;
+
+
+retp(loglik);
+endp;                    
+
+/* ******************************************************************************* */
+/* ********* Calculation of Derivative of GED Log-likelihood ************* */
+/*
+OUTPUT
+		ltv		Matrix of Derivatives  ((q+2) x (T-q))
+*/
+/* ******************************************************************************* */
+proc(1)=Ableit_arched_arch(e2,Z,theta);
+
+local ltv,v,d,ltvv,zv,sig1,sig2,ga1,ga2,the,lambda,lambda2,lamabl,lamabl2,zwei,zwe,b,bb,b2,b3;
+
+v=theta[1,1]; 					/* ***** Degrees of Freedom ***** */
+the=theta[2:rows(theta),.];
+zv=Z*the; 					/* ***** Variances ***** */
+sig1=gradp(&gam1_arched_arch,v);
+sig2=gradp(&gam2_arched_arch,v);
+ga1=gamma(1/v);
+ga2=gamma(3/v);
+zwei=2^(2/v);
+zwe=2^((v+1)/v);
+lambda=(ga1/(zwei*ga2))^(0.5);
+
+lamabl=0.5*((lambda)^(-1))*((zwei*ga2*sig1-(zwei*ln(2)*(-2/(v^2))*ga2+zwei*sig2)*ga1)/((zwei*ga2)^2));
+
+b2=sqrt(zv);
+b=e2./b2;
+b3=b/lambda;
+d=lamabl/lambda;
+
+ltvv=1/v-0.5*(b3^v).*(ln(b3)-v*d)+ln(2)/(v^2)-sig1/ga1-d;
+
+ltv=0.25*v*((b3^v)./zv).*Z-0.5*(zv^(-1)).*Z;
+ltv=(0.25*v*(b/lambda)^(v-1).*(b/lambda./zv)-0.5*zv^(-1)).*Z;
+
+ltv=ltvv~ltv;
+
+ltv=ltv';
+
+retp(ltv);
+endp;
+
+

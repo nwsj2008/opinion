@@ -1,0 +1,487 @@
+#ifos2win 
+/* to be used by library creation, windows only */
+#include extern.dec
+#endif
+
+
+proc(0) = setGlobalPlotParams_plot(
+		jm_legend_default,
+		jm_is_axnum,
+		jm_is_xlabel,
+		jm_is_zlabel,
+		jm_is_ylabel,
+		jm_height_axis,
+		jm_height_numbers,
+		jm_height_legend,
+		jm_height_plot_title,
+		jm_height_main_title,
+		jm_show_legend,
+		jm_show_main_title,
+		jm_show_plot_title,
+		jm_show_date,
+		jm_legend_x,
+		jm_legend_y,
+		jm_line_type,
+		jm_line_color,
+		jm_line_width,
+		jm_legend_strings
+		);
+
+__jm_legend_default	 = jm_legend_default	 ;
+__jm_is_axnum		 = jm_is_axnum		 ;
+__jm_is_xlabel		 = jm_is_xlabel		 ;
+__jm_is_zlabel		 = jm_is_zlabel		 ;
+__jm_is_ylabel		 = jm_is_ylabel		 ;
+__jm_height_axis	 = jm_height_axis	 ;
+__jm_height_numbers	 = jm_height_numbers	 ;
+__jm_height_legend	 = jm_height_legend	 ;
+__jm_height_plot_title	 = jm_height_plot_title	 ;
+__jm_height_main_title	 = jm_height_main_title	 ;
+__jm_show_legend	 = jm_show_legend	 ;
+__jm_show_main_title	 = jm_show_main_title	 ;
+__jm_show_plot_title	 = jm_show_plot_title	 ;
+__jm_show_date		 = jm_show_date		 ;
+__jm_legend_x		 = jm_legend_x		 ;
+__jm_legend_y		 = jm_legend_y		 ;
+__jm_line_type		 = jm_line_type		 ;
+__jm_line_color		 = jm_line_color	 ;	 
+__jm_line_width		 = jm_line_width	 ;	 
+__jm_legend_strings      = jm_legend_strings     ; 		  
+
+retp;
+endp;
+
+/**
+ * Sets global plot configuration settings. Should be called
+ * immediately before xy is called.
+ */
+proc(0) = setGlobalPlot_plot();
+
+
+/* has to be set outside */
+/* __jm_height_plot_title = 0.0; */
+/* __jm_show_plot_title = 1; */
+
+_pnum = __jm_is_axnum;
+
+if __jm_show_date > 0;
+  _pdate = "\201JMulTi    ";
+else;
+  _pdate = "";
+endif;
+
+_ptitlht = __jm_height_main_title;
+if __jm_show_legend == 0;
+  _plegctl = 0;
+else;
+  if __jm_legend_default == 1;
+    _plegctl = 4|__jm_height_legend|0|0;
+  else;
+    _plegctl = 2|__jm_height_legend|__jm_legend_x|__jm_legend_y;
+  endif;
+endif;
+
+_paxht = __jm_height_axis;
+_pnumht = __jm_height_numbers;
+
+if __jm_is_xlabel == 0;
+  _pascy = 0;
+  xlabel("");
+endif;
+if __jm_is_ylabel == 0;
+  _pascy = 0;
+  ylabel("");
+endif;
+if __jm_is_zlabel == 0;
+  zlabel("");
+endif;
+if __jm_show_main_title == 0;
+  _ptitle = "";
+endif;
+
+if __jm_graphics_file$/=""; 
+  _ptek = __jm_graphics_file;
+endif;
+
+retp;
+endp;
+
+proc(2) = asclTS_plot(t0, p, nr);
+local ax1, ax, expo, ascl, m, tmp;
+
+{expo,m}=base10(p);
+expo=m+1;
+
+ax1 = 0;
+ax = TimeAxis_tools(t0,AddPeriods_tools(t0,p,nr),p);
+
+for i(1,rows(ax),10);
+  if i <= rows(ax);
+    ax1 = ax1|ax[i];
+  endif;
+endfor;
+ax1 = trimr(ax1,1,0);
+if p == 1;
+  expo = 0;
+endif;
+ascl=ftocv(ax1,1,expo);
+xtics(1,nr,10,10);
+
+_pascx = ""$+zeros(rows(ascl),1);
+
+for i(1,rows(ascl),1);
+  _pascx[i] = _pascx[i] $+ ascl[i]; 
+endfor;
+
+retp(ax, ascl);
+endp;
+
+/*
+** 
+** PlotTS_plot(y,t0,p,names);
+**
+** plots time series data
+**
+** INPUT
+**       y     / (TxK) / matrix / K time series of length T
+**       t0    / (1x1) / scalar / starting point e.g. 1960.1 for first quarter 1960
+**       p     / (1x1) / scalar / periodicity, p>=1
+**       names / (Kx1) / string / names of time series for legend OR
+**               (1x1) / string / names = "" for showing no legend 
+** OUTPUT
+**       graphics window
+**
+** REMARKS
+**       requires library pgraph;ic to be loaded
+**
+** GLOBALS
+**
+*/
+
+proc(0)=PlotTS_plot(y,t0,p,names);
+local expo,m,ascl,ascl1,ax;
+/* Reset graphics globals to default values. */
+
+
+PlotGraphset_plot;
+{expo,m}=base10(p);
+expo=m+1;
+
+/* create legend string */
+if names$/="";
+  _plegstr = names[1];
+  for i(2,rows(names),1);
+    _plegstr = _plegstr $+ "\000" $+ names[i];
+  endfor;
+  _plegctl=1;
+endif;
+
+{ax, ascl} =  asclTS_plot(t0, p, rows(y));
+if p > 1;
+  ascl1 = ftocv(ax[rows(ax)-1],1,expo);
+else;
+  ascl1 = ftocv(ax[rows(ax)],1,expo);
+endif;
+title("Plot of Time Series "$+ascl[1]$+"-"$+ascl1$+", T="$+ftocv(rows(y),1,0));
+setGlobalPlot_plot();
+XY(seqa(1,1,rows(y)),y);
+
+dllcall showLastGraphic;
+endp;
+
+/*
+** 
+** PlotWindows_plot(y,t0,p,names);
+**
+** plots time series data
+**
+** INPUT
+**       y     / (TxK) / matrix / K time series of length T
+**       t0    / (1x1) / scalar / starting point e.g. 1960.1 for first quarter 1960
+**       p     / (1x1) / scalar / periodicity, p>=1
+**       names / (Kx1) / string / names of time series for legend OR
+**               (1x1) / string / names = "" for showing no legend 
+** OUTPUT
+**       graphics window
+**
+** REMARKS
+**       requires library pgraph;ic to be loaded
+**
+** GLOBALS
+**
+*/
+proc(0)=PlotWindows_plot(y,t0,p,names);
+	local expo,m,ascl,ascl1,ax,s,titel;
+	if cols(y)==1; 
+	  PlotTS_plot(y,t0,p,names);
+	  retp;
+	endif;
+	if names$=="";
+	  names=seqa(1,1,cols(y));
+	endif;
+	  
+	/* Reset graphics globals to default values. */
+	PlotGraphset_plot;
+
+	{expo,m}=base10(p);
+	expo=m+1;
+
+	{ax, ascl} =  asclTS_plot(t0, p, rows(y));
+	if p > 1;
+	  ascl1 = ftocv(ax[rows(ax)-1],1,expo);
+	else;
+	  ascl1 = ftocv(ax[rows(ax)],1,expo);
+	endif;
+
+
+	begwind;
+	_ptitle = "Plot of Time Series "$+ascl[1]$+"-"$+ascl1$+", T="$+ftocv(rows(y),1,0);
+	setGlobalPlot_plot();
+	_plegctl = 0;
+
+	s=smwintit_plot( ceil(cols(y)/2), 2, _ptitle, 0 );
+	for i(1,cols(y),1);
+	  setwind(s+i);
+	  _ptitlht=0.25;
+	  title(names[i]);
+	  if  __jm_show_plot_title == 0;
+	    _ptitle = "";
+	  endif;
+	  _ptitlht = __jm_height_plot_title; 
+	  XY(seqa(1,1,rows(y)),y[.,i]);	
+	endfor;
+	endwind;
+	graphset;
+	dllcall showLastGraphic;
+
+endp;
+/*
+**
+** PlotGraphset_plot();
+**
+** PURPOSE
+**        Reset graphics globals to default values.
+**
+** INPUT
+**      
+** OUTPUT
+**
+** REMARKS
+*/
+proc(0)=PlotGraphset_plot;
+	graphset;
+ 	_pdate="";
+endp;
+
+
+
+
+/*
+The follwoing procedures were developed by 
+Sune Karlsson
+*/
+@ author: Sune Karlsson @
+/**************************************************************************
+***  EXAMPLE:  ***********
+**************************
+***  x = seqa(1,1,100);
+***  y = rndn(100,25);
+***  labels = 0 $+ "Plot " $+ ftocv(seqa(1,1,25),1,0);
+***  
+***  begwind;
+***  tshift = smwintit( 5, 5, "Multiple plots with main title", 0 );
+***  
+***  i = 1;
+***  do while i <= 25;
+***  	     @ print tshift; @
+***    setwind(i+tshift);
+***  
+***    title( labels[i] );
+***  
+***    xy(x,y[.,i]);
+***  
+***    i = i+1;
+***  endo;
+***  
+***  endwind;
+**************************
+ special version of WINDOW
+
+ titwin = SMWINTIT_plot( ROWS, COLS, TITLE, TYPE )
+
+ ROWS, COLS and TYPE as in WINDOW
+
+ TITLE reduces the x-dimension and prints TITLE on top.
+ titwin = 1 if title is printed, zero otherwise.
+ 
+ smwintit_plot( rows, cols, "", type ) = window( rows, cols, type )
+
+***************************************************************************/
+
+proc (1) = smwintit_plot( nrows, ncols, tit, wtype );
+
+local axold, skip;
+
+if type(tit)==13 and tit$/="";
+
+  axold = _paxes;
+  _paxes = 0;
+  makewind( 9, 6.855, 0, 0, 0 );
+  setwind(1);
+  ylabel("");
+  xlabel("");
+  title( tit );
+  draw;
+  title( "" );
+  _paxes = axold;
+
+  if ( _ptitlht == 0 );
+    skip = 0.8;
+  else;
+    skip = _ptitlht;
+  endif;
+  if ( _pdate $/= "" );
+    skip = skip+0.2;
+  endif;
+  smakewin_plot( nrows, ncols, skip, wtype );
+
+  retp( 1 );
+  
+else;
+
+  smakewin_plot( nrows, ncols, 0, wtype );
+
+  retp( 0 );
+  
+endif;
+
+
+endp;
+
+@ author: Sune Karlsson @
+/**************************************************************************
+ special version of WINDOW
+
+ SMAKEWIN_plot( ROWS, COLS, SHIFT, TYPE )
+
+ ROWS, COLS and TYPE as in WINDOW
+
+ SHIFT reduces the y-dimension and leaves an empty area on top.
+ smakewin_plot( rows, cols, 0, type ) = window( rows, cols, type )
+
+***************************************************************************/
+
+proc (0) = smakewin_plot( numrows, numcols, shift, wintype );
+
+local xsize, ysize, i, j;
+
+if numrows < 1;
+  print "SMAKEWIN: rows must be positive";
+  retp;
+endif;
+if numcols < 1;
+  print "SMAKEWIN: columns must be positive";
+  retp;
+endif;
+if shift < 0;
+  print "SMAKEWIN: shift can not be negative";
+  retp;
+endif;
+xsize = 9/numcols;
+ysize = (6.855-shift)/numrows;
+
+i = 1;
+do while i <= numrows;
+  j = 1;
+  do while j <= numcols;
+    makewind( xsize, ysize, (j-1)*xsize, (numrows-i)*ysize, wintype);
+    j = j + 1;
+  endo;
+  i = i + 1;
+endo;
+retp;
+endp;
+
+
+/*   Plotxy_plot
+this is a helper plot routine where you can have x and y as arguments
+
+x = x axis (T x 1)
+y = y data (T x K)
+sw = single window = 0:all graphs in one diagram (with legend) 
+                     1:one diagram for every graph
+names = String[] of all the names of y
+titel = main title		  
+*/
+
+proc(0) = Plotxy_plot(x,y,sw,names,titel);
+	local expo,m,ascl,ascl1,ax,ax1,i,s;
+	/* Reset graphics globals to default values. */
+	PlotGraphset_plot;
+
+	/********************one diagram for all graphs******************/
+	if sw ==0; 
+	  /* create legend string */
+	  if names$/=""; 
+	    _plegstr = names[1]; 
+	    for i(2,rows(names),1); 
+	      _plegstr = _plegstr $+ "\000" $+ names[i]; 
+	    endfor; 
+	  _plegctl=1; 
+	  endif; 
+	  _ptitle = titel;
+	  setGlobalPlot_plot();
+	  XY(x,y);
+	  dllcall showLastGraphic;
+	  graphset;
+	  retp;
+	endif;
+
+	/********************one diagram for each graph******************/
+	if names$=="";
+	  names=seqa(1,1,cols(y));
+	endif;
+	  
+
+	setGlobalPlot_plot();
+	_plegctl = 0;
+	
+	begwind;
+	if cols(y) > 1;
+	  s=smwintit_plot( ceil(cols(y)/2), 2, _ptitle, 0 );
+	else;
+	  s=smwintit_plot( ceil(cols(y)/2), 1, _ptitle, 0 );
+	endif;
+	i = 1;
+	do while i <= cols(y);
+	  setwind(s+i);
+	  _ptitlht=0.25;
+	  title(names[i]);
+	  if  __jm_show_plot_title == 0;
+	    _ptitle = "";
+	  endif;
+	  _ptitlht = __jm_height_plot_title; 
+	  _pdate = "";
+	  
+	  XY(x,y[.,i]);	
+	  i=i+1;
+	endo;
+
+	endwind;
+	graphset;
+	dllcall showLastGraphic;
+retp;
+endp;
+
+
+
+/*****************************************************************/
+
+
+
+
+
+
+
+
+

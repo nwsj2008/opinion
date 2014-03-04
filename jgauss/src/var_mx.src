@@ -1,0 +1,266 @@
+/*
+ This file is part of the econometric software package JMulTi.
+ Copyright (C) 2000-2005  Alexander Benkwitz
+
+ This program is free software; you can redistribute it and/or
+ modify it under the terms of the GNU General Public License
+ as published by the Free Software Foundation; either version 2
+ of the License, or (at your option) any later version.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, write to the Free Software
+ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ */
+#ifos2win 
+/* to be used by library creation, windows only */
+#include var.dec
+#endif
+/*
+** SYNTAX  
+** y = vml_SetModelExtensions(model,mx_c,mx_tf);
+**
+** PURPOSE 
+** Adds more variables to the model.
+**    
+** INPUT
+** model / (M,1) / data buffer / 
+** mx_c  / (O,4) / matrix    / where {\tt mx\_c[.,1]}  specifies the variable type 
+**                             (see Remark)
+**                             {\tt mx\_c[.,2]}  specifies the variable index
+**                             {\tt mx\_c[.,3]}  specifies the lag
+**                             {\tt mx\_c[.,4]}  specifies the column index of 
+**                             the time function in {\tt mx\_tf}
+**                             ({\tt mx\_c[.,4]<1} if no time function is needed)
+** mx_tf / (T,P) / matrix / {\tt P<=T}.  If {\tt mx\_c[i,3]<1} for all
+**                          {\tt i}, {\tt mx\_tf := \{\}}
+**
+** OUTPUT 
+** model / (N,1) / data buffer /
+**
+** REMARK
+** The following variable types are valid:
+** \begin{tabular}{|l|c|} \hline
+**             &  coding                            \\ \hline
+** endogenous  &  enl (level)  end  (differenced)   \\
+** exogenous   &  ex                                \\
+** EC-term     &  ec                                \\
+** determin    &  de                                \\ \hline
+** \end{tabular}
+**
+** Changes in data buffer:\\
+** {\tt + mx\_c[, mx\_tf], Z}
+*/
+proc(1)=vml_SetModelExtensions(model,mx_c,mx_tf);
+	local y,py,ec,x,px,id,Z;
+
+   	y  = vread(model,"y");
+	py = vread(model,"py");
+   	ec = vml_vread(model,"ec");	
+	x  = vml_vread(model,"x");
+   	px = 0; if rows(x); px=vread(model,"px"); endif;
+	id = vread(model,"id");
+
+	Z = var__createTVRegressors(y,py,ec,x,px,id, mx_c,mx_tf);
+
+	model = vput(model,Z,"Z");
+		
+	retp(model);
+endp;
+
+/*
+**
+*/
+proc(1)=vml__computeTVRegressor(mx_c,mx_tf, y,x,d_ec, beta,beta_d);
+	local Z;
+	if rows(mx_c);
+		errorlog("This function is NIY!");
+		retp(-10);
+	endif;
+	Z = {};
+	retp(Z);
+endp;
+
+/*
+** SYNTAX  
+**
+** PURPOSE 
+**    
+** INPUT
+**
+** OUTPUT 
+**
+** REMARK
+*/
+proc(1)=var__createTVRegressors(y,py,ec,x,px,id, mx_c,mx_tf);
+	local K,T,L,r,validKeys,minLag,maxLag,temp,maxVIdx,tmp,Z;
+
+	K  = cols(y);
+	T  = rows(y)-py;
+
+	if rows(x);
+		L=cols(x);
+	else;
+		L=0;
+		px=0;
+	endif;
+
+	if rows(ec);
+		r=cols(ec);
+	else;
+		r=0;
+	endif;
+
+	mx_c[.,1] = lower(mx_c[.,1]);
+	let validKeys = {"enl","ex","ec","de","end"};
+	minLag    = 0|0|1|0|0;
+	maxLag    = py|px|1|0|(py-1);
+	maxVIdx   = K|L|r|0|K;
+	
+	if strsect(id,1,3)$=="VAR";
+		validKeys = validKeys[1|2|4|5];
+		minLag    = minLag[1|2|4|5];
+		maxLag    = maxLag[1|2|4|5];
+		maxVIdx   = maxVIdx[1|2|4|5];
+	elseif strsect(id,1,2)$=="EC";
+		validKeys = validKeys[1|2|4|5];
+		minLag    = minLag[1|2|4|5];
+		maxLag    = maxLag[1|2|4|5];
+		maxVIdx   = maxVIdx[1|2|4|5];
+	endif;
+
+
+	for i (1,rows(validKeys),1);
+		temp=selif(mx_c,mx_c[.,1].==validKeys[i]);
+		if not(scalmiss(temp));
+			if NOT((1.<=temp[.,2] .AND temp[.,2].<=maxVIdx[i]) == ones(rows(temp),1));
+				"";
+				errorlog("ERROR: Bad Variable index!");
+				retp(-10);
+			endif;
+			if NOT((minLag[i].<=temp[.,3] .AND temp[.,3].<=maxLag[i]) == ones(rows(temp),1));
+				"";
+				errorlog("ERROR: Bad lag number inserted!");
+				retp(-10);
+
+			endif;
+			if NOT((temp[.,4].<=cols(mx_tf)) == ones(rows(temp),1));
+				"";
+				errorlog("ERROR: Bad time function index!");
+				retp(-10);
+			endif;
+		endif;
+	endfor;
+
+	/* create the variable - matrix */
+	Z=zeros(T,rows(mx_c));
+	for i (1,rows(mx_c),1);
+		
+		if mx_c[i,1]==0+"enl";
+			tmp=y;
+		elseif mx_c[i,1]==0+"end";
+			tmp=y[2:rows(y),.]-y[1:rows(y)-1,.];
+		elseif mx_c[i,1]==0+"ex";
+			tmp=x;
+		elseif mx_c[i,1]==0+"ec";
+			tmp=ec;
+		elseif mx_c[i,1]==0+"de";
+			"";
+			errorlog("Dont use this variable!");
+			retp(-10);
+			/* tmp=d; */
+		else;
+			tmp=i;
+			"";
+			errorlog("Bad coded variable. (Variable index="$+ftocv(tmp,1,0)$+")");
+			retp(-10);
+
+		endif;
+
+		@ read only the specified variable @
+		tmp=tmp[.,mx_c[i,2]];
+
+		@ read the correct lag structure @
+		tmp=tmp[rows(tmp)-T+1-mx_c[i,3]:rows(tmp)-mx_c[i,3]];
+
+		@ look for time function @
+		if mx_c[i,4]>0;
+			tmp=tmp.*mx_tf[.,mx_c[i,4]];
+		endif;
+
+		@ put in new variable matrix @
+		Z[.,i]=tmp;
+
+	endfor;
+		
+	retp(Z);
+endp;
+
+
+
+
+/*
+** SYNTAX  
+** y = vml_SetLevelVariables(model, idx);
+**
+** PURPOSE 
+** Defines which variables enter the VECM in levels.
+**    
+** INPUT
+** model / (M,1)   / data buffer / VECM model.
+** idx   / (L,1)   / matrix / indices of variables that enter the model in levels.
+**
+** OUTPUT 
+** model / (M,1) / data buffer / VECM model with additional information.
+**
+** REMARKS 
+** The input data buffer must define a VECM.
+**
+** Changes in data buffer:\\
+** {\tt + mx\_lev}
+**
+** SEE
+** vml_InitVAR
+** 
+*/
+proc(1)=vml_SetLevelVariables(model, idx);
+	local d,validIdx;
+	if rows(idx)>0;
+		d = cols(vml_vread(model,"y"));
+		if d>0;
+			validIdx = seqa(1,1,d);
+			if ismiss(indnv(idx,validIdx));
+				print "";
+				errorlog("Excluding endogenous variables from VECM part failed:");
+				errorlog(" Bad index argument.");
+				print "";
+				print "Valid indices are:" validIdx;
+				print "Your argument is :" idx;
+				retp(-10);
+			endif;
+			model = vput(model,idx,"mx_lev");
+		else;
+			print "";
+			errorlog("Excluding endogenous variables from VECM part failed:");
+			errorlog(" There are no endogenous variables defined in the model.");
+			retp(-10);
+		endif;
+	endif;
+	retp(model);
+endp;
+
+
+
+
+
+
+
+
+
+
+
+

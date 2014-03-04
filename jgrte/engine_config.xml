@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ConfigHolder xmlns="java:com.jstatcom.engine" engine="GRTE">
+  <ConfigHolder$KeyValPair key="GAUSSAPI_SYSLIBNAME" value="gaussjavaapirt"/>
+  <ConfigHolder$KeyValPair key="GCG_FILENAME" value="jgrte.gcg"/>
+  <ConfigHolder$KeyValPair key="DO_JGRTE_INIT" value="true"/>
+  <ConfigHolder$KeyValPair key="GRAPHICS_DIR" value=""/>
+</ConfigHolder>

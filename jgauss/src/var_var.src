@@ -1,0 +1,153 @@
+/*
+ This file is part of the econometric software package JMulTi.
+ Copyright (C) 2000-2005  Alexander Benkwitz
+
+ This program is free software; you can redistribute it and/or
+ modify it under the terms of the GNU General Public License
+ as published by the Free Software Foundation; either version 2
+ of the License, or (at your option) any later version.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, write to the Free Software
+ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ */
+
+#ifos2win 
+/* to be used by library creation, windows only */
+#include var.dec
+#endif
+
+/**
+**
+** SYNTAX : {Eig } = var_eigenvalues(Ay);
+** returns the modulus of the eigenvalues of the characteristic polynomial
+*/
+proc(1)=var_eigenvalues(Ay);
+local eigenv,A,p,I;
+if rows(Ay) == 0;
+  retp(0);
+endif;
+p = cols(Ay)/rows(Ay);
+if p > 1;
+  I = eye(rows(Ay)*(p-1))~zeros(rows(Ay)*(p-1),rows(Ay));
+  A = Ay|I;
+else;
+  A = Ay;
+endif;
+eigenv = abs(eig(a));
+retp (selif(eigenv,eigenv[.,1] .gt 0)^-1 );
+endp;
+/*
+**
+** SYNTAX
+** {A0,A,C_EC,F_VAR,mx_c_var}=vml__VEC2VAR(G0,G,alpha,beta,beta_d, F_VEC,mx_c_vec);
+**
+** PURPOSE
+** Generates VAR representation of VEC model.
+**
+**
+**
+** REMARK
+**
+*/
+proc(5)= vml__VEC2VAR(G0,G,alpha,beta,beta_d, F_VEC,mx_c_vec);
+	local K,P,A,A0,C_EC,mx_c_var,F_VAR;
+
+	/* alpha,beta,G0,G --> A0,A */
+      	if rows(G0)==0;
+		   	G0=eye(rows(alpha));
+		endif;
+	K=rows(G0);
+	if rows(alpha) and rows(beta);
+	    P=alpha*beta;
+	else;
+		P = zeros(K,K);
+	endif;
+	
+   	A = G~ZEROS(K,K);
+	A = A-(ZEROS(K,K)~G);
+	A[.,1:K]=A[.,1:K]+P+G0;
+
+   	A0 = G0;
+	   	if A0==eye(K);
+			A0={};
+	   	endif;
+
+	/* alpha,beta_d --> C_EC */
+	if rows(beta_d);
+		C_EC = alpha * beta_d;
+	else;
+		C_EC = {};
+	endif;
+
+	/* alpha,mx_c_vec,F_VEC --> mx_c_var,F_VAR */
+	if rows(F_VEC);
+		errorlog("NIY!");
+		retp(-10,-10,-10,-10,-10);
+	else;
+		mx_c_var = {};
+		F_VAR    = {};
+	endif;
+
+	retp(A0,A,C_EC,F_VAR,mx_c_var);
+endp;
+
+/*
+**
+** SYNTAX
+** {cv_A,cv_P_d}=vml__VEC2VAR_cv(K, cv_P, cv_G);
+**
+** PURPOSE
+** Generates VAR representation of VEC model.
+**
+**
+**
+** REMARK
+**
+*/
+proc(2)=vml__VEC2VAR_cv(K,cv_P, cv_G);
+	local cv_A,cv_P_d;
+
+   	cv_A   = {};
+	cv_P_d = {};
+	if K and rows(cv_P);
+		local cv_PG,W,tmp;
+
+		if cols(cv_P)>K*K;
+			cv_P_d = cv_P[K*K+1:cols(cv_P),K*K+1:rows(cv_P)];
+			cv_P   = cv_P[1:K*K,1:K*K];
+		endif;
+		
+		if rows(cv_G);
+			cv_PG = (cv_P~zeros(rows(cv_P),cols(cv_G)))|(zeros(rows(cv_G),cols(cv_P))~cv_G);
+		else;
+			cv_PG = cv_P;
+		endif;
+
+		tmp = round(cols(cv_G)/K);
+		W  = -1*eye(tmp+K);
+		W[1:K,1:K] = -1*W[1:K,1:K]; 
+		if tmp;	
+			tmp=eye(tmp);
+			W[K+1:rows(W),1:cols(W)-K]=tmp+W[K+1:rows(W),1:cols(W)-K];
+		endif;
+
+		tmp  = W'.*.eye(K);
+		cv_A = tmp*cv_PG*(tmp'); 
+	endif;
+
+	retp(cv_A,cv_P_d);
+endp;
+
+
+
+
+
+
+
+

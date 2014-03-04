@@ -1,0 +1,1387 @@
+/*
+ This file is part of the econometric software package JMulTi.
+ Copyright (C) 2000-2005  Carsten Trenkler, Markus Kraetzig
+
+ This program is free software; you can redistribute it and/or
+ modify it under the terms of the GNU General Public License
+ as published by the Free Software Foundation; either version 2
+ of the License, or (at your option) any later version.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, write to the Free Software
+ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ */
+
+/* ******************************************************************* */
+/* ****** Reduced rank regression for SL-Tests with dummies ****** */
+/* ******************************************************************* 
+written by Carsten Trenkler, 2000*/
+/* yy        = TxK Data Matrix */
+/* dummies   = matrix of the dummies (without seasonal dummies) */
+/* seasdum   = centered seasonal dummies */
+/* it        = vector of jump times (as ith number of observation) */
+/* vt        = vector of shift start (as ith number of observation)~vector of shift end (as ith number of observation) */
+/* st        = vector of shift start (as ith number of observation) */
+/* s_dum     = number of true shift dummies */
+/* s_dum     = number of true shift dummies */
+/* p         = number lags to include */
+/* teststate = 1:const ; */
+/*	       2:const+trend ; */
+/* 	       3:trend orthogonal to cointegration relation */
+/* output    = LR statitic, critical values (1%,5%,10%),pvalues */
+
+proc(1) = sltest_cointsl(yy,it,vt,st,seasdum,p, teststate );
+local t,trend,const,y,y_1,dy,dy_k,n,co,tr,tr_ot;
+local id,vd,sd,drt,dr,vd_1,sd_1,dvd_k;
+local evec,skk,s0k,s00,y_1r,z,tv;
+local betap,beta,alpha,beta_o,alpha_o,psi,omega,et;
+local A_Lo,Q_w,coef,reg,x_adj,x_adj_1,dx_adj,dx_adj_k;
+local LR,crall_all,r, crit_all,lr_stat,season, vt1, vt2,i_dum,v_dum,s_dum,pval_all,pval;
+
+
+i_dum=rows(it);
+v_dum=rows(vt);
+s_dum=rows(st);
+vt1={};
+vt2={};
+if rows(vt);
+  vt1=vt[.,1];
+  vt2=vt[.,2];
+endif;
+
+season = 0;
+if rows(seasdum) > 1;
+  season = 1;
+endif;
+LR = {};
+t=rows(yy);
+n = cols(yy);
+        if(teststate == 1);co = 1;tr = 0;tr_ot = 0;
+          elseif (teststate == 2);co = 1;tr = 1;tr_ot = 0;
+          elseif (teststate == 3);co = 1;tr = 1;tr_ot = 1;
+        endif;
+
+{trend,const,y,y_1,dy,dy_k} = datan_cointsl(yy,t,p);
+
+{it,vt1,vt2,st,id,vd,sd,drt,dr,vd_1,sd_1,dvd_k,v_dum,s_dum} = 
+                               dum_cointsl(i_dum,v_dum,s_dum,it,vt1,vt2,st,p,t);
+
+{evec,skk,s0k,s00,y_1r,z,tv} = johan_cointsl(y_1,dy,dy_k,vd_1,sd_1,dr,drt,dvd_k,seasdum,trend,tr,const,co,tr_ot,i_dum,v_dum,s_dum,n,p,t,season);
+
+crall_all = {};
+pval_all = {};
+r = 0;         /* r: cointegration rank under the null hypothesis */
+do while r <= n-1;
+
+{betap,beta,alpha,beta_o,alpha_o,psi,omega,et} = 
+		para_cointsl(evec,skk,s0k,s00,dy,y_1r,z,r,p,n,tv);
+
+{A_Lo} = al_cointsl(psi,alpha,beta,tr,p,n);
+
+{Q_w}=qt_cointsl(omega,alpha,alpha_o,r,n); 
+
+{coef,reg}=regr_cointsl(i_dum,v_dum,s_dum,tr,co,tr_ot,it,vt1,vt2,st,n,t,p,season,A_Lo,Q_w,y,const,trend,id,vd,sd,seasdum);
+
+{x_adj,x_adj_1,dx_adj,dx_adj_k}=adjust_cointsl(y,coef,reg,n,t,p,tr_ot);
+
+lr_stat=lrtest_cointsl(x_adj_1,dx_adj,dx_adj_k,n,r,p,t);
+
+/**********************************************************************/
+/**************** Critical Values *************************************/
+/**********************************************************************/
+ {pval,crit_all}=pv_trenkler_cointsl(lr_stat, n-r, teststate);
+ crall_all = crall_all|crit_all;   /* critical values 90%,95%,99%   */
+ pval_all = pval_all|pval; 
+ 
+/* asymptotic critvals */ 
+/* if teststate == 1; */
+/*   {crit_asy} = trasy_cointsl(n,r); */
+/* elseif teststate ==2; */
+/*   {crit_asy} = lmcrasy_cointsl(n,r); */
+/* elseif teststate == 3; */
+/*   {crit_asy} =lmcrot_cointsl(n,r); */
+/* endif; */
+/* crall_asy = crall_asy|crit_asy;  */
+
+LR = LR|lr_stat;
+
+r = r + 1;
+endo;    
+
+
+retp(LR~crall_all~pval_all);
+endp;
+
+/******************construction of data*****************/
+
+proc(6) = datan_cointsl(yy,t,p);
+
+     local trend,const,y,y_1,dy,dy_k,q;
+
+/* ********************* */
+/*   Dimension   T x K  */
+/* ********************* */
+
+
+/* Deterministic Parts */
+
+
+
+trend = seqa(1,1,t);
+const = ones(t,1);               /* constant term */
+
+       
+/* y, y_1 and dy */
+
+y = yy;
+y_1 = lag1(y);
+dy = y - lag1(y);
+
+
+
+/* Matrix of lagged differences of y */
+
+
+dy_k = zeros(t,1);
+if p >=2;
+   q = 1; 
+   do while (q <= (p-1)); 
+   
+      dy_k  = dy_k~lagn(dy,q);
+      q  = q + 1 ;
+    endo ;
+
+dy_k = trimr(dy_k',1,0)';
+
+else;         
+
+endif;
+
+retp(trend,const,y,y_1,dy,dy_k);
+
+endp;
+
+
+/********************************************************************/
+/********* Construction of Impulse, Extended Impulse and ************/
+/**************** Step Dummies for S&L-Tests ************************/
+/********************************************************************/
+
+
+proc(14) = dum_cointsl(i_dum,v_dum,s_dum,it,vt1,vt2,st,p,t);
+
+local id, id1,vd,vd1,sd,sd1,drt,dr, dr1,vd_1,sd_1;
+local dvd_k1,dvd_k,i,k,m,sra;
+
+/********************* Matrix of Impulse Dummies ************************/
+
+if i_dum == 0;
+   it = 0;
+   id = zeros(t,1);
+
+else;
+
+   id = zeros(t,1);
+   i = 1;
+   do while i<= i_dum;
+         if it[i]==1;
+            id1 = 1|zeros(t-1,1);
+         elseif it[i] == t;
+            id1 = zeros(it[i]-1,1)|1;
+         else;
+            id1 = zeros(it[i]-1,1)|1|zeros(t-it[i],1);
+         endif;   
+         id = id~id1;
+         i=i+1;
+   endo;
+
+   id = trimr(id',1,0)';  /* Dimension T*i_dum */
+   
+endif;
+
+/*******************Matrix of Extended Impulse Dummies *******************/
+
+if v_dum == 0;
+   vt1 = 0;
+   vt2 = 0;
+   vd = zeros(t,1);
+
+else;
+
+ 
+/*** Change extended impuls dummy beginning 
+at t =1 to a shift dummy starting at t = vt2 +1 ***/  
+ 
+    i = 1;
+    do while i <= v_dum;  
+        if vt1[i] == 1;
+	   sra = vt2[i]+1;   
+	   if s_dum > 0;
+           	st = trimr(st',0,(cols(st) - s_dum))';
+		st = st|sra;
+	   else;
+		st = sra;
+	   endif;
+           v_dum = v_dum - 1;
+           s_dum = s_dum + 1;
+           vt2[i] = 0;
+        endif;
+        
+        i = i+1;
+        
+   endo;
+   vt1 = delif(vt1, vt1[.,1] .== 1);  
+   vt2 = delif(vt2, vt2[.,1] .== 0); 
+   
+
+   vd = zeros(t,1);
+
+   i = 1;
+   do while i<= v_dum;
+         vd1 = zeros(vt1[i]-1,1)|ones(vt2[i]-vt1[i]+1,1)|zeros(t-vt2[i],1);
+         vd = vd~vd1;
+         i=i+1;
+   endo;
+
+   if v_dum > 0;
+      vd = trimr(vd',1,0)'; /* Dimension T*v_dum */
+   endif;
+
+endif;
+
+
+/********************* Matrix of Shift Dummies ************************/
+
+if s_dum == 0;
+   st = 0;
+   sd = zeros(t,1);
+
+else;
+
+   k=0;
+   i = 1;
+   do while i <= s_dum;
+        if st[i] == 1;
+           k=1;
+           ""; "";
+           " Shiftdummies cannot start with the 1st observation !";
+           " Correct shiftdummy number"; ""; format  /lds 6,0; i; format  /lds 6,3;
+       endif;
+       i = i +1;
+   endo;
+   
+   if k==1;
+     retp(-10,-10,-10,-10,-10,-10,-10,-10,-10,-10,-10,-10,-10,-10,);
+   endif;
+
+   sd = zeros(t,1);
+   i = 1;
+   do while i<= s_dum;
+         sd1 = zeros(st[i]-1,1)|ones(t-st[i]+1,1);
+         sd = sd~sd1;
+         i=i+1;
+   endo;
+
+   sd = trimr(sd',1,0)'; /* Dimension T*s_dum */
+    
+endif;
+
+
+
+/******** Matrix of Impulse Dummies for RR - Regression *************/
+
+
+/* Zeitpunkte zu denen Dummies eine eins haben 
+einschließlich der entsprechenden Lags*/
+
+/* Gilt auch für differenzierte Shiftdummies und erweiterte Impulsdummies, 
+bei letzteren, sofern durch die Lags die -1 verschwindet */
+ 
+if (i_dum>0) or (s_dum>0) or (v_dum>0);
+
+   drt = 0;
+
+
+   i = 1;   
+   do while i<= i_dum;
+    
+        k = 0;
+        do while k <= p;
+
+             drt = drt|(it[i]+k);  
+             k = k+1;
+            
+        endo;
+
+        i = i+1;
+   endo; 
+
+
+   i = 1;   
+   do while i<= v_dum;
+      
+        k = 0;
+        do while t-vt2[i]+k < p; /* Überprüfen ob durch laggen d(vd) zu Imulsdummmy wird*/  
+             drt = drt|(vt1[i]+p-1-k);
+             k = k+1;
+        endo;
+       m = 0;
+       do while vt1[i]+m <= p;  /* Überprüfen ob durch trimmen von p-Beobachtungen d(vd) zu Imulsdummmy wird*/  
+             if vt2[i] + m <= t;
+                drt = drt|(vt2[i]+m+1);
+             endif;
+       m = m + 1; 
+       endo;
+       i = i+1;
+
+   endo; 
+
+
+   i = 1;   
+   do while i<= s_dum;
+    
+       k = 0;
+       do while k <= (p-1);
+
+            drt = drt|(st[i]+k);
+            k = k+1;
+       endo;
+
+       i = i+1;
+   endo; 
+
+   if rows(drt)>1;
+       drt = trimr(drt,1,0);
+       drt = unique(drt,1); 
+      /* Aussortieren der reduntanten Zeitpunkte und aufsteigende Ordnung*/
+
+      drt  = DELIF(drt, drt[.,1] .< (p+1));
+      /* Aussortieren der Zeitpunkte, die vor p liegen, da diese beim Trimmen 
+         wegfallen würden und so einen Nullvektor ergeben */
+ 
+      drt  = DELIF(drt, drt[.,1] .> t); 
+      /* Aussortieren der Zeitpunkte, die nach t liegen, da diese nicht mehr im Sample liegen */
+      
+       dr = zeros(t,1);
+       i = 1; 
+       do while i<= rows(drt); 
+            if (t-drt[i]) >=1;
+                dr1 = zeros(drt[i]-1,1)|1|zeros(t-drt[i],1); 
+                /* Generieren der Matrix mit Hilfe der Zeitpunkte in drt*/
+                dr = dr~dr1;
+                i=i+1;
+           elseif (t-drt[i])==0;
+                dr1 = zeros(drt[i]-1,1)|1; 
+                /* Generieren der Matrix mit Hilfe der Zeitpunkte in drt*/
+                dr = dr~dr1;
+                i=i+1;
+           endif;
+       endo; 
+
+
+      dr = trimr(dr',1,0)';
+
+   else;
+
+     dr=zeros(t,1);
+
+   endif;
+
+else;
+
+  drt=0;
+  dr=zeros(t,1);
+
+endif;
+
+
+/**** Matrix of differenced lagged extended ****/
+/*****   impulsdummies for RR-regression *****/
+
+
+dvd_k = zeros(t,1); 
+if v_dum > 0;
+
+  i = 1;
+  do while i<= v_dum; /* i th ext. imp. dummy*/
+     
+       k = 0;
+       do while k <= p-1; 
+       if (t-vt2[i]-k > 0) and (vt1[i] + k > p);  /* check whether still ext. imp. dummy*/
+          dvd_k1 = lagn(vd[.,i],k) - lagn(vd[.,i],k+1);
+          dvd_k = dvd_k~dvd_k1;
+       endif;
+       k = k+1;
+       endo;
+       i = i+1;  
+  endo; 
+
+
+  dvd_k = trimr(dvd_k',1,0)';
+else;
+
+  dvd_k = zeros(t,1);
+endif;
+
+/***  Lagged shift and extended impuls dummies for EC-Term ***/
+
+
+if v_dum  >0;
+
+   vd_1 = lag1(vd);
+ 
+else;
+
+   vd_1 = zeros(t,1);
+
+endif;
+
+if s_dum  >0;
+
+   sd_1 = lag1(sd);
+
+else;
+
+   sd_1 = zeros(t,1);
+
+endif;
+
+
+retp(it,vt1,vt2,st,id,vd,sd,drt,dr,vd_1,sd_1,dvd_k,v_dum,s_dum);
+
+endp;
+
+
+
+/***********************************************/
+/***********************************************/
+proc(7)=johan_cointsl(y_1,dy,dy_k,vd_1,sd_1,dr,drt,dvd_k,seasdum,trend,tr,const,co,tr_ot,i_dum,v_dum,s_dum,n,p,t,season);
+
+
+     local y_1r,z,r0t,rkt,skk,s0k,s00,sig,sig2,skk1_2;
+     local ev,evec,ev1,eve1,ev2,eve2,zz,m,vd_1a,tv;
+
+ 
+
+     /* ********************************************************** */
+     /* ***** Dimension: T x K *********************************** */
+     /* ********************************************************** */
+
+
+
+y_1 = trimr(y_1,p,0);  /* trim the first p rows of the matrix y_1 */
+dy = trimr(dy,p,0);  /* trim the first p rows of the matrix dy */
+dy_k  = trimr(dy_k,p,0);   /* trim the first p rows of the matrix dy_k*/
+
+const = trimr(const,p,0);  /* trim the first p rows of the vector c */
+trend = trimr(trend,p,0); /* trim the first p rows of the vector trend */
+
+vd_1 = trimr(vd_1,p,0);   /* trim the first p rows of the matrix vd_1*/ 
+sd_1 = trimr(sd_1,p,0);   /* trim the first p rows of the matrix sd_1*/ 
+
+dr = trimr(dr,p,0);   /* trim the first p rows of the matrix dr*/  
+dvd_k = trimr(dvd_k,p,0);   /* trim the first p rows of the matrix dvd_k*/
+if season == 1;
+seasdum = trimr(seasdum,p,0);   /* trim the first p rows of matrix seasdum*/
+endif; 
+
+
+
+/* Check whether vd_1 ist a null vector after trimming */
+
+vd_1 = vd_1';
+m = sumc(vd_1') .== 0; 
+vd_1a = delif (vd_1,m);
+vd_1a = vd_1a';
+ 
+ 
+/********** Construction of Matrix Z *********/
+
+z = zeros((t-p),1);
+
+if tr == 1 or tr_ot == 1; /* sonst const in ECM restringiert*/
+   z= z~const;
+   /*z= z~const~trend;*/
+endif;
+/*z= z~const;*/
+if p>=2; /* nur dann dy_k besetzt*/
+   z = z~dy_k;
+endif;
+
+if drt[1]>0; /*dann muß mindestens ein Impulsdummy in dr existieren, 0 is default*/
+   z = z~dr;
+endif;
+
+if v_dum > 0; /* erste Differenz von vd muß immer gehen, hinten mindestens eine Null*/
+   z = z~dvd_k;
+endif;
+
+if season == 1;
+  z = z~seasdum;
+endif;
+
+
+/********** Construction of y_1r ************/
+
+   y_1r = y_1; 
+if tr == 1 and tr_ot ==0;
+   y_1r = y_1r~(trend-1);      /* trend restricted to the long-run  */
+elseif (tr == 0) and tr_ot==0 and (co ==1);
+   y_1r = y_1r~const;   /* constant restricted to the long-run  */
+endif;
+      
+if (v_dum>=1) and (rows(vd_1a)) > 1;
+   y_1r = y_1r~vd_1a;
+endif;
+
+if s_dum >= 1;
+   y_1r = y_1r~sd_1;
+endif;   
+
+     
+
+
+/* ********** Partialling out the short-run dynamics *********** */
+
+tv = cols(z)>1; /* Check whether z contains variables */
+
+if tv == 1;
+
+   z = trimr(z',1,0)'; 
+
+   r0t = dy - z*invpd(z'*z)*z'*dy; 
+           /* residuals: effects of z is partialled out  from dy by regression */
+
+   rkt = y_1r - z*invpd(z'*z)*z'*y_1r; 
+         /* residuals: effects of z are partialled out from y_t-k by regression       */
+
+else;
+
+   r0t = dy;
+   rkt = y_1r;
+
+endif; 
+
+
+  /* Calculating the second-moment matrices of the residuals and their  */
+  /* cross-products                                                     */
+
+     skk   = rkt'rkt/rows(rkt); 
+     s0k   = rkt'r0t/rows(rkt) ;  /* s0k is sk0 in COINT;   sk0 = s0k' */ 
+     s00   = r0t'r0t/rows(r0t) ; 
+
+/* Set of equations to be solved to get the eigenvalues */
+/*"s0k"; s0k; "s00"; s00; "skk"; skk; */
+     sig   = s0k*invpd(s00)*(s0k');
+
+
+/*****************************************************************************/
+/********** Calculation of the eigenvalues and vectors:  ******************/
+/********** method suggested by Johansen (1995), pp. 95 ****************/
+/*****************************************************************************/
+
+
+/*1st step*/
+
+{ev1,eve1} = eighv(skk);   /*"ev1"; ev1; "b"; b; "eve1"; eve1; */
+                           /*"ev1"; ev1^(-0.5);*/
+/*rows(eve1); cols(eve1); rows(ev1); cols(ev1); (n+1+s_dum+v_dum);*/
+
+
+skk1_2 = eve1*diagrv(zeros(cols(y_1r),cols(y_1r)), ev1^(-0.5))*eve1';
+
+
+    /*"skk1_2"; skk1_2;"skk1"; inv(skk); "skk2"; skk1_2*skk1_2';*/
+
+
+/*2nd step*/
+
+sig2 = skk1_2*sig*skk1_2;                   /*"sig2"; sig2;*/
+
+{ev2,eve2} = eigrs2(sig2);         /*"ev2"; ev2;  "eve2"; eve2;*/
+
+/*Normalization*/
+
+eve2 = skk1_2*eve2;
+                         /*"eve2"; eve2; "eve2'*skk*eve2"; eve2'*skk*eve2;
+                          "eve2'*sig*eve2"; eve2'*sig*eve2;*/
+
+eve2 = eve2*inv(chol(eve2'skk*eve2));
+
+                         /* "eve2"; eve2;
+                          "eve2'*skk*eve2"; eve2'*skk*eve2;
+                          "eve2'*sig*eve2"; eve2'*sig*eve2;*/
+
+
+/******************************************************************************/
+
+
+/* Order the eigenvalues and eigenvectors */
+
+
+     zz    = ev2~(eve2') ;                  /* matrix of eigenvalues and eigenvectors; */
+     zz    = rev(sortc(zz,1)) ;  /* sorts eigenvalues and eigenvectors from */
+                                           /* biggest to smallest (according to the  */
+                                           /* order of the eigenvalues, first column); */
+     ev     = zz[.,1] ;               /* eigenvalues; */
+     evec   = zz[.,2:cols(zz)]' ;  /* eigenvectors (in columns); */
+                                               /* long-run coefficients  */
+
+
+retp(evec,skk,s0k,s00,y_1r,z,tv);
+endp;
+
+
+
+/*********************************************************************************/
+/************** Calculation of Parameters of RR-Model ************************/
+/*********************************************************************************/
+
+
+proc(8) = para_cointsl(evec,skk,s0k,s00,dy,y_1r,z,r,p,n,tv);
+      local betap,beta,alpha,beta_o,alpha_o,psi;
+      local omega,et;
+      local betap_o,beta_o1;
+
+if r==0;
+   betap = zeros(cols(evec),n);
+   beta = zeros(n,n);
+   alpha=zeros(n,n);
+   beta_o = eye(n);
+   alpha_o = eye(n);
+
+else;
+   betap = evec[.,1:r]; 
+   beta = evec[1:n,1:r];
+   alpha = s0k'*betap;
+
+/*beta_o1 =   skk*evec[.,(r+1):n];
+beta_o = beta_o1[1:n,.];
+betap_o = skk*evec[.,(r+1):cols(evec)];
+alpha_o = invpd(s00)*s0k'*evec[.,(r+1):n];*/
+
+
+   trap 1;
+   beta_o = null(beta'); /* orthogonal complement of the column */
+                        /* space of beta', using the QR decomposition */
+
+   if scalerr(beta_o) == 1;  
+       "";  "There is no null space of beta!"; /* check whether the orthogonal*/
+                                               /* exists */
+   endif;                                    /* null space exists  */
+
+
+   trap 1;
+   alpha_o = null(alpha'); /*orthogonal complement of the column space */
+                           /* of alpha, using the QR decomposition     */
+
+
+   if scalerr(alpha_o) ==1;
+        "";"there is no null space of alpha!";
+   endif;
+endif;
+
+/*"betap";betap; 
+"beta";beta; "beta_o";beta_o;  
+"alpha";alpha; "alpha_o"; alpha_o;
+"al_o";alpha'alpha_o; 
+"be_o";beta'beta_o;*/
+
+
+dy = trimr(dy,p,0);  /* trim the first p rows of the matrix dy */
+
+if tv==1;
+   psi = dy'z*invpd(z'z) - alpha*betap'y_1r'*z*invpd(z'z);
+else;
+   psi = 0;
+endif;
+
+omega = s00-alpha*alpha';  
+et = dy'-alpha*betap'*y_1r'-psi*z'; 
+et = et'; 
+
+retp(betap,beta,alpha,beta_o,alpha_o,psi,omega,et);
+endp;
+
+
+
+
+proc(1) =   al_cointsl(psi,alpha,beta,tr,p,n);
+                                                                                                            
+          local gam,A_Lo,A_1,A_j,A_p,I_n,i;
+
+
+if p == 1;
+
+   gam = zeros(n,n);
+
+else;
+
+   gam = psi[.,(tr+1):(p-1)*n+tr];
+
+endif;
+
+I_n = eye(n);
+
+/* ******** Define A(L) *********************************************** */
+
+
+if p == 1;
+
+     A_Lo = I_n + alpha*beta';
+
+elseif p >= 2;  /* erweitern auf Seasonal Dummies */
+      
+     A_1 = I_n + alpha*beta'+ gam[.,1:n];
+     A_Lo= A_1;
+     i = 2;
+     do while i <= (p-1);
+        A_j = gam[.,((i-1)*n+1):i*n] - gam[.,((i-2)*n+1):(i-1)*n];
+        A_Lo = A_Lo~A_j;
+     i = i + 1;
+     endo;
+     A_p = - gam[.,(p-2)*n+1:(p-1)*n];
+     A_Lo = A_Lo~A_p; 
+
+endif;
+
+
+retp(A_Lo);
+endp;
+
+
+
+/*****************************************************************/
+/********Calculation of the transformation matrix Q_w ********/
+/*****************************************************************/
+
+proc(1) = qt_cointsl(omega,alpha,alpha_o,r,n);            
+
+           local  Q_w,Q1_w,Q2_w,QQ1,QQ2;
+           local  MM1,MM2,ev_mm1,ev_mm2,evecmm1,evecmm2;
+           local  ev_mm1sq,ev_mm2sq,LL1,LL2;
+         
+if r == 0;  /* 1st block vanishes */
+
+   trap 1;
+
+   MM2=alpha_o'*Omega*alpha_o;
+   {ev_mm2,evecmm2} = eighv(MM2);
+   ev_mm2sq = sqrt(ev_mm2);
+   LL2 = diagrv(zeros(n,n),ev_mm2sq);
+   QQ2 = inv(evecmm2*LL2*evecmm2');
+
+   Q2_w = QQ2*alpha_o'; 
+   Q_w = Q2_w;
+
+   if scalerr(Q_w) == 1;
+       ""; "Matrix not positive definite";
+   else;
+   endif;
+
+
+elseif (r == 1 and n > 2); /* Matrix in 1st to be inverted is scalar */
+
+   trap 1;
+
+   MM2=alpha_o'*Omega*alpha_o;                 /* "MM2";MM2; */
+   {ev_mm2,evecmm2} = eighv(MM2);            /* eigenvalues and eigenvectors of MM2 */
+                                                                        /* "ev_mm2";ev_mm2;*/
+    ev_mm2sq = sqrt(ev_mm2);                      /* sqrt of eigenvalues */
+                                                                       /* "ev_mm2sq";ev_mm2sq;*/
+   LL2 = diagrv(zeros((n-r),(n-r)),ev_mm2sq); /* matrix with eigenvalues on */
+                                                                       /* main diagonal */
+                                                                      /* "ll2";ll2;
+                                                                      "inv(Omega_e)";inv(Omega_e);*/
+                                                                       /* "evecmm2*LL2*evecmm2'";evecmm2*LL2*evecmm2';*/
+    QQ2 = inv(evecmm2*LL2*evecmm2');
+                                                                       /*   Q1_w = alph_est'*inv(Omega_e)*alph_est;
+                                                                          "Q1_w";Q1_w;*/
+
+   Q1_w = inv(sqrt(alpha'*inv(Omega)*alpha))*alpha'*inv(Omega);
+   Q2_w = QQ2*alpha_o';                                  /*  "Q1_w";Q1_w;   "Q2_w";Q2_w; */
+          
+   Q_w = Q1_w|Q2_w;                                      /*"Q_w"; Q_w; */
+
+    if scalerr(Q_w) == 1;
+       ""; "Matrix not positive definite";
+   else;
+   endif;
+
+
+elseif (r == (n-1) and n >2); /* Matrix in 2nd to be inverted is scalar */
+
+   trap 0;
+
+      MM1=alpha'*invpd(Omega)*alpha;         /* "MM1";MM1;*/
+      {ev_mm1,evecmm1} = eighv(MM1);                 /* eigenvalues and eigenvectors of MM2 */
+                                                                                 /* "ev_mm1";ev_mm1; */
+      ev_mm1sq = sqrt(ev_mm1);                            /* sqrt of eigenvalues */ /* "ev_mm1sq";ev_mm1sq; */     
+      LL1 = diagrv(zeros(r,r),ev_mm1sq);             /* matrix with eigenvalues on main diagonal */
+      QQ1 = inv(evecmm1*LL1*evecmm1');
+      Q1_w = QQ1*alpha'*inv(Omega);
+
+   
+   Q2_w = inv(sqrt(alpha_o'*Omega*alpha_o))*alpha_o';              
+   Q_w = Q1_w|Q2_w;     /*"Q_w"; Q_w; */
+
+   if scalerr(Q_w) == 1;
+      ""; "Matrix not positive definite";
+   else;
+   endif;
+
+
+elseif (r==1) and (n==2);  /* both matrices to be inverted are scalars */
+
+
+      Q1_w = inv(sqrt(alpha'*inv(Omega)*alpha))*alpha'*inv(Omega);    
+      Q2_w = inv(sqrt(alpha_o'*Omega*alpha_o))*alpha_o'; 
+ 
+      Q_w = Q1_w|Q2_w; 
+
+
+elseif (r >= 2) and (r < (n-1)); 
+
+   trap 0;
+
+   MM1=alpha'*inv(Omega)*alpha;        /* "MM1";MM1;*/
+   {ev_mm1,evecmm1} = eighv(MM1);                /* eigenvalues and eigenvectors of MM2 */
+                                                                            /* "ev_mm1";ev_mm1;*/
+   ev_mm1sq = sqrt(ev_mm1);                           /* sqrt of eigenvalues */
+                                                                            /* "ev_mm1sq";ev_mm1sq; */
+   LL1 = diagrv(zeros((r),(r)),ev_mm1sq);           /* matrix with eigenvalues on main diagonal*/                                 
+   QQ1 = inv(evecmm1*LL1*evecmm1');
+   Q1_w = QQ1*alpha'*inv(Omega);
+
+
+   MM2=alpha_o'*Omega*alpha_o;                   /* "MM2";MM2;*/
+   {ev_mm2,evecmm2} = eighv(MM2);             /* eigenvalues and eigenvectors of MM2 */
+                                                                          /* "ev_mm2";ev_mm2;*/
+   ev_mm2sq = sqrt(ev_mm2);                         /* sqrt of eigenvalues */  /* "ev_mm2sq";ev_mm2sq;*/                                                                          
+   LL2 = diagrv(zeros((n-r),(n-r)),ev_mm2sq);   /* matrix with eigenvalues on main diagonal*/
+                                                                         /* "evecmm2*LL2*evecmm2'";evecmm2*LL2*evecmm2';*/
+   QQ2 = inv(evecmm2*LL2*evecmm2');
+   Q2_w = QQ2*alpha_o';
+
+   Q_w = Q1_w|Q2_w;
+
+   if scalerr(Q_w) == 1;
+      ""; "Matrix not positive definite";
+   else;
+   endif;
+
+endif;
+
+
+retp(Q_w);
+endp;
+
+
+/**********************************************************************/
+/********** Regression of the transformed series  in 3.3 ***********/        
+/**********************************************************************/
+
+proc(2) = regr_cointsl(i_dum,v_dum,s_dum,tr,co,tr_ot,it,vt1,vt2,st,n,t,p,season,A_Lo,Q_w,y,const,trend,id,vd,sd,seasdum);
+
+
+            local coef,QA_yv,QA_y,A_y,QA_reg, A_reg,reg,i,k;
+            local A_reg0,A_regl,tl;
+            
+
+/**Construction of Matrices of deterministic Terms for regression **/
+/******** in 3.3 and of the transformed regressor matrix **********/
+/* in order to make a kronecker multiplication possible: every entry of the 
+deterministic time series is multiplied by  an identity matrices. The 
+resulting n*n-matrices are vertical concatenated. One has (tr+co+i_dum+
+s_dum+v_dum+(season-1)) Tn*n matrices, that are concatenated horizontally 
+to form  the regr -matrix.*/ 
+
+
+/****** Construction  *******/
+
+reg = zeros(t,1);
+
+if tr ==1 or tr_ot==1;
+      reg = reg~trend~const;
+endif;
+
+if (tr ==0) and (tr_ot==0) and (co==1);
+     reg = reg~const;
+endif;
+
+if i_dum>0;
+    reg = reg~id;
+endif;
+
+if v_dum>0;
+   reg = reg~vd;
+endif;
+
+if s_dum>0;
+   reg = reg~sd;
+endif;
+
+if season==1;
+   reg = reg~seasdum;
+endif;
+
+reg = trimr(reg',1,0)';
+
+/* Transformation of reg first by A_L and second by Q_w */
+
+A_reg = reg.*.eye(n);
+
+i = 1;
+do while i <= p;
+       
+     A_reg =  A_reg - lag0_cointsl(reg,i).*.A_Lo[.,(i-1)*n+1:i*n];
+ 
+    i = i+1;
+endo;
+
+QA_reg = eye(t).*.Q_w*A_reg;
+
+/* Transformation of y first by A_L and second by Q_w */
+
+/* Dimension of QA_y and A_y ist n*T !!!!*/
+
+A_y = y';
+i = 1;
+do while i<=p;
+     A_y = A_y - A_Lo[.,(i-1)*n+1:i*n]*lag0_cointsl(y,i)';
+     i = i+1;
+endo;
+
+QA_y = Q_w*A_y;
+
+QA_yv = vec(QA_y); 
+
+/******* calculation of determistic coefficients **********/
+
+coef = invpd(QA_reg'QA_reg)*QA_reg'QA_yv;
+
+retp(coef,reg);
+
+endp;
+
+
+/************************************************************************/
+/******* Procedure to adjust y by deterministic components *********/
+/************************************************************************/
+
+proc(4) = adjust_cointsl(y,coef,reg,n,t,p,tr_ot);
+
+           local   x_adj,x_adj_1,dx_adj,dx_adj_k,coef_t,coef2,i,k,q;
+           local   coef_ot, reg_ot;
+
+
+/*** Transforming of coef from a (k*n)x1 to a kxn coefficientmatrix ***/
+
+k = rows(coef)/n;
+
+coef2 = coef'; 
+coef_t = zeros(k,n);
+i = 1;
+do while i <= k;
+    coef_t[i,.]= coef2[.,n*(i-1)+1:n*i]; 
+    i = i+1;
+endo;
+
+
+/*** adjustment of y ***/
+
+x_adj = y - reg*coef_t;
+
+
+/* 1st lag and 1st difference of x_adj */
+
+x_adj_1 = lag1(x_adj);
+dx_adj = x_adj - lag1(x_adj);
+
+
+/* Matrix of lagged differences of x_adj */
+
+
+dx_adj_k = zeros(t,1);
+if p >=2;
+   q = 1; 
+   do while (q <= (p-1)); 
+   
+      dx_adj_k  = dx_adj_k~lagn(dx_adj,q);
+      q  = q + 1 ;
+    endo ;
+
+dx_adj_k = trimr(dx_adj_k',1,0)';
+
+endif;
+
+if tr_ot == 1;
+   coef_ot = trimr(coef_t,1,0);
+   reg_ot = trimr(reg',1,0)';
+   x_adj = y -reg_ot*coef_ot;
+   x_adj_1 = lag1(x_adj);   
+endif;
+
+retp(x_adj,x_adj_1,dx_adj,dx_adj_k);
+
+endp;
+
+
+
+
+/* ********************************************************************* */
+/* ******** LR type statistic allowing for dummy variables ********* */
+/* ********************************************************************* */
+
+
+proc(1) = lrtest_cointsl(x_adj_1,dx_adj,dx_adj_k,n,r,p,t);
+               local z_2,r0t,rkt,skk,s0k,s00,skk1_2,sig,sig2,tmp;
+               local lr_stat,ev,evec,ev1,ev2,eve1,eve2,zz;
+
+
+/*********** Dimension T*K********/
+
+x_adj_1   = trimr(x_adj_1,p,0); 
+dx_adj     = trimr(dx_adj,p,0); 
+dx_adj_k = trimr(dx_adj_k,p,0); 
+
+
+if p == 1; /* there is no z-matrix */
+
+    /* Calculating the second-moment matrices of the residuals and their  */
+    /* cross-products */
+
+     skk   = x_adj_1'x_adj_1/rows(x_adj_1);
+     s0k   = x_adj_1'dx_adj/rows(x_adj_1) ;           /* sk0 = s0k in COINT */
+     s00   = dx_adj'dx_adj/rows(dx_adj) ;
+
+/***** Construction of z_2 *****/
+
+
+else;
+
+   z_2 = dx_adj_k;
+
+/* ********** Partialling out the short-run dynamics *********** */
+
+   r0t = dx_adj - z_2*invpd(z_2'*z_2)*z_2'*dx_adj;
+         /* residuals: effects of z_2 is partialled out  from dx_adj by regression */
+
+   rkt = x_adj_1 - z_2*invpd(z_2'*z_2)*z_2'*x_adj_1; 
+         /* residuals: effects of z_2 are partialled out from x_adj_1 by regression       */
+
+
+ /* "r0t";dim(r0t);r0t[1:6,.];
+ "rkt";dim(rkt);rkt[1:6,.];*/
+
+
+  /* Calculating the second-moment matrices of the residuals and their  */
+  /* cross-products */
+
+     skk   = rkt'rkt/rows(rkt);
+     s0k   = rkt'r0t/rows(rkt) ;  /* s0k is sk0 in COINT;   sk0 = s0k' */ 
+     s00   = r0t'r0t/rows(r0t) ;
+
+endif;
+
+/* Set of equations to be solved to get the eigenvalues */
+
+/*"s0k"; s0k; "s00"; s00; "skk"; skk; */
+     sig   = s0k*invpd(s00)*(s0k');
+
+
+
+/*****************************************************************************/
+/********** Calculation of the eigenvalues and vectors:  ******************/
+/********** method suggested by Johansen (1995), pp. 95 ****************/
+/*****************************************************************************/
+
+
+/*1st step*/
+
+{ev1,eve1} = eighv(skk);   /*"ev1"; ev1; "b"; b; "eve1"; eve1; */
+                           /*"ev1"; ev1^(-0.5);*/
+/*rows(eve1); cols(eve1); rows(ev1); cols(ev1); (n+1+s_dum+v_dum);*/
+
+
+skk1_2 = eve1*diagrv(zeros(n,n), ev1^(-0.5))*eve1';
+
+    /*"skk1_2"; skk1_2;"skk1"; inv(skk); "skk2"; skk1_2*skk1_2';*/
+
+
+/*2nd step*/
+
+sig2 = skk1_2*sig*skk1_2;                   /*"sig2"; sig2;*/
+
+{ev2,eve2} = eigrs2(sig2);         /*"ev2"; ev2;  "eve2"; eve2;*/
+
+/*Normalization*/
+
+eve2 = skk1_2*eve2;
+                         /*"eve2"; eve2; "eve2'*skk*eve2"; eve2'*skk*eve2;
+                          "eve2'*sig*eve2"; eve2'*sig*eve2;*/
+
+eve2 = eve2*inv(chol(eve2'skk*eve2));
+
+                         /* "eve2"; eve2;
+                          "eve2'*skk*eve2"; eve2'*skk*eve2;
+                          "eve2'*sig*eve2"; eve2'*sig*eve2;*/
+
+
+/******************************************************************************/
+
+
+/* Order the eigenvalues and eigenvectors */
+
+
+     zz    = ev2~(eve2') ;                  /* matrix of eigenvalues and eigenvectors; */
+     zz    = rev(sortc(zz,1)) ;  /* sorts eigenvalues and eigenvectors from */
+                                           /* biggest to smallest (according to the  */
+                                           /* order of the eigenvalues, first column); */
+     ev     = zz[.,1] ;               /* eigenvalues; */
+     evec   = zz[.,2:cols(zz)]' ;  /* eigenvectors (in columns); */
+                                               /* long-run coefficients  */
+
+
+/*** Calculation of the Trace-Statistic  ***/
+
+     lr_stat   = -(t-p)*sumc(trimr(ln(1-ev),r,0));
+
+retp(lr_stat);
+endp;
+
+/* ******************************************************************** */
+/* ************ Procedure containing the asymptotical critical ******** */
+/* ************       values of Johansen's trace test          ******** */
+/* ********************* (no constant, no trend) ********************** */
+/* ******************* Johansen, 1995, Tab.15.1 *********************** */
+/* now with newer, extended critical values */
+
+proc(1) = trasy_cointsl(n,r);
+          local johc, crit_asy;
+	  
+         let johc[15,3] =
+
+          /*     90%        95%        99%        n-r  */
+
+                2.996      4.118      6.888    /*   1  */
+               10.446     12.276     16.420    /*   2  */
+               21.801     24.282     29.467    /*   3  */
+               36.903     40.067     46.305    /*   4  */
+               55.952     59.749     67.170    /*   5  */
+               79.062     83.364     92.338    /*   6  */
+              105.841    110.721    120.902    /*   7  */
+              136.487    142.222    153.066    /*   8  */
+              171.519    177.801    190.053    /*   9  */
+              210.461    217.325    231.072    /*  10  */
+              252.969    260.676    274.618    /*  11  */
+              299.156    307.161    323.007    /*  12  */
+              349.604    358.172    374.872    /*  13  */
+              403.580    412.966    431.355    /*  14  */
+              461.733    471.300    489.888;   /*  15  */
+
+
+  
+	       if n-r < 16 ;
+		 crit_asy = johc[(n-r),.];
+	       else;
+		 crit_asy = zeros(1,3);
+	       endif;
+
+retp(crit_asy);
+endp;
+
+
+/* ******************************************************************** */
+/* ************ Procedure containing the asymptotical critical ******** */
+/* ************ values of the LM type test and of LR test with  ******* */
+/* ************ prior trend adjustment, trace statistic *************** */
+/* 
+   orig reference: 
+   H.Luetkepohl, P.Saikkonen (2000), Testing for the coint rank of a VAR
+   process with a time trend, Journal of Econometrics 95, 177-198,
+   Table 1 
+   
+   but now with newer, extended critical values!
+*/ 
+/* ******************************************************************** */
+
+proc(1) = lmcrasy_cointsl(n,r);
+          local lmc, crit_asy;
+	  
+        let lmc[15,3] =
+
+          /*    90%         95%         99%          n-r  */
+
+                5.423      6.785      10.042     /*   1   */
+               13.784     15.826      19.854     /*   2   */
+               25.931     28.455      33.757     /*   3   */
+               42.083     45.204      51.601     /*   4   */
+               61.918     65.662      73.116     /*   5   */
+               86.015     90.346      98.990     /*   6   */
+              113.711    118.898     128.801     /*   7   */
+              145.423    150.985     162.142     /*   8   */
+              181.213    187.242     199.584     /*   9   */
+              220.921    227.989     241.795     /*  10   */
+              264.210    271.707     285.934     /*  11   */
+              311.711    319.827     334.987     /*  12   */
+              363.028    371.287     388.476     /*  13   */
+              417.682    427.362     445.787     /*  14   */
+              476.405    486.527     504.545;    /*  15   */
+
+	       if n-r < 16 ;
+		 crit_asy = lmc[(n-r),.];
+	       else;
+		 crit_asy = zeros(1,3);
+	       endif;
+retp(crit_asy);
+endp;
+
+/* ******************************************************************** */
+/* ************ Procedure containing the asymptotical critical ******** */
+/* ************ values of the LM type test and of LR test with  ******* */
+/* **************** orthogonal trend, trace statistic ***************** */
+/*
+   orig reference: 
+   H.Luetkepohl, P.Saikkonen (2000), Testing for the coint rank of a VAR
+   process with an intercept, Econometric Theory,  vol. 16, 373-406
+   Table 1
+   
+   but now with newer, extended critical values!
+*/
+/* ******************************************************************** */
+
+proc(1) = lmcrot_cointsl(n,r);
+          local lmc, crit_asy;
+	  
+	  let lmc[15,3] =
+
+          /*     90%        95%       99%          n-r  */
+
+                0          0          0        /*   1  */
+                8.187      9.890     13.640    /*   2  */
+               18.473     20.819     25.687    /*   3  */
+               32.807     35.886     42.016    /*   4  */
+               50.775     54.280     61.301    /*   5  */
+               72.878     77.010     85.587    /*   6  */
+               98.784    103.534    112.854    /*   7  */
+              128.562    134.058    144.979    /*   8  */
+              162.434    168.443    180.246    /*   9  */
+              200.200    207.071    219.954    /*  10  */
+              241.786    249.157    263.067    /*  11  */
+              287.198    295.172    310.375    /*  12  */
+              336.432    344.922    360.882    /*  13  */
+              389.726    398.848    416.952    /*  14  */
+              446.327    456.119    474.272;   /*  15  */
+     
+
+	       if n-r < 16 ;
+		 crit_asy = lmc[(n-r),.];
+	       else;
+		 crit_asy = zeros(1,3);
+	       endif;
+retp(crit_asy);
+endp;
+
+/* zeros values instead of missing values */
+proc lag0_cointsl(x,p);
+   local y;
+   y =  shiftr(x', p, 0);
+   retp(y');
+endp;
+
+
+/*Program to compute critical values and p-values for Saikkonen-Lütkepohl Tests with constant only,  */
+/*linear trend and othogonal trend and shift dummies according to Trenkler (2003).                            */
+
+
+/*The p-values are computed via a Chi^2 distribution using the    */
+/*estimated mean and variance of a Gamma distribution of which the Chi^2 distribution is a     */
+/*special case.  */
+
+
+/* Input parameter */
+/* stat      = Value of test statistic of Johansen test */
+/* pr        = number of stochastic trends */
+/* Specification of deterministic terms: */
+/* teststate = 1:const ; */
+/*	       2:const+trend ; */
+/* 	       3:trend orthogonal to cointegration relation */
+
+  
+proc(2) = pv_trenkler_cointsl(stat, pr, teststate);
+local p_val, crit_vals,p,mean,variance;
+local cdfv,chiv1,cvalue,chiv3;
+
+p= {0.90, 0.95, 0.99};  /* 1 - significance level of computation of critical values */
+
+
+/*Computation of mean and variance of respective Chi^2 distributions*/
+
+if teststate == 1;
+  mean = 0.1309 - pr*1.0134 + (pr^2)*2;
+  if pr == 1;
+    mean = mean + 0.0218;
+  endif;
+  variance = -1.7144 + (pr^2)*2.9778;
+  if pr == 1;
+    variance = variance + 0.9507;
+  elseif pr == 2;
+    variance = variance + 0.4259;
+  endif;
+  
+  
+elseif teststate == 2;
+  mean = 1.0365 +  (pr^2)*1.9996;
+  if pr == 1;
+    mean = mean - 0.3469;
+  elseif pr == 2;
+    mean = mean - 0.1112;
+  endif;
+  variance =  1.4089 + (pr^2)*2.9715;
+  if pr == 2;
+    variance = variance + 0.4297;
+  endif;
+  
+elseif teststate == 3;
+  mean = (pr^0.5)*0.4463 - pr*2.0990 + (pr^2)*2.0008;
+  if pr == 2;
+    mean = mean - 0.0503;
+  endif;
+  variance = (pr^0.5)*2.1117 - pr*3.0999 + (pr^2)*3.0152;
+  if pr == 2;
+    variance = variance - 0.8004;
+  endif;
+  
+endif;
+  
+  /*Determination of degree of freedoms of Chi^2 distribution using the mean and*/
+  /*variance of the Gamma distribution. */
+  
+  cdfv=2*(mean^2)./variance;
+  
+  
+  /*Computation of critical values of given significance levels using correction */
+  /*according to relation between the Chi^2 and Gamma distributions.            */
+  local tmp;
+  tmp=ones(rows(p),cols(p))*cdfv;
+  chiv1=cdfchii(p,tmp);
+  crit_vals=chiv1./(2*mean./variance);
+  
+  /*Computation of p-value of the given test statistic using correction */
+  /*according to relation between the Chi^2 and Gamma distributions.     */
+  
+  chiv3 = (2*mean.*stat)./ variance;
+  p_val = cdfchic(chiv3,cdfv);
+  
+  /*Output*/
+retp(p_val, crit_vals');
+endp;  
+
+
+

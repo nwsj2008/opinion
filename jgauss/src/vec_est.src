@@ -1,0 +1,252 @@
+/*
+ This file is part of the econometric software package JMulTi.
+ Copyright (C) 2000-2005  Alexander Benkwitz, Markus Kraetzig
+
+ This program is free software; you can redistribute it and/or
+ modify it under the terms of the GNU General Public License
+ as published by the Free Software Foundation; either version 2
+ of the License, or (at your option) any later version.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, write to the Free Software
+ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ */
+
+/*
+**
+** SYNTAX : {Ay_hat, Ax_hat, Ad_hat,
+**           SD_Ay_hat,SD_Ax_hat,SD_Ad_hat,
+**           TV_Ay_hat,TV_Ax_hat,TV_Ad_hat,
+**           estMethod,
+**           u_hat,cv_u_hat,cv_par,lr} = var_estimate(y,x,d,py,px,Cy,Cx,Cd);
+**
+*/
+proc(14)=vec_estimate(y,x,d,py,px,Cy,Cx,Cd, Ny,Nx,Nd,outputFileName);
+
+	local var,keyList,
+	      A, B, C_VAR,SE_A,SE_B,SE_C_VAR, TV_A,TV_B,TV_C_VAR,
+	      TV_Ay_hat,TV_Ax_hat,TV_Ad_hat,lr,resnum,K,T,
+	      em_exe, u, cvRes,cv_par,tmp,n,n1,n2,n3;
+
+	var = vml_InitVAR(y,py,Ny,x,px,Nx,d,Nd);
+	
+	T  = rows(y) - py;
+	k  = cols(y);
+	n1 = py*K;
+	n2 = cols(x)*(px+1);
+   	n3 = cols(d);
+	n = n1+n2+n3;
+	
+	resnum = 0;
+   	if rows(Cy);
+	   	var = vml_SetRestrictions(var, Cy, "S_A");
+		resnum = resnum + sumc(vec(Cy).==0);
+	endif;
+   	if rows(Cx);
+	   	var = vml_SetRestrictions(var, Cx, "S_B");
+		resnum = resnum + sumc(vec(Cx).==0);
+	endif;
+   	if rows(Cd);
+	        var = vml_SetRestrictions(var, Cd, "S_C_VAR");
+		resnum = resnum + sumc(vec(Cd).==0);
+	endif;
+	  	
+	var = var_EstimateModel(var);	
+	var = var_ComputeModelStatistics(var);
+	
+	
+	/* now estimate full model in case subset was specified before */
+
+   	let keyList={"A", "B", "C_VAR", "se_A", "se_B", "se_C_VAR",  "tv_A", "tv_B", "tv_C_VAR",
+	             "em_exe", "u", "cvRes", "cv_par"};
+   	for i(1,rows(keyList),1);
+   		call varputl( vml_vread( var, keyList[i]), keyList[i]);
+   	endfor;
+	
+	
+	if outputFileName$/=""; 
+	  screen off;
+	  output file=^outputFileName reset;
+	  var__showVAR_Coefficients(var,outputFileName);
+	  output off;
+	  screen on;
+	endif;
+	
+	lr = 0;
+	if resnum >  0;
+	  var = vml_InitVAR(y,py,Ny,x,px,Nx,d,Nd);
+      var = var_EstimateModel(var);	
+	  tmp = vml_vread( var,"cvRes");
+	  tmp = tmp*(T-n)/T;
+	  lr = T*(ln(det(cvres))-ln(det(tmp)));
+	  lr = lr|cdfchic(lr,resnum)|resnum;
+	endif;
+			
+	retp(A, B, C_VAR,
+		SE_A,SE_B,SE_C_VAR, 
+		TV_A,TV_B,TV_C_VAR,
+	    em_exe, u, cvRes,cv_par,lr);
+endp;
+/*
+**
+** SYNTAX
+** vec = vec_CreateEstimationProblemVEC(y,py,Ny, x,px,Nx, d,Nd,
+**	       mx_cd2cr, cir, idx_equa, idx_norm, r_est,
+**	       beta_x, beta_d_x);
+**
+** PURPOSE
+** Defines a VAR model.
+**
+** INPUT
+** y        / (py+T,K) / matrix       / endogenous observations
+** py       / (1,1)    / matrix       / number of lagged endogenous variables ($:=p$)
+** Ny       / (K,1)    / string array / names of endogenous variables
+**                                      {\tt Ny=\{\}}
+** x        / (px+T,L) / matrix       / exogenous observations
+**                                      x=\{\} if no exogenous observations
+** px       / (1,1)    / matrix       / number of lagged exogenous variables 
+**                                      (ignored if x=\{\}) ($:=q$)
+** Nx       / (L,1)    / string array / names of exogenous variables
+**                                      {\tt Nx=\{\}}
+** d        / (py+T,M) / matrix       / deterministic variables
+**                                      d={} if no deterministic variables
+** Nd       / (M,1)    / string array / names of deterministic variables
+**                                      Can be empty.
+** cir      / (O,1)    / data buffer  / problem for estimating the cointegration relation
+**                                      Can be empty.
+** idx_equa / (1,1)    / matrix       / Equation index that specifies the equation of the system
+**                                      the cointegration relation is estimated from.
+**                                      Can be empty.
+** idx_norm / (1,1)    / matrix       / Index of normalizing coefficient 
+**                                      for cointegration relation, if the cointegration relation
+**                                      is estimated from an equation of this system.
+** r_est    / (1,1)    / matrix       / Number of Cointegration relations that are estimated
+**                                      using the Johansen approach.
+** beta_x   / (rx,K)   / matrix       / Cointegration vector that is added to the system after
+**                                      possible estimation of other cointegration relations.
+** beta_d_x / (rx,K)   / matrix       / Cointegration vector that is added to the system after
+**                                      possible estimation of other cointegration relations.
+**
+** OUTPUT
+** vec / (N,1) / data buffer / VEC model.
+*/
+proc(1)=vec_CreateEstimationProblemVEC(y,py,Ny, x,px,Nx, d,Nd, 
+	       mx_cd2cr,
+	       cir, idx_equa, idx_norm, r_est,
+	       beta_x, beta_d_x);
+	local var;
+	var = vml_InitVAR(y,py,Ny,x,px,Nx,d,Nd);
+	var = vml_RestrictDetsToCoint(var, mx_cd2cr);
+	var = vml_SetCointRelation   (var, beta_x, beta_d_x);
+	var = vml_SetCointRelationEstimation(var, cir, idx_equa, idx_norm, r_est);
+	retp(var);
+endp;
+
+/*
+** OUTPUT
+** vec / (N,1) / data buffer / VEC model.
+*/
+proc(1)=vec_initBufferForJohansenProc(y,py,Ny, x,px,Nx, d,Nd, 
+	       mx_cd2cr, r);
+	local var,tmp;
+
+	tmp = {};
+	var = vml_InitVAR(y,py,Ny,x,px,Nx,d,Nd);
+	var = vml_RestrictDetsToCoint(var, mx_cd2cr);
+	var = vml_SetCointRelationEstimation(var, tmp, tmp, tmp, r);
+	var = var_SetEstimationMethod(var, "JOH");
+
+	retp(var);
+endp;
+
+/*
+** OUTPUT
+** vec / (N,1) / data buffer / VEC model.
+*/
+proc(1)=vec_initBufferForS2SProc(y,py,Ny, x,px,Nx, d,Nd, 
+	       mx_cd2cr, r,hmat,freeparamindex,h);
+	local var,tmp;
+
+	tmp = {};
+	var = vml_InitVAR(y,py,Ny,x,px,Nx,d,Nd);
+	var = vml_RestrictDetsToCoint(var, mx_cd2cr);
+	var = vml_SetCointRelationEstimation(var, tmp, tmp, tmp, r);
+	
+	var = var_SetEstimationMethod(var, "S2S");
+					    					    
+	/* add the explicitely defined restrictions */
+	var = vml_vput(var,hmat,"resHmat");
+	var = vml_vput(var,freeparamindex,"resFree");
+	var = vml_vput(var,h,"resH");
+
+	retp(var);
+endp;
+
+/*
+**
+** SYNTAX
+** cir = vec_CreateEstimationProblemEC(y,py,Ny, x,px,Nx, d,Nd,
+**	       mx_cd2cr, cir, idx_equa, idx_norm, r_est,
+**	       beta_x, beta_d_x);
+**
+** PURPOSE
+** Defines a VAR model.
+**
+** INPUT
+** y        / (py+T,K) / matrix       / endogenous observations
+** py       / (1,1)    / matrix       / number of lagged endogenous variables ($:=p$)
+** Ny       / (K,1)    / string array / names of endogenous variables
+**                                      {\tt Ny=\{\}}
+** x        / (px+T,L) / matrix       / exogenous observations
+**                                      x=\{\} if no exogenous observations
+** px       / (1,1)    / matrix       / number of lagged exogenous variables 
+**                                      (ignored if x=\{\}) ($:=q$)
+** Nx       / (L,1)    / string array / names of exogenous variables
+**                                      {\tt Nx=\{\}}
+** d        / (py+T,M) / matrix       / deterministic variables
+**                                      d={} if no deterministic variables
+** Nd       / (M,1)    / string array / names of deterministic variables
+**                                      Can be empty.
+** cir      / (O,1)    / data buffer  / problem for estimating the cointegration relation
+**                                      Can be empty.
+** idx_equa / (1,1)    / matrix       / Equation index that specifies the equation of the system
+**                                      the cointegration relation is estimated from.
+**                                      Can be empty.
+** idx_norm / (1,1)    / matrix       / Index of normalizing coefficient 
+**                                      for cointegration relation, if the cointegration relation
+**                                      is estimated from an equation of this system.
+** r_est    / (1,1)    / matrix       / Number of Cointegration relations that are estimated
+**                                      using the Johansen approach.
+** beta_x   / (rx,K)   / matrix       / Cointegration vector that is added to the system after
+**                                      possible estimation of other cointegration relations.
+** beta_d_x / (rx,K)   / matrix       / Cointegration vector that is added to the system after
+**                                      possible estimation of other cointegration relations.
+**
+** OUTPUT
+** vec / (N,1) / data buffer / VEC model.
+*/
+proc(1)=vec_CreateEstimationProblemEC(y,py,Ny, x,px,Nx, d,Nd, 
+	       mx_cd2cr,
+	       idx_equa, idx_norm);
+	local cir;
+
+	cir = var_InitCIR(y,py,Ny,x,px,Nx,d,Nd, idx_equa, idx_norm);
+	cir = vml_RestrictDetsToCoint(cir, mx_cd2cr);
+
+	retp(cir);
+endp;
+
+
+
+
+
+
+
+
+
+

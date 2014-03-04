@@ -1,0 +1,553 @@
+/*
+ This file is part of the econometric software package JMulTi.
+ Copyright (C) 2000-2005  Dmitri Boreiko, Markus Kraetzig
+
+ This program is free software; you can redistribute it and/or
+ modify it under the terms of the GNU General Public License
+ as published by the Free Software Foundation; either version 2
+ of the License, or (at your option) any later version.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, write to the Free Software
+ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ */
+
+#ifos2win 
+/* to be used by library creation, windows only */
+#include extern.dec
+#endif
+
+
+/*written by Dmitri Boreiko, Dmitri.Boreiko@iue.it
+last change sep 2003
+*/
+
+/* procedures for recursive estimation
+   
+ - vml_calc_eigen
+ - vml_recurs_tests
+ -....
+*/
+
+/*method to call recursive eigenvalue test*/
+
+proc(8) = stab_recurs_eigen_wrapper(y, py, idx_cd2ci, d, r, start,conc, recurs_CI,sign,isGraph, PERIODIC,ST_DATE);
+local eig_val, eig_CI, eig_Psi, eig_psi_CI, tau_t, crval,tau_sum, crval_sum;
+local tmp,tmp1,xax,yax,k,strn,d_ec,d_unres, pltype,pcolor, plwidth;
+
+pltype = { 6, 3, 3, 1 }; 
+pcolor = {2, 1, 1, 1};
+plwidth = {9, 9, 9, 3};
+
+d_ec={};d_unres={};
+
+/*here the deterministics that belongs to the EC term are selected*/
+if rows(d);
+ if sumc(idx_cd2ci); 
+   d_ec = (selif(d',idx_cd2ci))';
+ endif;
+ /*elements that are not restricted*/
+ if sumc(idx_cd2ci) < rows(idx_cd2ci); 
+   d_unres = (delif(d',idx_cd2ci))';
+ endif;
+endif;
+
+tmp={};
+if rows(d_ec);
+  {d_ec, tmp1, tmp1} = vec_getFullRankMat(d_ec,tmp,0);
+endif;
+if rows(d_unres);
+  {d_unres,tmp1,tmp1} = vec_getFullRankMat(d_unres,tmp,0);
+endif;
+
+{eig_val, eig_CI, eig_Psi, eig_psi_CI, tau_t, crval,tau_sum, crval_sum} = 
+            stab_vml_recurs_tests(y, py, d_ec, d_unres , r, start, conc, recurs_CI);
+
+sign = 1-sign;
+if feq(sign,0.01);
+    k = 3;
+    elseif feq(sign,0.05);
+    k=2;
+    else;
+    k=1;
+endif;  
+
+crval = seqa(crval[k],0,rows(eig_val));
+crval_sum = seqa(crval_sum[k],0,rows(eig_val));
+
+if isGraph;
+graphset;
+if r >1;
+  _pdate = "";
+  _pltype = pltype; 
+  _pcolor = pcolor;
+  _plwidth = plwidth;
+  
+  _ptitle = " Psi_t - sum of the eigenvalues";
+  setGlobalPlot_plot();
+  _plegctl = 0;
+  xy(seqa(St_date+start/periodic,1/periodic,rows(eig_psi)),eig_psi_CI[.,1]~eig_psi~eig_psi_CI[.,2]);
+  if __XLM_LOADED; 	
+    dllcall showLastGraphic; 
+  endif;
+
+  _pdate = "";
+  _pltype = pltype; 
+  _pcolor = pcolor;
+  _plwidth = plwidth;
+  
+  _ptitle = "(Ho: all eigenvalues are stable) - Tau_sum statistics";
+  setGlobalPlot_plot();
+  _plegctl = 0;
+  
+  xy(seqa(St_date+start/periodic,1/periodic,rows(tau_sum)),tau_sum~crval_sum);
+  if __XLM_LOADED; 	
+    dllcall showLastGraphic; 
+  endif;
+endif;
+
+graphset;
+begwind;
+tmp =ceil(r/2); 
+tmp1 = ceil(r/2);
+if r==2; 
+  tmp = tmp+1; 
+endif;
+window(tmp,tmp1,0);
+for j(1,r,1);
+  k= j;
+  strn = " (Ho: this eigenvalue is stable) Tau_t statistics for eigenvalue "$+ftocv(k,1,0);
+    _ptitle = strn;
+    
+    _pltype = pltype; 
+    _pcolor = pcolor;
+    _plwidth = plwidth;
+    
+    setGlobalPlot_plot();
+    _plegctl = 0;
+    _pdate = ""; 
+    _ptitlht=__jm_height_plot_title;
+    
+    xy(seqa(St_date+start/periodic,1/periodic,rows(tau_t)),tau_t[.,j]~crval);
+    if j < r;
+      nextwind;
+    endif;
+  endfor;
+  endwind;
+  if __XLM_LOADED; 	
+    dllcall showLastGraphic; 
+  endif;
+
+  
+  xax = {};
+  yax = {0 1};
+  scale(xax,yax);
+  begwind;
+  tmp =ceil(r/2);
+  tmp1 = ceil(r/2);
+  if r==2; 
+    tmp = tmp+1; 
+  endif;
+  window(tmp,tmp1,0);
+  for j(1,r,1);
+    k= j;
+    strn = " recursive eigenvalue "$+ftocv(k,1,0);
+    _ptitle = strn;
+    
+    _pltype = pltype; 
+    _pcolor = pcolor;
+    _plwidth = plwidth;
+    
+    setGlobalPlot_plot();
+    _plegctl = 0;
+    _pdate = "";
+    _ptitlht=__jm_height_plot_title;
+    
+    xy(seqa(St_date+start/periodic,1/periodic,rows(eig_val)),eig_val[.,j]~eig_CI[.,j]~ eig_CI[.,r+j]);
+    if j < r;
+      nextwind;
+    endif;
+  endfor;
+  endwind;
+  if __XLM_LOADED; 	
+    dllcall showLastGraphic; 
+  endif;  
+endif;
+retp(eig_val, eig_CI, eig_Psi, eig_psi_CI, tau_t, crval,tau_sum, crval_sum);
+endp;
+
+/*
+** PURPOSE Replicating the recursive eigenvalues calculation as
+**         done in Hansen and Johansen 1999, Journal of Econometrics.
+**
+** SYNTAX {alpha,beta,beta_d,G,u,eva} 
+**          = stab_vml__calc_eigen(y_T,py,d_ec_T,d_vec_T,r,t,conc_likelyhood);
+**
+** INPUT
+** y_T       / (T,p) / matrix / endogenoues variables - full sample
+** 
+** py        / (1,1) / matrix / number of lags of endogenoues variables (VAR form)
+**
+** d_ec_T    / (T,m) / matrix / deterministic terms entering the Error Correction term - full sample
+**                                      
+** d_vec_T   / (T,l) / matrix / deterministic terms unrestricted - full sample
+**
+** r 	     / (1,1) / matrix / cointegrating rank 
+**
+** t 	     / (1,1) / matrix / time point from which the recursive eigenvalues are estimated             
+**
+**   conc_likelyhood  / (1,1) / matrix / flag showing what estimators are used for calculating Sij: 
+      1 - full sample estimators, 0 - recursive subsample estimators                
+**
+** OUTPUT
+**
+** alpha     / (p,r) / matrix / alpha vector - estimated on the subsample
+**
+** beta      / (p,r) / matrix / beta vector - estimated on the subsample
+**
+** beta_d    / (m,r) / matrix / beta vector for EC deterministic part - estimated on the subsample
+**
+** G	     /(p,(py-1)*p)/ matrix/ coeeficient matrix of the short run part of the model
+**
+** u         /(t-py,p)/ matrix/ vector of residuals
+**
+** eva       / (r,1) / matrix/ vector of eigenvalues
+**
+*/
+proc(6)=stab_vml__calc_eigen(y_T,py,d_ec_T,d_vec_T,r,t,conc_likelyhood);
+	local alpha,beta,beta_d,
+	      K, Z_0,Z_1, Z_2, Z, Z_dy, 
+	      M_00,M_01,M_02,M_10,M_11,M_12,M_20,M_21,M_22,M_22_i,
+	      S_00, S_10, S_11, S_01, Psi,S_00_i, S_11_i,
+	      eva, eva_, eve, idx, y,d_ec,d_vec, u, G, C_Vec,
+	      Z_0_T, Z_1_T, Z_2_T, Z_dy_T,tT,R_0,R_1,emptySubs, unusedResult;
+
+/* tT - full sample size, t (and y, d_ec, d_vec) - subsample size */
+emptySubs = {};
+G = {}; C_VEC={}; beta_d = {};
+y = y_T[1:t,.];
+K = cols(y);
+tT = rows(y_T);
+d_ec={}; d_vec={};
+
+if cols(d_ec_T);
+  d_ec  =d_ec_T[py:t-1,.];
+  if not(conc_likelyhood);
+    {d_ec, unusedResult, unusedResult} = vec_getFullRankMat(d_ec,emptySubs,0);
+  endif; 
+  d_ec_T = d_ec_T[py:tT-1,.];
+  {d_ec_T, unusedResult, unusedResult} = vec_getFullRankMat(d_ec_T,emptySubs,0);
+endif;
+
+
+if cols(d_vec_T);
+  d_vec = d_vec_T[py+1:t,.];
+  if not(conc_likelyhood);
+    {d_vec, unusedResult, unusedResult} = vec_getFullRankMat(d_vec,emptySubs,0);
+  endif; 
+  d_vec_T = d_vec_T[py+1:tT,.];
+  {d_vec_T, unusedResult, unusedResult} = vec_getFullRankMat(d_vec_T,emptySubs,0);
+endif;
+
+
+if py<1;
+  "";
+  errorlog("Johansen approach needs at least one presample value");
+  retp(-10,-10,-10,-10,-10,-10);
+endif;
+if rows(r)<1 or r<1 or r>=K;
+  "";
+  if rows(r)<1;
+    errorlog("Johansen approach: Cointegration rank not specified.");
+  else;
+    errorlog("Johansen approach: Cointegration rank is r="$+ftocv(r,1,0));
+  endif;
+  r = 1;
+  errorlog("(must be 0<r<"$+ftocv(K,1,0)$+" .... set to "$+ftocv(r,1,0)$+")");
+endif;
+Z_0_T = y_T[py+1:tT,.]-y_T[py:tT-1,.];
+Z_0 = y[py+1:T,.]-y[py:T-1,.];
+Z_1_T = y_T[py:tT-1,.]~d_ec_T;
+Z_1 = y[py:T-1,.]~d_ec;
+
+Z_dy_T= vml__lagObservations( y_T[2:tT,.]-y_T[1:tT-1,.], py-1, 1, py-1);
+Z_dy = vml__lagObservations( y[2:T,.]-y[1:T-1,.], py-1, 1, py-1);
+Z_2_T =  Z_dy_T~d_vec_T;
+Z_2  = Z_dy~d_vec;
+
+/*using full sample or recursive estimates f. Mij as in the paper - method 1 or 2 */
+  
+if conc_likelyhood;
+  M_00 = Z_0_T'*Z_0_T;
+  M_01 = Z_0_T'*Z_1_T;
+  M_10 = Z_1_T'*Z_0_T;
+  M_11 = Z_1_T'*Z_1_T;
+else;
+  M_00 = Z_0'*Z_0;
+  M_01 = Z_0'*Z_1;
+  M_10 = Z_1'*Z_0;
+  M_11 = Z_1'*Z_1;
+endif;
+
+S_00 = M_00; 
+S_10 = M_10; 
+S_01 = S_10';
+S_11 = M_11; 
+
+if cols(Z_2);
+  if conc_likelyhood;
+    M_02 = Z_0_T'*Z_2_T;
+    M_12 = Z_1_T'*Z_2_T;
+    M_20 = Z_2_T'*Z_0_T;
+    M_21 = Z_2_T'*Z_1_T;
+    M_22 = Z_2_T'*Z_2_T;
+  else;
+    M_02 = Z_0'*Z_2;
+    M_12 = Z_1'*Z_2;
+    M_20 = Z_2'*Z_0;
+    M_21 = Z_2'*Z_1;
+    M_22 = Z_2'*Z_2;
+  endif;
+  M_22_i = inv(M_22);
+  R_0 = Z_0 - (M_02*M_22_i*Z_2')';  	
+  R_1 = Z_1 - (M_12*M_22_i*Z_2')';    
+  S_00 = R_0'*R_0/rows(R_0);
+  S_10 = R_1'*R_0/rows(R_0); 
+  S_01 = S_10';
+  S_11 = R_1'*R_1/rows(R_1);
+endif;
+
+S_11_i = inv(S_11);
+S_00_i = inv(S_00);
+
+/* solving the eigenvalue problem */
+{eva,eve}=eigv(S_11_i*S_10*S_00_i*S_01);
+
+idx=scalerr(eva[1]);
+if idx; /* eigenvalues cannot all be determined */
+  if K-idx<r;
+    errorlog("Cannot determine enough eigenvalues");
+    retp(-10,-10,-10,-10,-10,-10);
+  endif;
+  eva=eva[idx+1:K];
+  eve=eve[.,idx+1:K];
+endif;
+
+idx = rankindx(real(eva),1);
+idx = rows(idx)+1-idx;
+eva[idx] = eva;
+eve[.,idx] = eve;
+eva = eva[1:r];
+beta = eve[.,1:r]; 
+
+beta = beta*inv(chol(beta'*S_11*beta));
+alpha = S_01*beta;
+
+if cols(Z_2);
+  Psi   = (M_02 - alpha*beta'*M_12)*M_22_i;        /* (6.5) */
+  if cols(Z_dy);
+    G = Psi[.,1:cols(Z_dy)];
+  endif;
+  if cols(d_vec);
+    C_VEC = Psi[.,cols(Z_dy)+1:cols(Z_dy)+cols(d_vec)];
+  endif;
+endif;
+
+/* computing residuals */
+u = Z_0 - Z_1 * (alpha*(beta'~beta_d'))';
+if rows(Z_dy);
+  u = u - Z_dy * G';
+endif;
+if rows(d_vec);
+  u = u - d_vec * C_VEC';
+endif;
+
+/* prepare return values */
+if cols(d_ec);
+  beta_d = beta[K+1:K+cols(d_ec),.];
+  beta   = beta[1:K,.];
+endif;
+
+retp(alpha,beta,beta_d,G,u,eva);
+endp;
+
+/*
+** PURPOSE	Constructs various statistics based on the recursive eigenvalues 
+** 		using methodology from Hansen and Johansen 1999, Journal of Econometrics
+**         
+**
+** SYNTAX	{eig_val, eig_CI, eig_Psi, eig_psi_CI, tau_t, tau_Crval, tau_sum,tau_sum_crval}
+**           	= stab_vml_recurs_tests(y, py, d_ec, d, r, start,conc_likelyhood, recurs_CI);
+
+**
+** INPUT
+** y         / (T,p) / matrix / endogenoues variables - full sample
+** 
+** py        / (1,1) / matrix / number of lags of endogenoues variables (VAR dimension)
+**
+** d_ec      / (T,m) / matrix / deterministic terms entering the Error Correction term - full sample
+**                                      
+** d         / (T,l) / matrix / deterministic terms unrestricted - full sample
+**
+** r 	     / (1,1) / matrix / cointegrating rank 
+**
+** start     / (1,1) / matrix / time shift from which the recursive eigenvalues are estimated      
+**
+**   conc_likelihood  / (1,1) / matrix / flag showing what estimators are used for calculating Sij: 
+**   1 - full sample estimators, 0 - recursive subsample estimators       
+**
+**   recurs_CI	/ (1,1) / matrix / 1 - if Confidence intervals for eigenvalues and other statistics have to be recalculated recursevely, 
+**   0 - if full sample CI  have to be used.   (Recursive estimation extremely increases the estimation time )                  
+**
+** OUTPUT
+** eig_val    /  (T-start+1,r)  / matrix / recursive eigenvalues
+**
+** eig_CI     / (T-start+1,2*r) / matrix / 95% CI for eigenvalues, 1:r - lower bounds, r+1:2r - upper bounds
+**
+** eig_Psi    / (T-start+1,1) / matrix / Psi statistics (SUM [ln(lambda/(1-lambda))], where lambda - eigenvalues 
+**
+** eig_psi_CI /(T-start+1,2) / matrix  / 95% CI for psi statistics
+**
+** tau_t      /(T-start+1,r) / matrix/ tau statistics - distributed as standard Brownian Bridge (t/T)
+**
+**tau_Crval / (1,3) / matrix / 90%, 95% and 99% quantiles of standard Brownian Bridge 
+**
+** tau_sum   /(T-start+1,1) / matrix/ tau statistics - distributed as r-dimensional Brownian Bridge (t/T)
+**
+**tau_sum_Crval / (1,3) / matrix / 90%, 95% and 99% quantiles of r-dimensial Brownian Bridge 
+
+*/
+
+proc(8)= stab_vml_recurs_tests(y, py, d_ec, d, r, start,conc_likelyhood, recurs_CI);
+
+Local	sigm, i, alpha, beta, beta_d, G, u, eva, j, eg, T, l, p,
+		AA, eps_t, Omega, Sigma, Matr, Matr1, Tau,
+		eig_val, eig_CI, eig_Psi, eig_psi_CI, tau_t, egT,evaT,
+		TAU_SUM, VAR_TAU, PSIT,Cr_values ;
+
+/* conc_likelyhood is incorrectly passed therefore here do the correction */
+conc_likelyhood = not conc_likelyhood;
+
+LET Matrix Cr_values = {1.22	1.36	1.63,
+			1.35	1.48	1.73,
+			1.42	1.54	1.79,
+			1.47	1.59	1.83,
+			1.51	1.62	1.86,
+			1.54	1.65	1.88,
+			1.57	1.67	1.90,
+			1.59	1.69	1.92,
+			1.61	1.71	1.94,
+			1.62	1.73	1.95	};
+
+T = rows(y) - py;
+P = cols(y);
+eig_val = zeros(T-start+1,r);
+
+/* print "T of y" t; */
+/* print "rows y" rows(y); */
+/* print "start" start; */
+/* print "py" py; */
+
+eig_CI = zeros(T-start+1,2*(r+1));	
+eig_psi_CI = zeros(T-start+1,2);
+eig_psi = zeros(T-start+1,1);
+tau_t = zeros(T-start+1,r+1);
+tau_sum = zeros(T-start+1,1);
+sigm = zeros(1,r);
+
+/* now estimating Sigma only for the full sample */
+ {alpha,beta,beta_d,G,u,evaT}   = stab_vml__calc_eigen(y,py,d_ec,d,r,rows(y),1);  
+
+if py==1;
+AA= beta'alpha+eye(cols(alpha));
+Eps_t = u*beta;
+endif;
+
+if py==2;
+AA = ((beta'alpha+eye(cols(alpha))) ~ beta'G) | (alpha ~ G);
+Eps_t = u*beta ~ u;
+endif;
+   
+if py > 2;
+ AA = ((beta'alpha+eye(cols(alpha))) ~ beta'G) | (alpha ~ G) | (zeros(p*(py-2),r) ~ eye(p*(py-2)) ~ zeros(p*(py-2),p));
+ Eps_t = u*beta ~ u ~ zeros(rows(u),p*(py-2));
+endif;
+
+Omega = Eps_t'Eps_t/rows(eps_t);
+AA = AA .*. AA;
+Matr1 =  inv(eye(cols(AA)) -  AA) ;
+Matr = Matr1* vec(Omega);
+Sigma = reshape(Matr,rows(Omega),cols(Omega));
+
+Tau = (inv(Sigma) .*. inv(Sigma))*Matr1;
+Tau = (Tau + Tau')*2/rows(u);
+	for j(1,r,1);
+	l = (j-1)*(r+p*(py-1))+j; 
+	sigm[1,j] = sqrt((Tau[l,l]));
+	endfor;
+var_tau = sigm*sigm'; 
+psiT = sumc (ln(evaT' ./ (1 - evaT'))' );
+
+for i(1,T - start +1,1);
+
+{alpha,beta,beta_d,G,u,eva}   = stab_vml__calc_eigen(y,py,d_ec,d,r,i+start+py-1,conc_likelyhood);  
+eig_val[i,1:r] =eva';
+ 
+if recurs_CI;
+
+if py==1;
+AA= beta'alpha+eye(cols(alpha));
+Eps_t = u*beta;
+endif;
+
+if py==2;
+AA = ((beta'alpha+eye(cols(alpha))) ~ beta'G) | (alpha ~ G);
+Eps_t = u*beta ~ u;
+endif;
+   
+if py > 2;
+ AA = ((beta'alpha+eye(cols(alpha))) ~ beta'G) | (alpha ~ G) | (zeros(p*(py-2),r) ~ eye(p*(py-2)) ~ zeros(p*(py-2),p));
+ Eps_t = u*beta ~ u ~ zeros(rows(u),p*(py-2));
+endif;
+
+Omega = Eps_t'Eps_t/rows(eps_t);
+
+AA = AA .*. AA;
+Matr1 =  inv(eye(cols(AA)) -  AA) ;
+Matr = Matr1* vec(Omega);
+Sigma = reshape(Matr,rows(Omega),cols(Omega));
+
+Tau = (inv(Sigma) .*. inv(Sigma))*Matr1;
+Tau = (Tau + Tau')*2/rows(u);
+	for j(1,r,1);
+	l = (j-1)*(r+p*(py-1))+j; 
+	sigm[1,j] = sqrt((Tau[l,l]));
+	endfor;
+
+endif;
+
+var_tau = sigm*sigm'; 
+
+eig_psi[i,1] = sumc ((ln(eig_val[i,.] ./ (1 - eig_val[i,.])))' );
+tau_sum[i,1] = (i+start-1)/T* abs(eig_psi[i,1] -psiT) / sqrt(var_tau);
+
+	 /* ******* calculating CI for r largest recursive eigenvalues ********* */
+	for j(1,r,1);
+	eg = eig_val[i,j];
+	egT = evaT[j,1];
+	eig_CI[i,j] = eg / (eg + (1-eg)*exp(1.96*sigm[1,j]));
+	eig_CI[i,r+j] = eg / (eg + (1-eg)*exp(-1.96*sigm[1,j])); 
+	tau_t[i,j] = (i+start-1) /T * abs( ln(eg/(1-eg)) - ln(egT/(1-egT))) / sigm[1,j];  	
+	endfor;
+
+eig_psi_CI[i,1] = sumc ((ln(eig_ci[i,1:r] ./ (1 - eig_ci[i,1:r])))' );
+eig_psi_CI[i,2] = sumc ((ln(eig_ci[i,r+1:2*r] ./ (1 - eig_ci[i,r+1:2*r])))' );
+endfor;
+
+retp(eig_val, eig_CI, eig_Psi, eig_psi_CI, tau_t, cr_values[1,.],tau_sum,cr_values[r,.]);
+endp;

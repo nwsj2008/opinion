@@ -1,0 +1,184 @@
+/*
+ This file is part of the econometric software package JMulTi.
+ Copyright (C) 2000-2005  Alexander Benkwitz
+
+ This program is free software; you can redistribute it and/or
+ modify it under the terms of the GNU General Public License
+ as published by the Free Software Foundation; either version 2
+ of the License, or (at your option) any later version.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, write to the Free Software
+ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ */
+
+#ifos2win 
+/* to be used by library creation, windows only */
+#include var.dec
+#endif
+
+/*
+**
+** PURPOSE
+** Estimates ECM.
+**
+** SYNTAX
+** modelHat = var_EstimateECModel(model);
+**
+** INPUT
+** model / (Y,1) / data buffer / Data buffer defining a VAR or VECM.
+** showResults / (1,1) / matrix / 1=show estimation results on screen, 0=run quiet.
+**
+** OUTPUT 
+** modelHat / (Z,1) / data buffer / Estimated VAR or VECM as data buffer.
+** 
+**
+** REMARK
+** This procedure simply estimates the data buffer 'model' and 
+** returns and it with the estimated parameter matrices. If you
+** want to get information on standard errors, t-values, etc.
+** use vml\_ols, vml\_gls, vml\_3sls instead.
+**
+** Changes in data buffer:\\ 
+** {\tt + beta, alpha, G0, G, A0, A, B, C, F}
+*/
+proc(1)= var_EstimateECModel(model);
+	local y, py, K, T, eq_idx, elementNames, 
+	      tmp, tmp1, tmp2, tmp3,
+	      x, px, d, mx_cd2cr, Z,
+	      dy, dy_lhs, dy_rhs, dy_lagged, d_vec, d_ec,
+	      unlaggedTerm, var;
+/* 24 declared locals */
+
+
+	@ initialize model data variables @
+		y      = vml_vread(model,"y");
+		py     = vml_vread(model,"py"); 
+		K      = cols(y);
+		T      = rows(y)-py;
+		eq_idx = vml_vread(model,"idx_equa");
+
+		elementNames = vnamecv(model);
+	   	let tmp1={ "x", "px", "d", "mx_cd2cr", "Z"};
+	   	tmp  = var_indcv( tmp1, elementNames);
+		tmp3 = {};
+	   	for i(1,rows(tmp),1);
+			if scalmiss(tmp[i]);
+   				call varputl( tmp3, tmp1[i]);
+			else;
+   				call varputl( vml_vread( model, tmp1[i]), tmp1[i]);
+			endif;
+   		endfor;
+
+	@ Estimation @
+   		dy     = y[2:rows(y),.]-y[1:rows(y)-1,.];
+		dy_lhs = dy[py-1+1:py-1+T,.];
+		dy_rhs = delif(dy_lhs',seqa(1,1,cols(dy_lhs)).==eq_idx)';
+		dy_lhs = dy_lhs[.,eq_idx];
+		if (py-1)>0;
+			dy_lagged = vml__lagObservations(dy,py-1,1,py-1);
+		else;
+			dy_lagged = {};
+		endif;
+
+   		{d_vec,d_ec}=var__splitDeterministics(d,mx_cd2cr);
+
+	   		if rows(d_vec);
+   				d_vec   = d_vec[py+1:py+T,.];
+	   		endif;
+   			if rows(d_ec);
+   				d_ec   = d_ec[py+1:py+T,.];
+	   		endif;
+
+		unlaggedTerm = y[py:py+T-1,.]~d_ec~dy_rhs~dy_lagged~d_vec~Z;
+		tmp = {};
+		var = vml_InitVAR(dy_lhs,0,tmp, x,px,tmp, unlaggedTerm,tmp);
+
+	@ IMPOSE RESTRICTIONS @
+		@ transfer elements from 'model' to 'var' buffer 1:1 @
+			let tmp = {"S_B","R_B","RC_B"};
+			for i(1,rows(tmp),1);
+		   		if not scalmiss(var_indcv( tmp[i], elementNames));
+					var = vml_SetRestrictions(var, vml_vread( model, tmp[i]), tmp[i]);
+   				endif;   
+			endfor;
+		@ merge constraints for unlagged term @
+			let tmp = {"beta","beta_d","G0","G","C_VEC","F_VEC"};
+			tmp1 = cols(y)|cols(d_ec)|cols(dy_rhs)|cols(dy_lagged)|cols(d_vec)|cols(Z);
+			{tmp1,tmp2,tmp3} = var__mergeLinearConstraints(model,tmp,tmp1,1);
+			if rows(tmp1);
+				var = vml_SetRestrictions(var, tmp1, "S_C_VAR");
+			elseif rows(tmp2) or rows(tmp3);
+				if rows(tmp2);
+					var = vml_SetRestrictions(var, tmp2, "R_C_VAR");
+				endif;
+				if rows(tmp3);
+					var = vml_SetRestrictions(var, tmp3, "RC_C_VAR");
+				endif;
+			endif;
+
+	@ ESTIMATE @
+	   	var = vml__EstimateVARModel(var,1);
+		elementNames = vnamecv(var);
+
+	@ RESULTS: read from 'var' and write to 'model'  @
+		@ transfer elements from var to model buffer 1:1 @
+			let tmp = {"B","beta","beta_d","cv_B","cv_beta","cv_bet_d","cvRes","u",
+			           "em_exe"};
+			for i(1,rows(tmp),1);
+		   		if not scalmiss(var_indcv( tmp[i], elementNames));
+					model = vput(model,vml_vread(var,tmp[i]), tmp[i]);
+   				endif;   
+			endfor;
+		@ split the C_VAR element @
+			tmp1  =vml_vread(var,"C_VAR");
+			tmp2 =vml_vread(var,"cv_C_VAR");
+				tmp  = 0;
+				tmp3 = K;
+		   		model = vput( model, tmp1[.,tmp+1:tmp+tmp3], "beta");
+				model = vput( model, tmp2[tmp+1:tmp+tmp3,tmp+1:tmp+tmp3],"cv_beta");
+	   		if cols(d_ec);
+				tmp  = K;
+				tmp3 = cols(d_ec);
+		   		model = vput( model, tmp1[.,tmp+1:tmp+tmp3], "beta_d");
+				model = vput( model, tmp2[tmp+1:tmp+tmp3,tmp+1:tmp+tmp3],"cv_bet_d");
+   			endif;
+   			if cols(Z);
+				tmp   = cols(y)+cols(d_ec)+cols(dy_rhs)+cols(dy_lagged)+cols(d_vec);
+		   		model = vput( model, tmp1[.,tmp+1:tmp+cols(Z)], "F_VEC");
+				model = vput( model, tmp2[tmp+1:tmp+cols(Z),tmp+1:tmp+cols(Z)], "cv_F_VEC");
+	   		endif;
+   			if cols(dy_lagged);
+				tmp  = cols(y)+cols(d_ec)+cols(dy_rhs);
+				tmp3 = cols(dy_lagged);
+		   		model = vput( model, tmp1[.,tmp+1:tmp+tmp3], "G");
+				model = vput( model, tmp2[tmp+1:tmp+tmp3,tmp+1:tmp+tmp3],"cv_G");
+   			endif;
+   			if cols(dy_rhs);
+				tmp  = cols(y)+cols(d_ec);
+				tmp3 = cols(dy_rhs);
+		   		model = vput( model, tmp1[.,tmp+1:tmp+tmp3], "G0");
+				model = vput( model, tmp2[tmp+1:tmp+tmp3,tmp+1:tmp+tmp3],"cv_G0");
+   			endif;
+	   		if cols(d_vec);
+				tmp  = cols(y)+cols(d_ec)+cols(dy_rhs)+cols(dy_lagged);
+				tmp3 = cols(d_vec);
+		   		model = vput( model, tmp1[.,tmp+1:tmp+tmp3], "C_VEC");
+				model = vput( model, tmp2[tmp+1:tmp+tmp3,tmp+1:tmp+tmp3],"cv_C_VEC");
+	   		endif;
+
+	retp(model);
+endp;
+
+
+
+
+
+
+
+

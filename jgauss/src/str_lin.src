@@ -1,0 +1,255 @@
+/*
+ This file is part of the econometric software package JMulTi.
+ Copyright (C) 2000-2005  Stefan Lundbergh, Markus Kraetzig
+
+ This program is free software; you can redistribute it and/or
+ modify it under the terms of the GNU General Public License
+ as published by the Free Software Foundation; either version 2
+ of the License, or (at your option) any later version.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, write to the Free Software
+ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ */
+
+/*
+------------------------------- REFERENCES ---------------------------------
+lintest.src, by Markus Kraetzig, Oct 2001, using Stefan Lundberghs procedures
+
+We performing a linearity test against a STR alternative following: 
+
+   reference:
+   
+   Handbook of Applied Economic Statistics,
+   Aman Ullah, David E. A. Giles, 1998 (Marcel Dekker, Inc),
+   chapter 15, Timo Teräsvirta, Modeling Economic Relationships with STR
+   ch. IIIA and ch. IV A/B (exogenous and deterministic variables are allowed)
+
+
+you can check, whether linearity is rejected or not,
+you can determine the transition variable out of a set of
+possible variables
+you can test, whether you should have LSTR1 or LSTR2/ESTR transition function
+
+remark: when the transition variable to test is included in the linear part as well, 
+        then the const is excluded from the nonlinear part, 
+	otherwise it is included
+
+input:
+
+y      is the endogenous variable  
+d      contains the deterministics without the constant 
+       (it will be appended automatically),if rows(d) < rows(y),
+       then only a const will be appended
+x      contains all lags of y and exogenous variables, also
+       all possible transition variables must be included here
+       then endogenous lags, then exogenous, then trend
+res    is a col(x) x 1 vector of restrictions (0 or 1) on x
+       if you want include a trend as a transition variable, then 
+       append it to X, but exclude it from the AR term with the 
+       "res" vector, because it is not allowed to have a trend 
+       in the AR part, but it is possible to have a trend as 
+       transition variable (0-exclude, 1-include)
+trans  is a col(x) x 1 vector that determines 
+       the possible transition variable(s)(0 or 1) in x
+nonlin is a sumc(res)+col(d) x 1 vector that has possibly
+       restrictions on the nonlinear part of the STR model
+       it may be, that variables included in X (res[i] is 1)
+       can be held constant by excluding them from the nonlinear
+       part; if 1 then hold constant, if 0 then do not hold constant
+phires rows(nonlin) x 1, restriction only on phi, the variable disappears, when
+       F==0 (1=restrict, 0=not restricted)
+
+output:
+
+result (number of transition variables) x 4 with p-values 
+       b1=b2=b3=0 | b3 = 0 | b2 = 0 (given b3=0) | b1 = 0 (given b2=b3=0)
+       degrees of freedom depend on whether the transition variable is in X or not
+*/
+
+proc(1) = lintest_lintest(Y,d,X,res,trans,nonlin,phires);
+local i,j,SSR0,SSR1,SSR2,SSR3,Xnonlinear,X1,X2,X3;
+local result,f,p,T,d1,d2,XL,XNL,invertres,b;
+
+d=d';
+x=x';
+res=res';
+
+/* Y;d;X;res;trans;nonlin; */
+
+/*just to make sure that there are only 0 and 1*/
+res = (res .gt 0);
+trans = (trans .gt 0);
+nonlin = (nonlin .gt 0);
+phires = (phires .gt 0);
+
+result = miss(ones(sumc(trans),4), 1);
+
+if rows(d) < rows(y);
+  d={};
+endif;
+
+if sumc(trans) == 0;
+  retp(result);
+endif;
+/*initialize result matrix*/
+
+T = rows(y);
+
+/*the actual number of variables in the nonlinear part, taking care of
+possible restrictions on the nonlinear part*/
+p = sumc(res)+ cols(d) - sumc(nonlin);
+
+/*impose the restrictions on X*/
+invertres = (res .== 0);
+
+XL = delif(X',invertres)';
+
+local excludeSelTrans, pval,tmp;
+excludeSelTrans = zeros(rows(trans), 1);
+
+/*append the other deterministics to the nonlinear AR part and take care of restrictions*/
+/*take care of constant variables*/
+if sumc(nonlin) == rows(nonlin);
+  /* no variables in nonlinear part, only possible to test transition variables that are not in 
+  x_t, mark indizes */
+  XNL = ones(T,1);
+  for i(1, rows(trans), 1);
+      if (res[i] > 0);
+	excludeSelTrans[i] = 1;
+      endif;
+  endfor;
+else;
+  XNL = ones(T,1)~delif((D~XL)',nonlin)';
+endif;
+
+tmp = delif((D~XL)',phires)';
+XL = ones(T,1);
+if rows(tmp) == rows(XL);
+  XL = XL~tmp;
+endif;
+
+SSR0=Y'Y-Y'XL*invpd(XL'XL)*XL'Y;
+i = 1;
+j = 1;
+trap 1;
+/*go through all possible transition variables*/
+do while i <= rows(trans);
+  /*test whether variable is selected*/
+  if (trans[i] > 0);
+    
+    /* no test of excluded transition variable */
+    if excludeSelTrans[i] == 1;
+      j = j + 1;
+    else;
+    
+      /*test whether transition it is also in linear part or not and exclude constant
+      when it is in, otherwise keep the const
+      
+      includes the constant when res[i]==0, because then the trans variable is
+      not included in z */
+      
+      Xnonlinear=XNL[.,res[i]+1:cols(XNL)];
+
+      X1 = XL~Xnonlinear.*X[.,i];
+      X2 = X1~Xnonlinear.*X[.,i]^2;
+      X3 = X2~Xnonlinear.*X[.,i]^3;
+      b=invpd(X1'X1);
+      if scalmiss(b)==0;
+	SSR1=Y'Y-Y'X1*b*X1'Y;
+      else;
+	SSR1=miss(1,1);
+      endif;
+      b=invpd(X2'X2);
+      if scalmiss(b)==0;
+	SSR2=Y'Y-Y'X2*b*X2'Y;
+      else;
+	SSR2=miss(1,1);
+      endif;
+      b=invpd(X3'X3);
+      if scalmiss(b)==0;
+	SSR3=Y'Y-Y'X3*b*X3'Y;
+      else;
+	SSR3=miss(1,1);
+      endif;
+      
+      /*compute all the tests, save them to the result vector*/
+      /*the degrees of freedom depend on whether the trans variable
+      is in X or not*/
+      
+      /*b1=b2=b3=0*/
+      
+      
+      d1 =3*(p+(res[i]==0));
+      d2 =T-cols(XL)-3*p-3*(res[i]==0);
+      if d1 > 0;
+	f = ((SSR0-SSR3)/d1)/(SSR3/d2);
+	pval = cdffc(f,d1,d2);
+	if pval > 0;
+	  result[j,1] = pval;
+	endif;
+      endif;
+      
+      /*b3=0*/
+      d1 =p+(res[i]==0);
+      d2 =T-cols(XL)-3*p-3*(res[i]==0);
+      if d1 > 0 and SSR2 > 0 and SSR3 > 0;
+	f = ((SSR2-SSR3)/d1)/(SSR3/d2);
+	pval =  cdffc(f,d1,d2);
+	if pval > 0;
+	  result[j,2] = pval;
+	endif;
+      endif;
+      
+      /*b2=0*/
+      d1 =p+(res[i]==0);
+      d2 =T-cols(XL)-2*p-2*(res[i]==0);
+      if d1 > 0 and SSR2 > 0 and SSR1 > 0;
+	f = ((SSR1-SSR2)/d1)/(SSR2/d2);
+	pval = cdffc(f,d1,d2);
+	if pval > 0;
+	  result[j,3] = pval;
+	endif;
+      endif;
+      
+      /*b1=0*/
+      d1 =p+(res[i]==0);
+      d2 =T-cols(XL)-p-(res[i]==0);
+      if d1 > 0 and SSR0 > 0 and SSR1 > 0;
+	f = ((SSR0-SSR1)/d1)/(SSR1/d2);
+	pval = cdffc(f,d1,d2);
+	if pval > 0;
+	  result[j,4] = pval; 
+	endif;
+      endif;
+      j = j + 1;
+    endif;
+  endif;
+  i = i + 1;  
+endo;
+trap 0;
+retp(result);
+endp;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

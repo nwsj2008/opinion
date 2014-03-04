@@ -1,0 +1,1035 @@
+/*
+ This file is part of the econometric software package JMulTi.
+ Copyright (C) 2000-2005  Dmitri Boreiko, Markus Kraetzig
+
+ This program is free software; you can redistribute it and/or
+ modify it under the terms of the GNU General Public License
+ as published by the Free Software Foundation; either version 2
+ of the License, or (at your option) any later version.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, write to the Free Software
+ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ */
+#ifos2win 
+/* to be used by library creation, windows only */
+#include extern.dec
+#endif
+
+
+/*
+recursively estimating the parameters for VAR models.
+procedure written by Dmitri Boreiko
+11:24 AM  13-Sep-2003
+*/
+
+/**
+ * Before you call this method, create a var buffer with:
+ * var =  stab_CreateVAR(y,x,d,py,px,Ny,Nx,Nd,Cy,Cx,Cd);
+ */
+proc(6) = stab_VARrecurs_wrapper(var,y_rec,x_rec,d_rec,_strt, periodicity,startdate,by_one,isgraph);
+
+local A_est, A_SE, B_est, B_SE, C_est, C_SE,tmp1,tmp2,l,strn,y_show, x_show;
+local i1,j1,l1,iii,ind,_lg, _vrbl, _rest, _eq,empt,dumm;
+local y,x,d,py,px,Cy,Cx,Cd,Ny,Nx,Nd,titel,tmp3, pltype,pcolor, plwidth;
+
+pltype = { 6, 3, 3, 1 }; 
+pcolor = {2, 1, 1, 1};
+plwidth = {9, 9, 9, 3};
+
+empt = {.};
+y = vml_vread(var,"y");
+x = vml_vread(var,"x");
+d = vml_vread(var,"d");
+py =vml_vread(var,"py");
+px =vml_vread(var,"px");
+Ny =vml_vread(var, "Ny");
+Nx =vml_vread(var, "Nx");
+Nd =vml_vread(var, "Nd");
+
+startdate = trunc(startdate)+ (startdate-trunc(startdate))*10/periodicity;
+
+{A_est, A_SE, B_est, B_SE, C_est, C_SE} = Recurs_coeff_stab(var,_strt);
+
+if isGraph;
+graphset;
+_pdate = "";
+
+tmp1 = A_est~B_est~C_est;
+if rows(tmp1) == 0;
+  retp(0,0,0,0,0,0);
+endif;
+
+x_show = seqa(Startdate+ (_strt-1)/periodicity,1/periodicity,rows(tmp1)); 
+
+tmp1 = vec(y_rec)';
+if  by_one;
+  /* graphs of the recursive coefficients - 
+  each lag as a separate window and only specified by user coefficients are shown */
+  
+  for i(1, cols(tmp1),1);
+    if tmp1[i];
+      _lg = ceil( i / (cols(y)*cols(y)) );
+      _rest = i  - (_lg-1)*cols(y)*cols(y);
+      _vrbl = ceil(_rest / cols(y));
+      _eq = _rest - (_vrbl-1)*cols(y);
+      strn = "Variable " $+Ny[_vrbl] $+ ": lag " $+ftocv(_lg,1,0) $+ ", eq. for " $+Ny[_eq];
+	_ptitle = strn;
+	
+	_pltype = pltype; 
+	_pcolor = pcolor;
+	_plwidth = plwidth;
+	
+	y_show = A_est[.,i] ~ (A_est[.,i] - 2*A_SE[.,i]) ~  (A_est[.,i] + 2*A_SE[.,i]) ~ zeros(rows(A_est),1);
+	setGlobalPlot_plot();
+	_plegctl = 0;
+	xy(x_show,y_show);
+	graphset;
+	if __XLM_LOADED; 	
+	  dllcall showLastGraphic; 
+	endif; 
+      endif;
+    endfor;
+    
+    /* exogenous  by one */
+    if rows(x);
+      tmp1 = vec(x_rec)';
+      for i(1, cols(tmp1),1);
+	if tmp1[i];
+	  _lg = ceil( i / (cols(y)*cols(x)) )-1;
+	  _rest = i  - _lg*cols(y)*cols(x);
+	  _vrbl = ceil(_rest / cols(y));
+	  _eq = _rest - (_vrbl-1)*cols(y);
+	  strn = "Variable " $+ Nx[_vrbl] $+ ": lag " $+ftocv(_lg,1,0) $+ ", eq. for " $+Ny[_eq]; 
+	    _ptitle = strn;
+	    
+	    
+	    _pltype = pltype; 
+	    _pcolor = pcolor;
+	    _plwidth = plwidth;
+	    
+	    y_show = B_est[.,i] ~ (B_est[.,i] - 2*B_SE[.,i]) ~  (B_est[.,i] + 2*B_SE[.,i]) ~ zeros(rows(B_est),1);
+	    setGlobalPlot_plot();
+	    _plegctl = 0;
+	    xy(x_show,y_show);
+	    graphset;
+	    if __XLM_LOADED; 	
+	      dllcall showLastGraphic; 
+	    endif; 
+	  endif;
+	endfor;
+      endif;
+
+      /* determenistics by one */
+      if rows(d);
+	tmp1 = vec(d_rec)';
+	for i(1, cols(tmp1),1);
+	  if tmp1[i];
+	    _eq = ceil( i / cols(d));
+	    _vrbl =  i - (_eq-1)* cols(d);
+	    strn ="Variable " $+Nd[_vrbl] $+ ": eq. for " $+ Ny[_eq]; 
+	    _ptitle = strn;
+	    dumm = maxc(vec(selif(x_show, c_est[.,i] .== empt)));
+	    _pline = { 1 2 0 0 0 0 1 15 5};
+	    _pline[3] = dumm;
+	    _pline[4] = -10000 ;
+	    _pline[5] = dumm;
+	    _pline[6] = 10000;
+	    
+	    
+	    _pltype = pltype; 
+	    _pcolor = pcolor;
+	    _plwidth = plwidth;
+	    
+	    setGlobalPlot_plot();
+	    _plegctl = 0;
+	    xy(x_show, c_est[.,i] ~ (c_est[.,i] - 2* c_se[.,i]) ~ (c_est[.,i] + 2* c_se[.,i]) ~ zeros(rows(c_est),1));
+	    if __XLM_LOADED; 	
+	      dllcall showLastGraphic; 
+	    endif;
+	    graphset;
+	  endif;
+	endfor;
+      endif;
+      
+
+      else;    /* not   (by_one)  */
+
+	/* A coefficients */
+	for i(1,py,1);
+	  graphset;
+	  ind=1;
+	  tmp2 = tmp1[(i-1)*cols(y)*cols(y)+1:i*cols(y)*cols(y)];
+	  if sumc(vecr(tmp2)) /=0;
+	    begwind;
+	    _ptitle = "";
+	    setGlobalPlot_plot();
+	    _plegctl = 0;
+	    tmp3 = smwintit_plot(cols(y),cols(y),_ptitle,0);
+	    i1=i;
+	    for j(1,cols(y),1);
+	      for l(1,cols(y),1); 
+		iii = (i-1)*cols(y)*cols(y)+(j-1)*cols(y) +l;
+		if tmp1[iii];
+		  ind = ind % (cols(y) * cols(y));
+		  if ind ==0; 
+		    ind = cols(y)*cols(y); 
+		  endif;
+		  setwind(ind+tmp3);
+		  j1=j;	
+		  l1=l;
+		  title("Var. " $+ Ny[j1] $+ ": lag " $+ftocv(i1,1,0)$+", eq. for " $+Ny[l1]);
+		  
+		  
+		  _pltype = pltype; 
+		  _pcolor = pcolor;
+		  _plwidth = plwidth;
+		  
+		  y_show = A_est[.,iii] ~ (A_est[.,iii] - 2*A_SE[.,iii]) ~  (A_est[.,iii] + 2*A_SE[.,iii]) ~ zeros(rows(A_est),1);
+		  
+		  if  __jm_show_plot_title == 0;
+		    _ptitle = "";
+		  endif;
+		  _ptitlht = __jm_height_plot_title;    
+		  
+		  xy(x_show,y_show);
+		endif;
+		ind = ind + cols(y);    
+	      endfor;
+	      ind = ind +1;
+	    endfor;
+	    endwind;
+	    if __XLM_LOADED; 	
+	      dllcall showLastGraphic; 
+	    endif; 
+	  endif;
+	endfor;
+
+	if rows(x);
+	  tmp1 = vec(x_rec)';
+	  for i(1,px+1,1);
+	    graphset;
+	    ind=1;
+	    tmp2 = tmp1[(i-1)*cols(y)*cols(x)+1:i*cols(y)*cols(x)];
+	    if sumc(vecr(tmp2)) /=0;
+	      begwind;
+	      _ptitle = "";
+	      setGlobalPlot_plot();
+	      _plegctl = 0;
+	      tmp3 = smwintit_plot(cols(y),cols(x),_ptitle,0);
+	      i1=i;
+	      for j(1,cols(x),1);
+		for l(1,cols(y),1); 
+		  iii = (i-1)*cols(y)*cols(x)+(j-1)*cols(x) +l;
+		  if tmp1[ iii];
+		    ind = ind % (cols(y) * cols(x));
+		    if ind ==0; 
+		      ind = cols(y)*cols(x); 
+		    endif;
+		    setwind(ind+tmp3);
+		    j1=j;	l1=l;
+		    strn = "Var. " $+ Nx[j1]$+ ": lag " $+ftocv(i1-1,1,0)$+ ", eq. for " $+Ny[l1];
+		    _ptitle = strn;
+		    
+		    _pltype = pltype; 
+		    _pcolor = pcolor;
+		    _plwidth = plwidth;
+		    
+		    if  __jm_show_plot_title == 0;
+		      _ptitle = "";
+		    endif;
+		    _ptitlht = __jm_height_plot_title;    
+		    y_show = B_est[.,iii] ~ (B_est[.,iii] - 2*B_SE[.,iii]) ~  (B_est[.,iii] + 2*B_SE[.,iii]) ~ zeros(rows(B_est),1);
+		    xy(x_show,y_show);
+		  endif;
+		  ind = ind + cols(x);    
+		endfor;
+		ind = ind +1;
+	      endfor;
+	      endwind;
+	      if __XLM_LOADED; 	dllcall showLastGraphic; 
+	      endif; 
+	    endif;
+	  endfor;
+	  
+	endif;
+
+	/* now determenistics */ 
+	graphset;
+	if (sumc(vecr(d_rec)) /=0);
+	  begwind;
+	  setGlobalPlot_plot();
+	  _plegctl = 0;
+	  tmp3 = smwintit_plot(rows(d_rec),cols(d_rec),_ptitle,0);
+	  for i(1,cols(y),1);
+	    for j(1,cols(d_rec),1);
+	      iii = (i-1)*cols(d_rec)+j;
+	      setwind(iii+tmp3);
+	      i1=i; 
+	      strn ="Var. " $+ Nd[j] $+ ", eq. for " $+ Ny[i]; 
+		if d_rec[i,j];
+		  _ptitle = strn;
+		  dumm = maxc(vec(selif(x_show, c_est[.,iii] .== empt)));
+		  _pline = { 1 2 0 0 0 0 1 15 0};
+		  _pline[3] = dumm;
+		  _pline[4] = -10000 ;
+		  _pline[5] = dumm;
+		  _pline[6] = 10000;
+		  
+		  _pltype = pltype; 
+		  _pcolor = pcolor;
+		  _plwidth = plwidth;
+		  
+		  
+		  if  __jm_show_plot_title == 0;
+		    _ptitle = "";
+		  endif;
+		  _ptitlht = __jm_height_plot_title;   
+		  xy(x_show, c_est[.,iii] ~ (c_est[.,iii] - 2* c_se[.,iii]) ~
+		  (c_est[.,iii] + 2* c_se[.,iii]) ~ zeros(rows(c_est),1));
+		endif;
+	      endfor;
+	    endfor;
+	    endwind;
+	    if __XLM_LOADED;  
+	      dllcall showLastGraphic;  
+	    endif; 
+	  endif; 	
+	  
+	endif; 
+	
+      endif;
+  retp(A_est, A_SE, B_est, B_SE, C_est, C_SE);
+endp;
+
+
+/* ************************************************************************ 
+** SYNTAX
+** {A_est, A_SE, B_est, B_SE, C_est, C_SE} = Recurs_coeff_stab(var,_strt);
+**
+** PURPOSE
+** procedure to calculate recursively the coefficients of VAR model
+**
+** INPUT
+** var  / (N,1) / data buffer / 
+**_strt / (1,1) / starting point of estimation - as number of periods left as initial part of the sample
+**
+** OUTPUT
+** A_est / ( T-_strt+1,cols(A)*rows(A) ) / recursive estimates of endogenous parameters - by columns / 
+** A_SE /  ( T-_strt+1,cols(A)*rows(A) ) / their standard errors /
+** B_est / ( T-_strt+1, rows(A) * cols(B) ) / recursive estimates of exogenous parameters /
+** B_SE / ( T-_strt+1, rows(A) * cols(BC) ) / their standard errors /
+** C_est / ( T-_strt+1, rows(A) * cols(C) ) / recursive estimates of determenistic part estimates - by rows (first, row of first equation, and so on) /
+** C_SE / ( T-_strt+1, rows(A) * cols(C) ) / their standard errors /
+*/
+
+proc(6) = Recurs_coeff_stab(var,_strt);
+local  	var1,y,x,d,py,px,A,estim_coeff,k,l,cv_A,se,st_err,tmp,d_1,tmp0,A0,
+	   	B_est, B_se, C_est, C_SE, B, CV_B, C, CV_C,ind, c_infl, cse_infl, d_excl,empt, S_C_VAR, d_rest,d_tmp;
+
+estim_coeff = {};
+st_err = {};  
+B_est = {};
+B_SE = {};
+C_est= {};
+C_SE = {};
+A0 = {};
+y = vml_vread(var, "y");
+x = vml_vread(var, "x");
+d = vml_vread(var, "d");
+py = vml_vread(var,"py");
+px = vml_vread(var, "px");
+S_C_VAR = vml_vread( var, "S_C_VAR");
+
+var1 = var;
+ if py;
+ estim_coeff=zeros(rows(y)-_strt-py+1,cols(y)*cols(y)*py);
+ st_err=estim_coeff;
+ endif;
+ if rows(x);
+ B_est = zeros(rows(x)-_strt-px+1,cols(y)*cols(x)*(px+1));
+ B_SE = B_est;
+ endif;
+ if rows(d);
+ tmp = {.};
+ empt = zeros(cols(y),1).* tmp; 
+ C_est = zeros(rows(y)-_strt-py+1,cols(y)*cols(d));
+ C_SE = C_est;
+ endif;
+
+for i(_strt+py,rows(y),1);
+  var1 = vput(var1,y[1:i,.],"y");
+  
+  if rows(d);
+    {d_1, d_excl, d_rest} = vec_GetFullRankMat(d[1:i,.],S_C_VAR,0);    
+    var1 = vput(var1,d_1,"d");
+    if rows(d_rest);
+      var1 = vput(var1, d_rest, "S_C_VAR"); 
+    endif;
+  endif;
+  
+  if rows(x);   
+    var1 = vput(var1,x[1:i-py+px,.],"x");
+  endif;
+  
+  var1 = var_EstimateModel(var1);
+  var1 = var_ComputeModelStatistics(var1);
+  
+  k = i - _strt-py+1;
+  
+  if py;
+    A = vml_vread( var1, "A");
+    cv_a =vread(var1,"SE_A");
+    estim_coeff[k,.] = vec(A)';
+    st_err[k,.] = vec(cv_A)';
+  endif;
+  
+  if rows(x);
+    B = vml_vread( var1, "B");
+    cv_b =vread(var1,"SE_B");
+    B_est[k,.] = vec(B)';
+    B_SE[k,.] = vec(cv_b)';
+  endif;
+  
+  if rows(d);
+    C = vml_vread( var1, "C_VAR");
+    se =vread(var1,"se_C_VAR");
+    /* need to inflate C matrix with missing values f. coefficients of determenistics which were dropped from estimation
+    due to the singularity on the current subsample   */
+    c_infl = {};
+    cse_infl = {};
+    ind = 1; 
+    for j(1,cols(d),1);
+      if  d_excl[j];
+	c_infl = c_infl ~ empt;
+	cse_infl = cse_infl ~ empt;
+      else;
+	c_infl = c_infl ~ c[.,ind];
+	cse_infl = cse_infl ~ se[.,ind];
+	ind = ind+1;
+      endif;
+    endfor;
+    
+    
+    C_est[k,.] = vecr(C_infl)';
+    C_SE[k,.] = vecr(cse_infl)';
+  endif;
+  
+endfor;
+retp(estim_coeff,st_err,B_est, B_SE,C_est, C_SE);
+endp;
+
+/* *********************************************************************
+procedure to display the short-run recursive coefficients for VECM  
+************************************************************************/
+
+/**
+ * Before you call this method, create a vec buffer with:
+ * vec = stab_CreateJohansenVECM(y,x,d,py,px,Ny,Nx,Nd,r,mx_cd2cr);
+ * vec = stab_CreateTwoStageVECM(y,x,d,py,px,Ny,Nx,Nd,r,mx_cd2cr);
+ * r        : cointegration rank
+ * mx_cd2cr : restrictions of deterministics to the EC term 
+ *            cols(d) x 1 (0 or 1)
+ */
+
+proc(10) = stab_VECMrecurs_wrapper(vecm,G0_rec,y_rec,x_rec,d_rec,alpha_rec,_strt,periodicity,startdate,by_one,isGraph);
+
+local  empt,  x_show, y_show, tmp1, strn,G_est,G_se,B_est, B_se,C_est, C_se,G0_est,G0_se; 
+local alpha_est, alpha_se, i,j,k,_lg,_vrbl, _rest, _eq, dumm, ind, tmp2,i1, j1, l1, iii;
+local y,x,d,py,px,Ny,Nx,Nd,r,mx_cd2cr, Nd_vec,tmp3,titel,colsy, pltype,pcolor, plwidth;
+
+pltype = { 6, 3, 3, 1 }; 
+pcolor = {2, 1, 1, 1};
+plwidth = {9, 9, 9, 3};
+
+empt={};
+y=vml_vread(vecm,"y");
+colsy=cols(y);
+py=vml_vread(vecm ,"py");
+x=vml_vread(vecm ,"x");
+px=vml_vread(vecm ,"px");
+d=vml_vread(vecm ,"d");
+Ny=vml_vread(vecm , "Ny");
+Nx=vml_vread(vecm , "Nx");
+Nd=vml_vread(vecm , "Nd");
+mx_cd2cr=vml_vread(vecm , "mx_cd2cr");
+{d,tmp1} = var__splitDeterministics(d,mx_cd2cr);
+{Nd,tmp1} = var__splitDeterministicsNames(Nd,mx_cd2cr);
+r = vml_GetCointRank(vecm); 
+
+
+
+{G_est,G_se,B_est, B_se, C_est, C_se, alpha_est, alpha_se,G0_est,G0_se} =  Recurs_coeff_VECM_stab(vecm,_strt);
+startdate = trunc(startdate)+ (startdate-trunc(startdate))*10/periodicity;
+
+
+graphset;
+x_show = seqa(Startdate+ (_strt-1)/periodicity,1/periodicity,rows(alpha_est)); 
+tmp1 = vec(y_rec)';
+if  by_one;
+/* making the graphs of the recursive coefficients - each lag as a separate window and only specified by user coefficients are shown */
+for i(1, cols(tmp1),1);
+   if tmp1[i];
+   _lg = ceil( i / (colsy*colsy) );
+   _rest = i  - (_lg-1)*colsy*colsy;
+   _vrbl = ceil(_rest / colsy);
+   _eq = _rest - (_vrbl-1)*colsy;
+   strn = "Variable D(" $+ Ny[_vrbl] $+ "): " $+ "lag " $+ ftocv(_lg,1,0) $+", eq. for D(" $+Ny[_eq]$+")"; 
+
+  _ptitle = strn;
+
+  _pltype = pltype; 
+  _pcolor = pcolor;
+  _plwidth = plwidth;
+
+   y_show = G_est[.,i] ~ (G_est[.,i] - 2*G_SE[.,i])~ zeros(rows(G_est),1)~(G_est[.,i] + 2*G_SE[.,i]) ;
+   setGlobalPlot_plot();
+   _plegctl = 0;
+   xy(x_show,y_show);
+   if __XLM_LOADED; 	
+     dllcall showLastGraphic; 
+   endif; 
+ endif;
+endfor;
+
+/* structural matrix by one */
+tmp1 = vecr(G0_rec)';
+  for i(1, cols(tmp1),1);
+   if tmp1[i];
+   _vrbl = ceil(i / colsy);
+   _eq = i - (_vrbl-1)*colsy;
+  strn = "Structural matrix: variable D(" $+ Ny[_eq] $+ "), eq. for D(" $+Ny[_vrbl]$+")" ; 
+  _ptitle = strn;
+  
+    _pltype = pltype; 
+  _pcolor = pcolor;
+  _plwidth = plwidth;
+
+   y_show = g0_est[.,i] ~ (g0_est[.,i] - 2*g0_SE[.,i]) ~  (g0_est[.,i] + 2*g0_SE[.,i]) ~ zeros(rows(g0_est),1);
+   setGlobalPlot_plot();
+   _plegctl = 0;
+   xy(x_show,y_show);
+   if __XLM_LOADED; 	dllcall showLastGraphic; endif; 
+   endif;
+  endfor;
+
+
+/* exogenous  by one */
+if rows(x);
+tmp1 = vec(x_rec)';
+ for i(1, cols(tmp1),1);
+   if tmp1[i];
+   _lg = ceil( i / (colsy*cols(x)) )-1;
+   _rest = i  - _lg*colsy*cols(x);
+   _vrbl = ceil(_rest / colsy);
+   _eq = _rest - (_vrbl-1)*colsy;
+   strn = "Variable "$+ Nx[_vrbl]$+ ", lag " $+ftocv(_lg,1,0) $+ ", eq. for D("$+ Ny[_eq]$+")";
+  _ptitle = strn;
+  
+     _pltype = pltype; 
+  _pcolor = pcolor;
+  _plwidth = plwidth;
+   
+   y_show = B_est[.,i] ~ (B_est[.,i] - 2*B_SE[.,i]) ~  (B_est[.,i] + 2*B_SE[.,i]) ~ zeros(rows(B_est),1);
+   setGlobalPlot_plot();
+   _plegctl = 0;
+   xy(x_show,y_show);
+   graphset;
+   if __XLM_LOADED; 	dllcall showLastGraphic; endif; 
+   endif;
+  endfor;
+endif;
+
+ /* determenistics by one */
+if rows(d);
+tmp1 = vec(d_rec')';
+ for i(1, cols(tmp1),1);
+ if tmp1[i];
+ _eq = ceil( i / cols(d));
+ _vrbl =  i - (_eq-1)* cols(d);
+ if rows(setdif(_vrbl, mx_cd2cr,1));  /*  do not show the determenistics restricted to cointegration relation */
+   strn ="Variable " $+ Nd[_vrbl] $+ ", eq. for D(" $+ Ny[_eq]$+")";
+  _ptitle = strn;
+  
+    _pltype = pltype; 
+  _pcolor = pcolor;
+  _plwidth = plwidth;
+
+  dumm = maxc(vec(selif(x_show, C_est[.,i] .== empt)));
+   _pline = { 1 2 0 0 0 0 1 15 0};
+   _pline[3] = dumm;
+   _pline[4] = -10000 ;
+   _pline[5] = dumm;
+   _pline[6] = 10000;
+   setGlobalPlot_plot();
+   _plegctl = 0;
+  xy(x_show, c_est[.,i] ~ (c_est[.,i] - 2* c_se[.,i]) ~ (c_est[.,i] + 2* c_se[.,i]) ~ zeros(rows(c_est),1));
+  graphset;
+ if __XLM_LOADED; 	dllcall showLastGraphic; endif; 
+ endif; 
+ endif;
+ endfor;
+endif;
+
+/* vector alpha by one */
+tmp1 = vec(alpha_rec)';
+  for i(1, cols(tmp1),1);
+   if tmp1[i];
+   _vrbl = ceil(i / colsy);
+   _eq = i - (_vrbl-1)*colsy;
+  strn = "Alpha vector: coint. rel. " $+ ftocv(_vrbl,1,0) $+ ", eq. for D(" $+ Ny[_eq] $+ ")"; 
+
+  _ptitle = strn;
+  
+  
+    _pltype = pltype; 
+  _pcolor = pcolor;
+  _plwidth = plwidth;
+ 
+   y_show = alpha_est[.,i] ~ (alpha_est[.,i] - 2*alpha_SE[.,i]) ~  (alpha_est[.,i] + 2*alpha_SE[.,i]) ~ zeros(rows(alpha_est),1);
+   setGlobalPlot_plot();
+   _plegctl = 0;
+   xy(x_show,y_show);
+   if __XLM_LOADED; 	dllcall showLastGraphic; endif; 
+   endif;
+  endfor;
+
+else;    /* if  not by_one   */
+
+/* G coefficients */
+
+tmp1 = vec(y_rec)';
+for i(1,py-1,1);
+graphset;
+ind=1;
+tmp2 = tmp1[(i-1)*colsy*colsy+1:i*colsy*colsy];
+if sumc(vecr(tmp2)) /=0;
+  begwind;
+  titel = "";
+  tmp3 = smwintit_plot(colsy,colsy,titel,0);
+  i1=i;
+   for j(1,colsy,1);
+   for l(1,colsy,1); 
+   iii = (i-1)*colsy*colsy+(j-1)*colsy +l;
+   if tmp1[ iii];
+   ind = ind % (colsy * colsy);
+   if ind ==0; ind = colsy*colsy; endif;
+   setwind(ind+tmp3);
+   j1=j;	l1=l;
+    strn = "Var. D("$+ Ny[j1] $+ "), lag " $+ftocv(i1,1,0) $+ ", eq. for D("$+ Ny[l1]$+")";
+   _ptitle = strn;
+   
+     _pltype = pltype; 
+  _pcolor = pcolor;
+  _plwidth = plwidth;
+    
+   y_show = G_est[.,iii] ~ (G_est[.,iii] - 2*G_SE[.,iii]) ~  (G_est[.,iii] + 2*G_SE[.,iii]) ~ zeros(rows(G_est),1);
+   setGlobalPlot_plot();
+   _plegctl = 0;
+   xy(x_show,y_show);
+  endif;
+  ind = ind + colsy;    
+  endfor;
+  ind = ind +1;
+  endfor;
+  endwind;
+  if __XLM_LOADED; 	dllcall showLastGraphic; endif; 
+ endif;
+endfor;
+
+
+if (sumc(vecr(g0_rec)) /=0) and rows(g0_rec);
+tmp1 = vecr(g0_rec)';
+graphset;
+ind=1;
+ begwind;
+ _ptitle = "Structural coefficients";
+ setGlobalPlot_plot();
+ _plegctl = 0;
+
+ tmp3 = smwintit_plot(colsy,colsy,_ptitle,0);
+   for j(1,colsy,1);
+   for l(1,colsy,1); 
+   iii = (j-1)*colsy +l;
+   if tmp1[iii];
+   setwind(iii+tmp3);
+   strn = "Var. D(" $+ Ny[l] $+"), eq. for D(" $+Ny[j]$+ ")";
+   _ptitle = strn;
+   
+     _pltype = pltype; 
+  _pcolor = pcolor;
+  _plwidth = plwidth;
+   
+
+   y_show = g0_est[.,iii] ~ (g0_est[.,iii] - 2*g0_SE[.,iii]) ~  (g0_est[.,iii] + 2*g0_SE[.,iii]) ~ zeros(rows(g0_est),1);
+   if  __jm_show_plot_title == 0;
+     _ptitle = "";
+   endif;
+   _ptitlht = __jm_height_plot_title;    
+   _pdate = "";
+
+   xy(x_show,y_show);
+   endif;
+  endfor;
+  endfor;
+  endwind;
+  if __XLM_LOADED; 	dllcall showLastGraphic;  endif; 
+endif;
+
+
+if rows(x);
+tmp1 = vec(x_rec)';
+for i(1,px+1,1);
+graphset;
+ind=1;
+tmp2 = tmp1[(i-1)*colsy*cols(x)+1:i*colsy*cols(x)];
+if sumc(vecr(tmp2)) /=0;
+  begwind;
+  _ptitle = "";
+  setGlobalPlot_plot();
+  _plegctl = 0;
+
+  tmp3 = smwintit_plot(colsy,cols(x),_ptitle,0);
+  i1=i;
+   for j(1,cols(x),1);
+   for l(1,colsy,1); 
+   iii = (i-1)*colsy*cols(x)+(j-1)*cols(x) +l;
+   if tmp1[ iii];
+   ind = ind % (colsy * cols(x));
+   if ind ==0; ind = colsy*cols(x); endif;
+   setwind(tmp3+ind);
+   j1=j;	l1=l;
+    strn = "Var. "$+ Nx[j1] $+ ", lag " $+ftocv(i1-1,1,0)$+ ", eq. for D("$+ Ny[l1]$+")";
+   _ptitle = strn;
+   
+      _pltype = pltype; 
+  _pcolor = pcolor;
+  _plwidth = plwidth;
+
+
+   y_show = B_est[.,iii] ~ (B_est[.,iii] - 2*B_SE[.,iii]) ~  (B_est[.,iii] + 2*B_SE[.,iii]) ~ zeros(rows(B_est),1);
+   if  __jm_show_plot_title == 0;
+     _ptitle = "";
+   endif;
+   _ptitlht = __jm_height_plot_title;    
+   _pdate = "";
+
+   xy(x_show,y_show);
+  endif;
+  ind = ind + cols(x);    
+  endfor;
+  ind = ind +1;
+  endfor;
+  endwind;
+  if __XLM_LOADED; 	dllcall showLastGraphic; 
+  endif; 
+ endif;
+endfor;
+endif;
+
+/* now determenistics */ 
+
+graphset;
+if (rows(d_rec) and (sumc(vecr(d_rec)) /=0));
+begwind;
+_ptitle = "";
+setGlobalPlot_plot();
+_plegctl = 0;
+
+tmp3 = smwintit_plot(rows(d_rec), cols(d_rec),_ptitle,0);
+for i(1,colsy,1);
+   for j(1,cols(d_rec),1);
+   iii = (i-1)*cols(d_rec)+j;
+   setwind(iii+tmp3);
+   i1=i; 
+   strn ="Var. " $+ Nd[j] $+ ": eq. for " $+ Ny[i]; 
+   if d_rec[i,j];
+   _ptitle = strn;
+       _pltype = pltype; 
+  _pcolor = pcolor;
+  _plwidth = plwidth;
+
+
+    dumm = maxc(vec(selif(x_show, c_est[.,iii] .== empt)));
+    _pline = { 1 2 0 0 0 0 1 15 0};
+   _pline[3] = dumm;
+   _pline[4] = -10000 ;
+   _pline[5] = dumm;
+   _pline[6] = 10000;
+   if  __jm_show_plot_title == 0;
+     _ptitle = "";
+   endif;
+   _ptitlht = __jm_height_plot_title;    
+   _pdate = "";
+
+   xy(x_show, c_est[.,iii] ~ 
+                     (c_est[.,iii] - 2* c_se[.,iii]) ~
+                     (c_est[.,iii] + 2* c_se[.,iii]) ~ zeros(rows(c_est),1));
+     endif;
+   endfor;
+endfor;
+endwind;
+ if __XLM_LOADED;  dllcall showLastGraphic;  endif; 
+endif; 	/* if (sumc(vecr(d_rec)) /=0);  */
+
+if (sumc(vecr(alpha_rec)) /=0);
+tmp1 = vec(alpha_rec)';
+graphset;
+ind=1;
+ begwind;
+ _ptitle = "Alpha vector";
+ setGlobalPlot_plot();
+ _plegctl = 0;
+
+ tmp3 = smwintit_plot(colsy,r,_ptitle,0);
+   for j(1,colsy,1);
+   for l(1,r,1); 
+   iii = (j-1)*r +l;
+   if tmp1[iii];
+   setwind(iii+tmp3);
+   strn = "Coint. rel. " $+ftocv(j,1,0)$+", eq. for " $+Ny[l];
+   _ptitle = strn;
+   _pltype = pltype; 
+  _pcolor = pcolor;
+  _plwidth = plwidth;
+
+
+   y_show = alpha_est[.,iii] ~ (alpha_est[.,iii] - 2*alpha_SE[.,iii]) ~  (alpha_est[.,iii] + 2*alpha_SE[.,iii]) ~ zeros(rows(alpha_est),1);
+   if  __jm_show_plot_title == 0;
+     _ptitle = "";
+   endif;
+   _ptitlht = __jm_height_plot_title;    
+   _pdate = "";
+
+   xy(x_show,y_show);
+   endif;
+  endfor;
+  endfor;
+  endwind;
+  if __XLM_LOADED; 	dllcall showLastGraphic;  endif; 
+endif;
+endif; /* else if by_one */
+retp(G0_est,G0_se,G_est, G_SE, B_est, B_SE, C_est, C_se, Alpha_est, alpha_se);
+endp;
+
+
+
+/* ************************************************************************ 
+** SYNTAX
+** {G_est, G_SE, B_est, B_SE, C_est, C_se, Alpha_est, alpha_se} = Recurs_coeff_VECM_stab(var,_strt);
+**
+** PURPOSE
+** procedure to calculate recursively the short-run coefficients of VECM model (incl. alpha) 
+**
+** INPUT
+** var  / (N,1) / data buffer / 
+**_strt / (1,1) / starting point of estimation - as number of periods left as initial part of the sample
+**
+** OUTPUT
+** A_est / ( T-_strt+1,cols(A)*rows(A) ) / recursive estimates of lags of endogenous parameters - by columns / 
+** A_SE /  ( T-_strt+1,cols(A)*rows(A) ) / their standard errors /
+** B_est / ( T-_strt+1, rows(A) * cols(B) ) / recursive estimates of exogenous parameters /
+** B_SE / ( T-_strt+1, rows(A) * cols(BC) ) / their standard errors /
+** C_est / ( T-_strt+1, rows(A) * cols(C) ) / recursive estimates of determenistic part estimates - by rows (first, row of first equation, and so on) /
+** C_se / ( T-_strt+1, rows(A) * cols(C) ) / their standard errors /
+** Alpha_est / ( T-_strt+1, rows(A) * r) / recursive estimates of loading coefficients matrix - by rows (first, row of first equation, and so on) /
+** Alpha_se / ( T-_strt+1, rows(A) * r) / their standard errors 
+*/
+       
+proc(10) = Recurs_coeff_VECM_stab(var,_strt);  
+
+local  	var1,y,x,d,py,px,G,estim_coeff,k,l,cv_A,se,st_err,tmp,d_1, tmp1, 
+		d_ec, d_vec,mx_cd2cr, ind_cr, ind1, ind2, _e, ind3,B_est, B_se, 
+		C_est, C_SE, B, CV_B, C, CV_C,ind, c_infl, cse_infl, d_excl,empt,
+		G_est,G_se, Alpha_est, alpha_se,r,alpha,em,x1,test_d,unused,
+        tmp0, beta, beta_d, beta_x, beta_d_x, d_2, d_2excl, S_C, S_C_1, ii,rowsy, colsy, smpl_size,G0_est,G0_se,G0_S,G0,S_G0;
+
+G_est = {};
+G_se= {};
+B_est={};
+B_SE={};
+C_est={};
+C_se = {};
+x1 = {};
+G0_est = {};
+G0_se = {};
+y = vml_vread(var,"y");
+x = vml_vread( var, "x");
+d = vml_vread( var, "d");
+mx_cd2cr = vml_vread(var, "mx_cd2cr");
+S_G0 = vml_vread(var, "S_G0");
+
+{d_vec,d_ec} = var__splitDeterministics(d,mx_cd2cr);
+
+rowsy = rows(y);
+colsy = cols(y);
+r = vml_GetCointRank(var); 
+py = vread(var,"py");	
+px = vml_vread(var, "px");
+em = vml_vread(var, "em");
+S_C = vml_vread(var, "S_C_VEC");
+smpl_size = rowsy-_strt-py+1;
+tmp = {.};
+empt = zeros(colsy,1).* tmp; 
+
+if py>1;
+G_est=zeros(smpl_size,colsy*colsy*(py-1));
+G_se=G_est; 
+endif;
+
+if rows(S_G0);
+G0_est = zeros(smpl_size,colsy*colsy);
+G0_se = G0_est;
+endif;
+
+Alpha_est = zeros(smpl_size,colsy*r);
+Alpha_se = Alpha_est;
+
+if rows(x);
+B_est = zeros(smpl_size,colsy*cols(x)*(px+1));
+B_SE = B_est;
+endif;
+
+if rows(d_vec);
+ C_est = zeros(smpl_size,colsy*cols(d_vec));
+ C_SE = C_est;
+ if strsect(em,1,3) $== "JOH";  
+   C_SE = C_SE.*tmp; 
+ endif;
+endif;
+
+/* now estimating LR parameters on full sample and change the estimation problem into two stage with beta prespecified */
+
+var1 = var; 
+var1 = var_EstimateModel(var);
+beta = vml_vread(var1,"beta");
+beta_d = vml_vread(var1,"beta_d");
+beta_x = vml_vread(var1,"beta_x");
+beta_d_x = vml_vread(var1,"beta_d_x");
+beta = beta|beta_x;
+beta_d = beta_d|beta_d_x;
+var1 = vml_vdel(var1, "em"$|"cir"$|"idx_equa"$|"r_est"$|"s2s_1st");
+var1 = vml_SetCointRelation(var1, beta, beta_d);
+var1 = var_SetEstimationMethod(var1,"none");
+var1 = var_EstimateModel(var1);
+
+
+for i(_strt+py,rowsy,1);
+  
+d_1 = {};
+d_2 = {};
+d_excl = {};
+d_2excl ={};
+
+/* checking singularity in deterministics restricted to CR */
+if rows(d_ec);
+  empt = {};
+  {d_1,d_excl,unused} =  vec_getFullRankMat(d_ec[1:i,.],empt,1);
+endif; 
+
+/* checking singularity in deterministics not restricted to CR */
+if rows(d_vec); 
+  {d_2,d_2excl,S_C_1} =  vec_getFullRankMat(d_vec[1:i,.],S_C,0);
+  var1 = vml_vput(var1, S_C_1, "S_C_VEC"); 
+endif; 
+
+
+if rows(d_1); /* adding them together to get d*/
+  tmp1 = seqa(1,1,cols(d_1));
+  var1 = vml_vput(var1, d_1~d_2, "d"); 
+  var1 = vml_vput(var1, tmp1, "mx_cd2cr"); 
+else;
+  var1 = vml_vput(var1, d_2, "d"); 
+  var1 = vml_vdel(var1, "mx_cd2cr"); 
+endif;
+
+/*need to change beta_d as some deterministics are dropped on that subsample*/
+if sumc(d_excl) and rows(d_excl);    
+  tmp1 = delif(beta_d',d_excl);  
+  if scalmiss(tmp1); 
+    tmp1 = {}; 
+  endif;
+  var1 = vml_vput(var1, tmp1', "beta_d_x"); 
+else;
+  var1 = vml_vput(var1, beta_d, "beta_d_x"); 
+endif;
+  
+  
+var1 = vml_vput(var1, y[1:i,.], "y"); 
+
+if rows(x); 
+  var1 = vml_vput(var1, x[1:i-py+px,.], "x"); 
+endif;
+var1 = var__EstimateVECModel(var1);
+var1 = var_ComputeModelStatistics(var1);
+k = i - _strt-py+1;
+if py>1;
+  
+  G = vml_vread( var1, "G");
+  SE = vml_vread( var1, "SE_G");
+  G_est[k,.] = vec(G)';
+  G_se[k,.] = vec(se)';
+endif;
+
+if rows(S_G0) and sumc(vec(S_G0));
+  G0 = vml_vread( var1, "G0");
+  SE = vml_vread( var1, "SE_G0");
+  G0_est[k,.] = vecr(G0)'; 
+  G0_se[k,.] = vecr(se)';
+endif;
+
+alpha = vml_vread(var1, "Alpha");
+SE = vml_vread(var1, "SE_Alpha");
+Alpha_est[k,.] = vecr(alpha)';
+alpha_se[k,.] = vecr(se)';
+
+if rows(x);
+  B = vml_vread( var1, "B");
+  se =vread(var1,"SE_B");
+  B_est[k,.] = vec(B)';
+  B_SE[k,.] = vec(se)';
+endif;
+
+if rows(d_vec);
+  C = vml_vread(var1, "C_VEC");
+  if em $/="JOH";
+    se =vml_vread(var1,"se_C_VEC"); 
+  else;
+    se = C .* tmp;
+  endif;
+  
+  /* need to inflate C matrix with missing values coefficients of determenistics which were dropped from estimation
+  due to the singularity on the current subsample   */
+  c_infl = {};
+  cse_infl = {};
+  ind = 1; 
+  
+  for j(1,cols(d_vec),1);
+    if  d_2excl[j];
+      c_infl = c_infl ~ empt;
+      cse_infl = cse_infl ~ empt;
+    else;
+      c_infl = c_infl ~ c[.,ind];
+      cse_infl = cse_infl ~ se[.,ind];
+      ind = ind+1;
+    endif;
+  endfor;
+  
+  C_est[k,.] = vecr(C_infl)';
+  if em $/="JOH";
+    C_SE[k,.] = vecr(cse_infl)';
+  endif;
+endif;
+
+endfor;
+
+retp(real(G_est),real(G_se),real(B_est), real(B_se),real(C_est), real(C_se), real(alpha_est), real(alpha_se),G0_est,G0_se);
+endp;
+
+
+

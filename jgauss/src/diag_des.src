@@ -1,0 +1,402 @@
+/*
+ This file is part of the econometric software package JMulTi.
+ Copyright (C) 2000-2005  Markus Kraetzig
+
+ This program is free software; you can redistribute it and/or
+ modify it under the terms of the GNU General Public License
+ as published by the Free Software Foundation; either version 2
+ of the License, or (at your option) any later version.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, write to the Free Software
+ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ */
+
+#ifos2win 
+/* to be used by library creation, windows only */
+#include extern.dec
+#endif
+
+/***************************************************************/
+/****************** autocorr_descript **************************/
+/***************************************************************/
+/* procedure to calculate the (partial) autocorrelation function
+written by Markus Kraetzig, 2001*/
+/* 
+Input: data = Tx1 vector 
+maxlags = maximum lag number 
+toplot = 0: no plot, 1: plot
+name = name of graph*/
+/* 
+Output: out = autocorrelation~partial autocorrelation  
+out is a [maxlags x 2] matrix*/
+
+/***************************************************************/	   
+proc(1) = autocorr_descript(data,maxlags,toplot,name);
+local out,i,nolag,f,covar,h,partcor,allLagsbetween,samplemean,gamma0,tmp;
+__output = 0;
+if maxlags >= rows(data)/2; /*check input*/
+  retp(zeros(1,2));
+endif;
+
+if maxlags > 0 ;
+  out = zeros(maxlags,2);
+else;
+endif;
+i = 1;
+samplemean=meanc(data)';
+gamma0 = ((data-samplemean)'(data-samplemean));
+do while i <= maxlags;
+  nolag = trimr(data,i,0);
+  allLagsBetween = zeros(rows(nolag), i);
+  h = 1;
+  do while h <= i; 
+    allLagsBetween[.,h] = trimr(lagn(data,h),i,0);
+    h = h + 1;
+  endo;
+
+  covar = (nolag-samplemean)'(allLagsBetween[.,i]-samplemean); /*covariance*/
+  out[i,1]=covar/gamma0; /*autocorrelation*/
+
+  h = ones(rows(nolag),1);
+  allLagsBetween = h~allLagsBetween;  /*const*/
+  partcor=inv(allLagsBetween'allLagsBetween)*allLagsBetween'noLag;
+  if i == 1;
+    out[i,2] =  out[i,1];
+  else;
+    out[i,2]= partcor[i+1,1];
+  endif;
+  i = i + 1;
+endo;
+if toplot == 1; 
+  graphset;
+  _pnumht = 0.25;
+  begwind;
+  window(2,1,1);
+  setGlobalPlot_plot();
+  
+  _ptitlht=0.35;
+  _pypmax=2;
+  title("Autocorrelation of " $+ name);
+  if  __jm_show_plot_title == 0;
+    _ptitle = "";
+  endif;
+  _ptitlht = __jm_height_plot_title; 
+  _plegctl = 0;
+  if abs(maxc(out[.,1])) < 6/sqrt(rows(data));
+    ytics(-6/sqrt(rows(data)),6/sqrt(rows(data)),1/sqrt(rows(data)),2);
+  else;
+    ytics(-abs(maxc(out[.,1])),abs(maxc(out[.,1])),1/sqrt(rows(data)),2);
+  endif;
+  xtics(0,maxlags+1,1,1);  
+  _pbartyp = { 6 2 };
+  bar(seqa(1,1,maxlags),out[.,1]);
+  _pcolor = 7;
+  _pltype=1;
+  xy(seqa(0,1,maxlags+2),ones(maxlags+2,1)*-2/sqrt(rows(data)));
+  xy(seqa(0,1,maxlags+2),ones(maxlags+2,1)*2/sqrt(rows(data)));
+  
+  nextwind;
+  if abs(maxc(out[.,2])) < 6/sqrt(rows(data));
+    ytics(-6/sqrt(rows(data)),6/sqrt(rows(data)),1/sqrt(rows(data)),2);
+  else;
+    ytics(-abs(maxc(out[.,2]))-0.1*abs(maxc(out[.,2])),abs(maxc(out[.,2]))+0.1*abs(maxc(out[.,2])),1/sqrt(rows(data)),2);
+  endif;
+  setGlobalPlot_plot();
+  
+  _ptitlht=0.35;
+  _pypmax=2;
+  title("Partial Autocorrelation of " $+ name);
+  if  __jm_show_plot_title == 0;
+    _ptitle = "";
+  endif;
+  _ptitlht = __jm_height_plot_title; 
+  _plegctl = 0;
+  _pdate = "";
+  xtics(0,maxlags+1,1,1);
+  bar(seqa(1,1,maxlags),out[.,2]);
+  _pcolor = 7;
+  _pltype=1;
+  xy(seqa(0,1,maxlags+2),ones(maxlags+2,1)*-2/sqrt(rows(data)));
+  xy(seqa(0,1,maxlags+2),ones(maxlags+2,1)*2/sqrt(rows(data)));
+  
+  endwind;
+  dllcall showLastGraphic;
+  graphset;
+endif;
+retp(out);
+endp;
+
+/***************************************************************/
+/****************** crosscorr_descript **************************/
+/***************************************************************/
+/* procedure to calculate the  crosscorrelation function*/
+
+/* 
+Input: data = TxK vector 
+maxlags = maximum lag number 
+toplot = 0: no plot, 1: plot
+names = Kx1 names of resids
+selindex0 = Kx1 to show from
+selindex1 = Kx1 to show to
+AsymCI = exact asymptotic CI k^2 x maxlags (output from ci_descript), 
+can be {},
+then only the 1/sqrt(T) std.errors are used
+*/
+
+/* 
+Output: result = out is a [ k^2*2 x maxlags + 2] matrix
+-The first 2 columns contain the index of r, eg. r11 or r32
+-in the rows, which start with 0 0 you have the 
+ asymptotic standard deviation of the above autocorrelations
+-the the columns increase with increasing lag order 
+ (third column means 1 lag ... last column = maxlags)
+*/
+
+/***************************************************************/	   
+
+proc(1) = crosscorr_descript(data,maxlags,toplot,names,selindex0,selindex1,AsymCI);
+local out,i,j,D,C,R,titel,s,k,l,result,selindex;
+selindex = selindex0~selindex1;
+data = data - meanc(data)';
+if maxlags >= rows(data)/2; /*check input*/
+    retp(zeros(1,2));
+endif;
+if maxlags > 0 ;
+  if maxlags < 2 ;
+    maxlags = 2;
+  endif;
+  out = zeros(maxlags,cols(data)^2);
+else;
+  retp(zeros(1,2));
+endif;
+
+i=1;
+d=zeros(cols(data),cols(data));
+do while i <= rows(data);
+  D = D + data[i,.]'data[i,.];
+  i=i+1;
+endo; 
+D=diagrv(zeros(cols(d),cols(d)),diag(D));
+D = sqrt(D/rows(data));
+i=1;
+do while i <= maxlags;
+  j=i;
+  C=zeros(cols(data),cols(data));
+  do while j < rows(data);
+    C = C + data[j+1,.]'data[j+1-i,.];
+    j=j+1;
+  endo;
+  C = C/rows(data);
+  R = inv(D)*C*inv(D);
+  out[i,.] = vec(R)';
+  i=i+1;
+endo;
+
+result = zeros(rows(out) + 2,1);
+if toplot == 1; 
+  graphset;
+  _pbartyp = { 6 2 };
+  _pypmax=2;
+  
+  begwind;
+  _ptitle = "Crosscorrelations";
+  
+  setGlobalPlot_plot();
+  _plegctl = 0;
+
+  l = sumc(selindex);
+  i = l[1,1];
+  j = l[2,1];
+  if i * j > 36;
+    /*to many graphs in plot*/
+    retp(out);
+  endif;
+  
+  s=smwintit_plot(i , j, _ptitle, 0 );
+endif;
+i = 1;
+l = 1;
+do while i <= cols(data);
+  j=1;
+  if selindex[i,1] > 0;
+    do while j <= cols(data);
+      if selindex[j,2] > 0;
+	k=i+(j-1)*cols(data);
+	if toplot == 1; 
+	  setwind(s+l);
+	endif;
+	if abs(maxc(out[.,k])) < 6/sqrt(rows(data));
+	  ytics(-6/sqrt(rows(data)),6/sqrt(rows(data)),1/sqrt(rows(data)),2);
+	else;
+	  ytics(-abs(maxc(out[.,k]))-0.1*abs(maxc(out[.,k])),abs(maxc(out[.,k]))+0.1*abs(maxc(out[.,k])),1/sqrt(rows(data)),2);
+	endif;
+	
+	title("r"$+ ftocv(i,1,0) $+ ftocv(j,1,0) $+",i");
+	if  __jm_show_plot_title == 0;
+	  _ptitle = "";
+	endif;
+	_ptitlht = __jm_height_plot_title; 
+	_pdate = "";	
+	result = result~(i|j|out[.,k]);
+	if toplot == 1; 
+	  _pbartyp ={6 10};
+	  bar(seqa(1,1,rows(out)),out[.,k]);
+	endif;
+	_pcolor = 7;
+	_pltype=1;
+	if rows(AsymCi) == 0;
+	  result = result~(0|0|ones(maxlags,1)/sqrt(rows(data)));
+	  if toplot == 1; 
+	    xy(seqa(0,1,maxlags+2),ones(maxlags+2,1)*-2/sqrt(rows(data)));
+	    xy(seqa(0,1,maxlags+2),ones(maxlags+2,1)*2/sqrt(rows(data)));
+	  endif;
+	else;
+	  result = result~(0|0|AsymCi[(j-1)*cols(data)+i,1:maxlags]');
+	  if toplot == 1;
+	    _pbartyp ={0 15};
+	    bar(seqa(1,1,maxlags),AsymCi[(j-1)*cols(data)+i,1:maxlags]'*-2);
+	    bar(seqa(1,1,maxlags),AsymCi[(j-1)*cols(data)+i,1:maxlags]'*2);
+	  endif;
+	endif;
+	
+	l=l+1;	  
+      endif;
+      j=j+1;
+    endo;
+  endif;
+  i=i+1;
+endo;
+if toplot == 1; 
+  endwind;
+  dllcall showLastGraphic;
+endif;
+graphset;
+
+result = trimr(result',1,0);
+retp(result);
+
+endp;
+
+	 
+/***************************************************************/
+/****************** ci_descript **************************/
+/***************************************************************/
+/* procedure to calculate the  asymptotic confidence intervals 
+of the residual autocorrelations*/
+
+/* 
+Input: uhat = TxK vector 
+maxlags = maximum lag number 
+z = the z matrix
+R = the Restriction matrix ( {}, then no restrictions)
+A = the matrix of parameter estimates
+lags = the VAR lag length
+deter = the number of deterministic variables
+*/
+
+/* 
+Output: ER =  k^2 x maxlags matrix of standard errors of autocorrelations
+*/
+
+/**********************************************/	   
+	 	 
+	 
+proc(1)=ci_descript(uhat, maxlags, Z, R, A, lags,deter);
+local Su,D_1,Ru,Gam,Phi,i,j,Phi_i,k,ERj,ER,Phimat,G,Gcreator,Go;
+
+
+k = cols(uhat);
+/*that makes it easier to prevent errors*/
+if maxlags < lags;
+  maxlags = lags + 1 ;
+endif;
+if maxlags < 2;
+  maxlags = 2;
+endif;
+uhat = uhat - meanc(uhat)';
+Su = uhat'uhat/rows(uhat);
+D_1=diagrv(zeros(k,k),diag(Su)^(-0.5));
+Ru = corrvc(Su);
+Gam = Z*Z'/rows(uhat);
+Phi = eye(k);
+/*recursive computation of MA representation*/
+i = 1;
+do while i < maxlags;
+  j = 1;
+    Phi_i = zeros(k,k);
+  do while j <= i;
+    if  j <= lags;
+      Phi_i = Phi_i + Phi[.,(i-j)*k+1:(i-j)*k+k]*A[.,(j-1)*k+1:(j-1)*k+k];
+    else;
+      break;
+    endif;
+    j = j + 1;
+  endo;
+  Phi = Phi~Phi_i;
+  i = i + 1;
+endo;
+
+/***************************no subset model*********************/
+if rows(R) == 0;
+  ER = zeros(k^2,1);
+  j = 1;
+  do while j <= maxlags;
+    Phimat = {};
+    i = 1;
+    do while i <= lags;
+      if j >= i ;
+	Phimat = Phimat~Phi[.,(j-i)*k+1:(j-i)*k+k]';
+      else;
+	Phimat = Phimat~zeros(k,k);
+      endif;
+      i = i + 1;
+    endo;
+    if deter > 0;
+      Phimat = zeros(rows(Phimat),deter)~Phimat;
+    endif;
+    ERj = (Ru-D_1*Su*Phimat*invpd(Gam)*Phimat'Su*D_1).*.Ru;
+    ER = ER~sqrt(diag(ERj))/sqrt(rows(uhat));
+    j = j + 1;
+  endo;
+  retp(ER[.,2:cols(ER)]);
+else;
+  
+  /********************subset model**************************/
+  G = zeros(1,k*maxlags);
+  Gcreator = Su;
+  i = 1;
+  do while i < maxlags; 
+    Gcreator = Gcreator~Phi[.,i*k+1:i*k+k]*Su;
+    i = i + 1;
+  endo;
+
+  G = G | Gcreator;
+  i = 1;
+  do while i < lags ; 
+    G = G | zeros(k,k*i)~Gcreator[.,1:cols(Gcreator)-i*k];
+    i = i + 1;
+  endo;
+  /*create G matrix according to the number of deterministic  variables*/
+  G = trimr(G,1,0);
+  if deter > 0;
+    G = zeros(deter,cols(G)) | G;
+  endif;
+  
+  j = maxlags;
+  Go = G*(eye(j).*.D_1);    
+  ERj = diag(eye(j).*.Ru.*.Ru -(Go'.*.D_1)*R*inv(R'*(Gam.*.inv(Su))*R)*R'*(Go.*.D_1));
+  ERj =  reshape(ERj,maxlags,k^2)';
+  ERj = sqrt(ERj)/sqrt(rows(uhat));
+  retp(ERj);
+endif;
+endp;
+
+
+
+

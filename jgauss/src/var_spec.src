@@ -1,0 +1,184 @@
+/*
+ This file is part of the econometric software package JMulTi.
+ Copyright (C) 2000-2005  Alexander Benkwitz
+
+ This program is free software; you can redistribute it and/or
+ modify it under the terms of the GNU General Public License
+ as published by the Free Software Foundation; either version 2
+ of the License, or (at your option) any later version.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, write to the Free Software
+ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ */
+#ifos2win 
+/* to be used by library creation, windows only */
+#include var.dec
+#endif
+/*
+**
+*/
+proc(1)=var_FindSubsetConstraints(var,t_benchmark);
+	local keys, 
+	      smallestTV, smallest_r, smallest_c, smallest_coeff,
+	      tv, SR, beta, beta_d, tmp;
+
+
+	@ fix the cointegration vector @
+	var   = var_EstimateModel(var);
+	beta  = vml_vread(var, "beta")|vml_vread(var,"beta_x");
+	beta_d = vml_vread(var, "beta_d")|vml_vread(var,"beta_d_x");
+		tmp = {};
+		var = vml_SetCointRelationEstimation(var, tmp, tmp, tmp, tmp);
+		var = vml_SetCointRelation(var, beta, beta_d);
+
+
+	@ @
+	let keys = {"G0", "alpha", "G", "B", "C_VEC"};
+
+	do while 1;
+		smallestTV = abs(t_benchmark) + 1;
+		smallest_r = {};
+		smallest_c = {};
+		smallest_coeff = {};
+
+		var = var_EstimateModel(var);
+		var = var_ComputeModelStatistics(var);
+
+		for idx(1, rows(keys), 1);
+			tv = vml_vread(var,"tv_"$+keys[idx]);
+			if type(tv)==6;
+				tv = abs(tv);
+				SR = vml_vread(var,"S_"$+keys[idx]);
+   				SR = vml__syncSRMatrix(SR,rows(tv),cols(tv));
+   				for i(1,rows(tv),1);
+					for j(1,cols(tv),1);
+						if SR[i,j]==1;
+							if (tv[i,j]<t_benchmark) and (tv[i,j]<smallestTV);
+								smallestTV = tv[i,j];
+								smallest_r = i;
+								smallest_c = j;
+								smallest_coeff = keys[idx];
+							endif;
+						endif;
+					endfor;
+				endfor;
+			endif;
+		endfor;
+		if smallestTV < t_benchmark;
+print /flush "eliminate in "$+smallest_coeff$+" element "$+ftocv(smallest_r,1,0)$+","$+ftocv(smallest_c,1,0)$+" with t-value="$+ftocv(smallestTV,1,3);
+			tv = vml_vread(var,"tv_"$+smallest_coeff);
+	   		SR = vml_vread(var,"S_"$+smallest_coeff);
+   			SR = vml__syncSRMatrix(SR,rows(tv),cols(tv));
+	   		SR[smallest_r,smallest_c] = 0;
+			var = vml_SetRestrictions(var,SR,"S_"$+smallest_coeff);
+	   	else;
+			break;
+		endif;
+
+   	endo;
+
+	if rows(vml_vread(var,"S_alpha"))<1;
+		var = vput(var,ones(cols(beta),rows(beta)),"S_alpha");
+	endif;
+
+	retp(var);
+endp;
+
+
+
+/*
+**
+*/
+proc(1)=var_FindSubsetConstraints1(var,mode);
+	local beta, beta_d, tmp, tmp1, y, py, T, K, yMatrix, zMatrix, UserRestrictions, Result, 
+	      d_vec, d_ec, idx;
+
+
+	@ fix the cointegration vector @
+	var   = var_EstimateModel(var);
+	beta  = vml_vread(var, "beta")|vml_vread(var,"beta_x");
+	beta_d = vml_vread(var, "beta_d")|vml_vread(var,"beta_d_x");
+		tmp = {};
+		var = vml_SetCointRelationEstimation(var, tmp, tmp, tmp, tmp);
+		var = vml_SetCointRelation(var, beta, beta_d);
+
+	idx = zeros(4,1);
+	y = vread(var,"y");
+	py = vread(var,"py");
+	T = rows(y)-py;
+	K = cols(y);
+	yMatrix = y[py+1:py+T,.]-y[py:py+T-1,.];
+
+	d_vec = {}; d_ec = {};
+	tmp = vml_vread(var,"d");
+	if rows(tmp);
+		{d_vec, d_ec} = var__splitDeterministics(
+				tmp, 
+				vml_vread(var,"mx_cd2cr"));
+	endif;
+
+   	@ 'tmp' contains ec(t-1) @
+	tmp = y[py:py+T-1,.]*beta';  
+   	if rows(d_ec);
+		tmp = tmp+d_ec[py+1:py+T,.]*beta_d';
+   	endif;
+	idx[1] = cols(tmp);
+	zMatrix = tmp;
+	UserRestrictions = vml__syncSRMatrix(vml_vread(var,"S_alpha"),K,cols(tmp));
+
+	if py>1;
+		tmp = vml__lagObservations(y[2:py+T,.]-y[1:py+T-1,.],py-1,1,py-1);
+		idx[2] = cols(tmp);
+		zMatrix = zMatrix~tmp;
+		UserRestrictions = 
+			UserRestrictions~vml__syncSRMatrix(vml_vread(var,"S_G"),K,cols(tmp));
+	endif;
+
+	tmp = vml_vread(var,"x");
+	if rows(tmp);
+		py = vread(var,"px");
+		tmp = vml__lagObservations(tmp,py,0,py);
+		idx[3] = cols(tmp);
+		zMatrix = zMatrix~tmp;
+		UserRestrictions = 
+			UserRestrictions~vml__syncSRMatrix(vml_vread(var,"S_B"),K,cols(tmp));
+	endif;
+
+	if rows(d_vec);
+		idx[4] = cols(d_vec);
+		py = vread(var,"py");
+   		zMatrix = zMatrix~d_vec[py+1:py+T,.];
+	   	UserRestrictions = 
+			UserRestrictions~vml__syncSRMatrix(vml_vread(var,"S_C_VEC"),K,cols(d_vec));
+	endif;
+
+	{Result,tmp,tmp1} = ComputeSubsetJM_subset(yMatrix',zMatrix',UserRestrictions,mode);
+
+	Result = Result[1:K,.];
+	tmp = cumsumc(idx);
+
+	var = vput(var,Result[.,1:tmp[1]],"S_alpha");
+	if idx[2];
+		var = vput(var,Result[.,tmp[1]+1:tmp[2]],"S_G");
+	endif;
+	if idx[3];
+		var = vput(var,Result[.,tmp[2]+1:tmp[3]],"S_B");
+	endif;
+	if idx[4];
+		var = vput(var,Result[.,tmp[3]+1:tmp[4]],"S_C_VEC");
+	endif;
+
+	retp(var);
+endp;
+
+
+
+
+
+

@@ -1,0 +1,632 @@
+/*
+ This file is part of the econometric software package JMulTi.
+ Copyright (C) 2000-2005  Dmitri Boreiko, Markus Kraetzig
+
+ This program is free software; you can redistribute it and/or
+ modify it under the terms of the GNU General Public License
+ as published by the Free Software Foundation; either version 2
+ of the License, or (at your option) any later version.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS F. A PARTICULAR PURPOSE.  See the
+ GNU General Public License f. more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this program; when not, write to the Free Software
+ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ */
+#ifos2win 
+/* to be used by library creation, windows only */
+#include extern.dec
+#endif
+
+/*
+written by Dmitri Boreiko, Dmitri.Boreiko@iue.it
+and some add-ons by Markus Kraetzig, mk@mk-home.de
+last change 5/01/04
+
+notation follows: Applied Time Series Econometrics, Luetkepohl, Kraetzig, CUP 2004,
+pages: 48-49, 135-136
+
+*/
+
+
+/* procedures f. Chow test */
+
+  /*
+  The interface methods are the following:
+  
+  stab_call_wrapper_all
+
+  stab_call_wrapper
+  */ 
+
+/**
+ * Before you call this method, create a var buffer with:
+ * var =  vec_CreateVAR(y,x,d,py,px,Ny,Nx,Nd,Cy,Cx,Cd);
+
+ * or create a vecm buffer with:
+ * vec = vec_CreateJohansenVECM(y,x,d,py,px,Ny,Nx,Nd,r,mx_cd2cr);
+ * vec = vec_CreateTwoStageVECM(y,x,d,py,px,Ny,Nx,Nd,r,mx_cd2cr);
+ * r        : cointegration rank
+ * mx_cd2cr : restrictions of deterministics to the EC term 
+ *            cols(d) x 1 (0 or 1)
+ */
+  
+proc(5)=  stab_call_wrapper_all(var,grid,nob,seed,isgraph,start,periodicity,startRange, endRange);
+
+local a,a1,b,c, ret1,ret2,ret3,ret4,ret11,qqq,temp,tmp,x_show;
+local strn,fmat,index, pltype,pcolor, plwidth;
+
+pltype = { 6, 3, 3, 1 }; 
+pcolor = {2, 1, 1, 1};
+plwidth = {9, 9, 9, 3};
+
+
+ret1={};
+ret11={};
+ret2={};
+ret3={};
+ret4={};
+
+/*the loop over all possible start values*/
+index = startrange;
+do while index <= endrange;
+  {a,a1,b,c} = stab_call_wrapper(var,index,nob,seed,0, start, periodicity);
+  ret1=ret1~a;  
+  ret11=ret11~a1;  
+  ret2=ret2~b;
+  ret3=ret3~c;
+  ret4=ret4|index;
+  index = index + grid;
+endo;
+
+if isgraph;
+  graphset;
+  start = trunc(start)+  (start-trunc(start))*10/periodicity;
+  x_show = seqa(Start+ (startrange-1)/periodicity,1/periodicity*grid,cols(ret1[2,.])); 
+  fmat = "%*.*lf"; 
+  _pdate = "";
+  tmp = 0.05*ones(rows(ret4),cols(ret4)); 
+  strn ="break-point Chow test: bootstrapped p-values \l(" $+ ftos(nob,fmat,4,0) $+ " repl.)";
+  title(strn);
+  
+  _pltype = pltype; 
+  _pcolor = pcolor;
+  _plwidth = plwidth;  
+  
+  setGlobalPlot_plot();
+  _plegctl=0;
+  
+  xy(x_show,ret1[2,.]' ~ tmp ~ (2*tmp));
+  if __XLM_LOADED; 	
+    dllcall showLastGraphic; 
+  endif; 
+
+  strn ="Chow forecast test: bootstrapped p-values \l(" $+ftos(nob,fmat,4,0) $+ " repl.)";    
+    title(strn);
+    setGlobalPlot_plot();
+    _plegctl=0;
+    
+    xy(x_show,ret2[2,.]' ~ tmp ~ (2*tmp));
+    if __XLM_LOADED; 	
+      dllcall showLastGraphic; 
+    endif; 
+
+  strn ="sample-split Chow test: bootstrapped p-values \l(" $+ftos(nob,fmat,4,0) $+ " repl.)";
+  title(strn);
+  setGlobalPlot_plot();
+  _plegctl=0;
+  xy(x_show,ret11[2,.]' ~ tmp ~ (2*tmp));
+  if __XLM_LOADED; 	
+    dllcall showLastGraphic; 
+  endif; 
+
+endif;
+
+retp(ret1,ret11,ret2,ret3,ret4);
+endp;
+
+
+/*wrapper to make the call */
+
+proc(4) = stab_call_wrapper(var,_break,nob,seed,isgraph,startdate, periodicity);
+
+local chow_BP,chow_BP_boot,BP_k,chow_FC,chow_FC_boot,FC_n1,FC_n2;
+local max_el, x1,qqq, ret1,ret2;
+local Chow_BP_p_value,Chow_FC_p_value, Chow_SS_p_value,Chi_2_p_value,F_dist_p_value,nill,chow_SS,chow_SS_boot,SS_k;
+
+nill = {};
+{chow_BP,chow_BP_boot,BP_k,chow_SS,chow_SS_boot,SS_k,chow_FC,chow_FC_boot,FC_n1,FC_n2} = 
+stab_Chow_BPSSFC(var,_break,nob,seed); 	
+
+
+if ismiss(chow_BP);
+ret1 = zeros(4,1);
+ret1 = miss(ret1,0);
+ret2 = zeros(4,1);
+ret2 = miss(ret2,0);
+else;
+  
+qqq = selif(chow_BP_boot,chow_BP_boot[.,1] .gt chow_BP);
+if scalmiss(qqq);
+  Chow_BP_p_value=0;
+else;
+  Chow_BP_p_value = rows(qqq) / nob;
+endif;
+Chi_2_p_value = cdfchic(chow_BP,BP_k);
+ret1 = chow_BP|Chow_BP_p_value|Chi_2_p_value|BP_k;
+
+qqq = selif(chow_SS_boot,chow_SS_boot[.,1] .gt chow_SS);
+if scalmiss(qqq);
+  Chow_SS_p_value=0;
+else;
+  Chow_SS_p_value = rows(qqq) / nob;
+endif;
+Chi_2_p_value = cdfchic(chow_SS,SS_k);
+ret2 = chow_SS|Chow_SS_p_value|Chi_2_p_value|SS_k;
+endif;
+
+qqq = selif(chow_FC_boot,chow_FC_boot[.,1] .gt chow_FC);
+if scalmiss(qqq);
+  Chow_FC_p_value=0;
+else;
+  Chow_FC_p_value = rows(qqq) / nob;
+endif;
+
+F_dist_p_value = cdffc(chow_FC,FC_n1,FC_n2);
+retp(ret1,ret2,chow_FC|Chow_FC_p_value|F_dist_p_value|FC_n1|FC_n2,nill);
+endp;
+
+
+/**************************************************************************
+procedure to do the bootstrap for Chow test statistics distribution under null of no break
+
+SYNTAX : {chow_BP,chow_BP_boot,BP_k,chow_SS,chow_SS_boot,SS_k,chow_FC,chow_FC_boot,FC_n1,FC_n2} = 
+stab_Chow_BPSSFC(var,_break,nob,seed); 
+
+** PURPOSE
+** calculates the Chow Break point and Sample split tests for a given breakdate using bootstrapped method.
+**
+** INPUT
+** var       / (N,1) / data buffer / var model
+** 
+
+** _break   / (1,1)    / matrix       / the breakdate as the time point - not counting the 
+**                                      initial "py" observations of "Y"
+**                                      
+** nob   / (1,1)    / matrix       / number of bootstrap iterations
+** seed / (1,1)    / matrix         / the seed, 0 if no seed                                  
+**
+** OUTPUT
+**
+** Chow_BP / (1,1)    / matrix       / value of the BP Chow test statistics
+**
+** Chow_BP_boot / (nob,1)    / matrix       / values of the BP Chow test bootstrapped statistics
+**
+** BP_k           / (1,1)    / matrix       / degrees of freedom of the BP Chow test Chi-squared statistics
+**
+** Chow_ss / (1,1)    / matrix       / value of the SS Chow test statistics
+**
+** Chow_ss_boot / (nob,1)    / matrix       / values of the SS Chow test bootstrapped statistics
+**
+** SS_k1           / (1,1)    / matrix       / degrees of freedom of the SS Chow test Chi-squared statistics
+**
+** Chow_FC / (1,1)    / matrix       / value of the FC Chow test statistics
+**
+** chow_FC_boot / (nob,1)    / matrix       / values of the FC Chow test bootstrapped statistics
+**
+** FC_n1           / (1,1)    / matrix       / degrees of freedom of the numerator of the FC Chow test F-distribution statistics
+**
+** FC_n2           / (1,1)    / matrix       / degrees of freedom of the numerator of the FC Chow test F-distribution statistics
+**********************************************************************************************
+*/
+
+
+
+proc(10) = stab_Chow_BPSSFC(model,_break,Nob,seed);
+
+local   var1,var2,U_hat,U_hat1,U_hat2,T,T1,T2,cov_matr,cov_matr1,cov_matr2,
+        d2,i,y_star,_startTime,_minLoops,y,x,d,py,px,
+    	mx_cd2cr,
+        A0,idx,B,c_var,F_var,mx_c_var,mx_tf,u,z,varHat,F,mx_c,C,y0,coly,
+        rowy,d_1,d_2, S_C, C1,C2,beta, beta_d, d_ec, d_vec,r,var,
+        d_1ec, d_2ec, d_excl,tmp, tmp1, est_ss, min_size,_miss;
+		
+local  chow_ss,chow_ss_boot,chow_BP_boot,chow_BP,k_BP,chow_FC,chow_FC_boot,
+	   k,k1,q,n,s,R2,A,A1,A2,d1,u_h_1, u_h_2,k_ss,unused,empt;
+
+  
+empt={};
+_miss = {.};
+ beta_d = {};
+est_SS = 1;
+var = model;
+var = var_EstimateModel(var);  
+		
+y = vml_vread(var, "y");
+py = vml_vread( var, "py");
+x = vml_vread(var, "x");
+ if rows(x);
+ px = vml_vread( var, "px"); 
+ else;
+ px = -1; 
+ endif;
+d = vml_vread(var, "d");
+r = vml_GetCointRank(var); 
+mx_cd2cr = vml_vread(var, "mx_cd2cr");	   
+{d_vec,d_ec} = var__splitDeterministics(d,mx_cd2cr);	
+
+ min_size = cols(y)*(py+1) + cols(x)*(px+1);
+  
+  if r == cols(y);                       /* VAR MODEL ESTIMATION */
+    S_C = vml_vread(var, "S_C_VAR");
+   if rows(d);           
+     min_size = min_size+cols(d);
+   endif; 
+  else;	 
+   S_C = vml_vread(var, "S_C_VEC");  /* VECM ESTIMATION - fixing beta at full sample estimate */
+  	   
+   beta = vml_vread( var, "beta");
+   beta_d = vml_vread( var, "beta_d");
+			    
+   var = vml_vdel(var, "em"$|"cir"$|"idx_equa"$|"r_est"$|"s2s_1st");	
+   var = vml_SetCointRelation(var, beta, beta_d);
+   tmp   = vml_GetCointRank(model);
+   var = var_setEstimationMethod(var, "none");	   	
+   var = var_EstimateModel(var);
+
+   min_size = min_size - cols(y)+r;
+  if rows(d_vec); 
+   min_size = min_size+cols(d_vec);
+  endif; 
+ endif;
+
+
+if (rows(y)-py-_break-maxc(py|px)+1)< min_size;
+Est_SS = 0;
+endif;
+
+u_hat = vml_vread(var, "u");
+u_h_1 = u_hat[1:_break-1,.];
+T= rows(u_hat) - maxc(py|px);
+
+if (maxc(py|px)+_break) > rows(u_hat);
+ u_h_2 = {};
+ cov_matr = (u_h_1'*u_h_1)/rows(u_h_1);
+else;
+ u_h_2 = u_hat[maxc(py|px)+_break:rows(u_hat),.];
+ cov_matr = ((u_h_1'*u_h_1) + (u_h_2'*u_h_2))/(rows(u_h_2)+rows(u_h_1));
+endif;
+
+  		 
+{d_1,d_2,C1,C2} = chow_split_determ(d_vec, S_C,_break+py,py,px); 
+
+  
+/* first subsample model */
+var1 = var;
+var1 = vput(var1,y[1:_break+py-1,.],"y");
+if px>-1;   
+  var1 = vput(var1,x[1:_break+px-1,.],"x");
+endif;
+
+/* checking singularity in determintistics restricted to CR, 1st sample */
+
+d_1ec = {};
+d_excl = {};
+if rows(d_ec);
+  {d_1ec, d_excl,unused} = vec_getFullRankMat(d_ec[1:_break+py-1,.],empt, 1);
+endif; 
+  
+if rows(d_1ec); /* adding together d_1ec and d_1 to get d*/
+  tmp1 = seqa(1,1,cols(d_1ec));
+  var1 = vml_vput(var1, d_1ec~d_1, "d"); 
+  var1 = vml_vput(var1, tmp1, "mx_cd2cr"); 
+else;
+  if rows(d_1);
+    var1 = vml_vput(var1,d_1,"d");
+    var1 = vml_vdel(var1, "mx_cd2cr"); 
+  endif;
+endif;
+if rows(C1);
+  if r == cols(y);  
+    var1 = vput(var1,C1,"S_C_VAR");
+  else;             
+    var1 = vput(var1,C1,"S_C_VEC");
+  endif;
+endif; 
+
+/*need to change beta_d as some deterministics are dropped on that subsample*/  
+if rows(beta_d) and rows(d_excl) and sumc(d_excl);      
+  tmp1 = delif(beta_d',d_excl);
+  if scalmiss(tmp1); 
+    tmp1 = {}; 
+  endif;
+  var1 = vml_vput(var1, tmp1', "beta_d_x"); 
+endif;
+
+var1 = var_EstimateModel(var1);
+u_hat1 = vml_vread(var1, "u");
+T1= rows(u_hat1);
+cov_matr1 = u_hat1'*u_hat1;
+
+/* Note - subsample 2 model initial values are taken from between the samples */
+if est_SS;          
+  var2 = var;
+  var2 = vput(var2,y[_break+maxc(py|px):rows(y),.],"y");
+  if rows(x); 
+    var2 = vput(var2,x[_break+maxc(py|px):rows(x),.],"x");
+  endif;
+
+  /* checking singularity in determintistics restricted to CR, 2nd sample */
+  
+  d_2ec = {};
+  d_excl = {};
+  if rows(d_ec);
+    {d_2ec, d_excl,unused} = vec_getFullRankMat(d_ec[_break+maxc(py|px):rows(d_ec),.],empt, 1);
+  endif; 
+  
+  if rows(d_2ec); /* adding together d_ec1 and d_1 to get d*/    
+    tmp1 = seqa(1,1,cols(d_2ec));
+    var2 = vml_vput(var2, d_2ec~d_2, "d"); 
+    var2 = vml_vput(var2, tmp1, "mx_cd2cr"); 
+  else;
+    if rows(d_2);
+      var2 = vml_vput(var2,d_2,"d");
+      var2 = vml_vdel(var2, "mx_cd2cr"); 
+    endif;
+  endif;
+  
+  if rows(C2);
+    if r == cols(y);  
+      var2 = vml_vput(var2,C2,"S_C_VAR");
+    else;             
+      var2 = vml_vput(var2,C2,"S_C_VEC");
+    endif;
+  endif;
+  
+  /*need to change beta_d as some deterministics are dropped on that subsample*/
+  if rows(beta_d) and rows(d_excl) and sumc(d_excl);    
+    tmp1 = delif(beta_d',d_excl);
+    if scalmiss(tmp1); 
+      tmp1 = {}; 
+    endif;
+    var2 = vml_vput(var2, tmp1', "beta_d_x"); 
+  endif;
+  
+  var2 = var_EstimateModel(var2);
+  u_hat2 = vml_vread( var2, "u");
+  T2= rows(u_hat2);
+  cov_matr2 = u_hat2'*u_hat2;
+  
+  chow_SS = (T1+T2)*( ln(det(cov_matr)) - ln(det((cov_matr1+cov_matr2)/(T1+T2))));
+  chow_BP = (T1+T2)*ln(det(cov_matr)) - T1*ln(det(cov_matr1/T1)) - T2*ln(det(cov_matr2/T2));
+  {k_ss} = Calculate_df(var,var1,var2);
+  k_BP = k_ss+cols(y)*(cols(y)+1)/2;
+
+else;   /*  Est_SS */
+  chow_ss = _miss;
+  chow_BP = _miss;
+  k_ss = 0;
+  k_BP = 0;
+
+endif;  /*  Est_SS */
+
+/* breakpoint version of the test */
+
+k=rows(y)-py - _break+1;
+k1 = cols(y)*py+cols(d);
+
+if px >-1;
+  k1 = k1+(px+1)*cols(x);
+endif;
+
+q = cols(y)*k/2-1;
+N = (rows(y)-py)- k1- k - (cols(y) -k+1)/2;
+s = sqrt( (  (cols(y)*k)^2 - 4 )/(cols(y)^2 + k^2 - 5));
+
+/* df when k is taken as T2 */
+
+R2 = (T1/rows(u_hat))^cols(y)*det(cov_matr1/T1)/det(u_hat'u_hat/rows(u_hat));
+R2 = abs(R2)^(1/s);
+chow_FC = (1-R2)/R2*round(N*s -q) / (cols(y)*k); 
+
+/* bootstraping part */
+@ loop @
+i = 1; 
+chow_ss_boot=zeros(nob,1);
+chow_BP_boot=zeros(nob,1);
+
+chow_FC_boot=zeros(nob,1);
+
+{A0,A,B,C_VAR,F_VAR, mx_c_var,mx_tf, y0,u,x,d,z} = vml_residualBootstrap_prepare(var);
+
+
+T = rows(u);
+u=u-meanc(u)';
+local tmpSeed;
+tmpSeed = seed; /* bug workaround linux */
+
+for i(1,nob,1);/* select randomly drawn indices, depending on 'seed' argument */
+  if ((0<seed) and (seed<((2^31)-1)));
+    redoWithSeed: idx=ceil(rndus(T,1,tmpSeed)*T);
+    if minc(idx)==0;
+      goto redoWithSeed;
+    endif;
+  else;
+    redoNoSeed: idx=ceil(rndu(T,1)*T);
+    if minc(idx)==0;
+      goto redoNoSeed;
+    endif;
+  endif;
+  
+  /* compute bootstrap time series */
+  y_star = vml__recserVAR(A0,A,B,C_VAR,F_VAR,mx_c_var,mx_tf, y0,u[idx,.],x,d,z);
+  
+  @ update var @
+  var = vml_SetEndogenousVariables(var, y_star);
+  var = var_EstimateModel(var);  
+  u_hat = vml_vread( var, "u");
+  var1 = vml_SetEndogenousVariables(var1, y_star[1:_break+py-1,.]);
+  var1 = var_EstimateModel(var1);
+  u_hat1 = vml_vread( var1, "u");
+  u_h_1 = u_hat[1:_break-1,.]; 
+  
+  if (maxc(py|px)+_break) > rows(u_hat);
+    u_h_2 = {};
+    cov_matr = (u_h_1'*u_h_1)/(_break-1);
+  else;
+    u_h_2 = u_hat[maxc(py|px)+_break:rows(u_hat),.];
+    cov_matr = (u_h_1'*u_h_1 + u_h_2'*u_h_2)/(_break -1 + rows(u_h_2)) ;
+  endif;
+  
+  cov_matr1 = u_hat1'*u_hat1;
+  if Est_SS;
+    var2 = vml_SetEndogenousVariables(var2, y_star[_break+maxc(py|px):rows(y_star),.]);
+    var2 = var_EstimateModel(var2);
+    u_hat2 = vml_vread( var2, "u");
+    cov_matr2 = u_hat2'*u_hat2;
+    chow_SS_boot[i] = (T1+T2)*(ln(det(cov_matr)) - ln(det((cov_matr1+cov_matr2)/(T1+T2))));
+    chow_BP_boot[i] = (T1+T2)*ln(det(cov_matr)) - T1*ln(det(cov_matr1/T1)) - T2*ln(det(cov_matr2/T2));
+  else;
+    chow_SS_boot[i] = _miss; 
+    chow_BP_boot[i] = _miss; 
+  endif;
+  R2 = (T1/T)^cols(y)*det(cov_matr1/T1)/det(u_hat'u_hat/rows(u_hat));
+  chow_FC_boot[i] = ( 1 - abs(R2)^(1/s)) / (abs(R2)^(1/s))* trunc(N*s -q) / (cols(y)*k); 
+endfor;
+
+retp(real(chow_BP),real(chow_BP_boot),real(k_BP),real(chow_ss),real(chow_ss_boot),real(k_ss),real(chow_FC),real(chow_FC_boot),real(cols(y)*k), real(trunc(N*s-q)));
+endp;
+
+/* splitting the deterministics not restricted to CR in order to avoid the duplicative regressors */
+proc (4) = chow_split_determ(d, C, _break,py,px);
+  local d_1,d_2,firstPart,secondPart, C1, C2,unused;
+  
+  C1 = {}; 
+  C2 = {};
+  d_1 = {}; 
+  d_2 = {};
+  
+  if rows(d);  
+    if py;
+      firstPart = zeros(py,cols(d))|d[py+1:_break-1,.];
+    else;  
+      firstPart = d[py+1:_break-1,.];
+    endif;
+    {d_1, unused, C1} = vec_getFullRankMat(firstPart,C,0);
+ 
+    if (_break+maxc(py|px))<= rows(d);
+      if py;
+	secondPart = zeros(py,cols(d))  | d[ _break+maxc(py|px):rows(d),.];
+      else;
+	secondPart = d[_break+maxc(py|px):rows(d),.];
+      endif;
+      {d_2, unused, C2} = vec_getFullRankMat(secondPart,C,0);        
+    endif;
+  endif;
+
+retp(d_1, d_2, C1, C2);
+endp;
+  
+
+
+/*
+
+procedure to calculate the degrees of freedom f. the Sample Split Chow test statistics distribution
+
+Note: all three subsample models are already estimated
+as the formula is DF(1st submodel)+DF(2nd submodel) - DF(full model) and only deterministics are
+different across models - therefore, f. x and y DF of full model are taken and f. d are calculated directly
+
+!!!! only valid f. subset restrictions
+*/
+
+proc(1) = Calculate_df(var, var1,var2);
+local df,y,x,py,px,Cy,Cx,d,d1,d2,Cd,Cd1,Cd2,colsd, colsd1, colsd2,beta,r,c_alpha,empt,mx,tmp;
+
+empt ={}; 
+r = vml_GetCointRank(var); 
+
+y= vml_vread( var, "y");
+x= vml_vread( var, "x");
+py=vml_vread( var, "py");
+px=vml_vread( var, "px");
+Cx = vml_vread( var, "S_B");
+
+d = vml_vread( var, "d");
+mx = vml_vread(var, "mx_cd2cr");
+{d,tmp} = var__splitDeterministics(d,mx);
+
+d1 = vml_vread( var1, "d");
+mx = vml_vread(var1, "mx_cd2cr");
+{d1,tmp} = var__splitDeterministics(d1,mx);
+
+d2 = vml_vread( var2, "d");
+mx = vml_vread(var2, "mx_cd2cr");
+{d2,tmp} = var__splitDeterministics(d2,mx);
+
+if r == cols(y);     
+  Cy = vml_vread( var, "S_A");
+  Cd = vml_vread( var, "S_C_VAR");
+  Cd1 = vml_vread( var1, "S_C_VAR");
+  Cd2 = vml_vread( var2, "S_C_VAR");
+  c_alpha = {};
+  df = cols(y)*cols(y)*py - get_cols(Cy);
+else;
+  Cy = vml_vread( var, "S_G");
+  Cd = vml_vread( var, "S_C_Vec");
+  Cd1 = vml_vread( var1, "S_C_Vec");
+  Cd2 = vml_vread( var2, "S_C_Vec");
+  c_alpha = vml_vread( var2, "S_alpha");
+  df = cols(y)*cols(y)*(py-1)+cols(y)*r - get_cols(Cy)-get_cols(c_alpha);
+endif;
+
+
+if rows(x);
+  df = df + cols(y)*cols(x)*(px+1) - get_cols(Cx);
+endif;
+
+ 
+if scalmiss(cols(d)); 
+  colsd=0; 
+else; 
+  colsd=cols(d); 
+endif;
+if scalmiss(cols(d1)); 
+  colsd1=0; 
+else; 
+  colsd1=cols(d1); 
+endif;
+if scalmiss(cols(d2)); 
+  colsd2=0; 
+else; 
+  colsd2=cols(d2); 
+endif;
+
+
+df = df + cols(y)* (colsd1+colsd2-colsd) + get_cols(Cd) - get_cols(Cd1)-get_cols(Cd2);
+
+/* beta vector parameters are excluded from calculation of the degrees of freedom */
+
+retp(df);
+endp;
+
+
+
+
+/* function to get the sum of elements of a matrix even when it is empty */
+
+proc (1) = get_cols (A);
+  local c;
+  if rows(A)<1; 
+    c = 0; 
+  else; 
+    c = sumc(vecr(A.==0)); 
+  endif;
+  retp(c);
+endp;
+
+
+

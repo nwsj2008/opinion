@@ -1,0 +1,306 @@
+#ifos2win 
+/* to be used by library creation, windows only */
+#include ext_arma.dec
+#endif
+
+/*
+ This file is part of the econometric software package JMulTi.
+ Copyright (C) 2006 Markus Kraetzig
+
+ This program is free software; you can redistribute it and/or
+ modify it under the terms of the GNU General Public License
+ as published by the Free Software Foundation; either version 2
+ of the License, or (at your option) any later version.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, write to the Free Software
+ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ */
+
+/*
+**  Input:  b0     vector of starting values in order of AR, MA, and Constant;
+**                 or 0, then ARIMA computes starting values.
+**          y      Nx1 vector, data.
+**          p      scalar, number of AR parameters to be estimated.
+**          d      scalar, order of differencing.
+**          q      scalar, number of MA parameters to be estimated.
+**          dets   NxM matrix, N must be the same as y 
+** 			outputFileName 	file for redirecting all output, if empty screen is used
+**			allNames 		dependent varname | (CONST) | (other fixed term varnames), if empty defaults are used
+**
+**  Output:  b      column vector of final estimates equal to the number of AR,
+**                  MA, and Constant (or fixed regressor) terms.
+**           ll     value of the maximized likelihood function.
+**           e      Nx1 matrix, residuals.
+**           covb   matrix, covariance matrix for the ARMA parameters and Constant.
+**           aic|sbc    scalars, AIC and SBC.
+**
+*/
+proc(5) = arima_uni(b0,y,p,d,q,dets,outputFileName,allNames);
+local b, ll, e, covb, aic, sbc;
+
+	if outputFileName$/=""; 
+	  screen off;
+	  output file=^outputFileName reset;
+	endif;
+	
+  	arimaset;
+	if rows(allNames);
+		_am_varn=ones(1, rows(allNames));
+		for i(1,rows(allNames),1);
+			_am_varn[i]=0$+allNames[i];
+		endfor;			
+	endif;
+	if rows(dets) > 1 AND d > 0;
+		dets = trimr(dets,d,0);
+	endif;
+	if rows(dets) == 0;
+		dets = 0;
+	endif;	
+
+	{b, ll, e, covb, aic, sbc}	= 	arima(b0,y,p,d,q,dets);
+
+	output off;
+	screen on;
+
+retp(b, ll, e, covb, aic|sbc);
+endp;
+
+/*
+Performs Hannan-Rissanen model selection for choosing p and q of
+ARIMA model.
+
+input:
+
+	y      Nx1 vector, data.
+	dets    NxM vector, fixed regressors.
+	h  	   scalar, lag order for initial OLS estimation to determine residuals, pq_max < h  
+	pq_max scalar, all combinations of p and q are searched fulfilling: max(p,q) <= pq_max
+	d      scalar, order of differencing.
+
+output:
+
+	allLags   (pq_max+1)^2 x 5 matrix: each row has: l~n~AIC~HQ~SC, where l is searched p lag
+			  and n is searched q lag
+	optLags   3 x 2	matrix, AIC optlags|HQ optlags|SC optlags, where each row has the optimal p~q~AIC~HQ~SC
+			  for the respective criterium
+
+
+*/
+proc(2) = hannan_rissanen_uni(y,dets,h,pq_max,d);
+local allLags, optLags, xx, u_hat, aic, hq, sc, T, k;
+local lnsigma2, resids, maxlag, y_adj, sel, xx_i, index;
+
+ for i(1,d,1);
+     y =y[2:rows(y)] - y[1:rows(y)-1];
+ endfor;
+
+ xx = lagn(y,seqa(1,1,h));
+ y=trimr(y,h,0);
+ 
+ @ fixed regressors @
+ k = 0;
+ if rows(dets);
+ 	dets= trimr(dets,d+h,0);
+	k = cols(dets);
+ 	y=y-dets*(y/dets);
+ endif;
+ xx=trimr(xx,h,0);
+ u_hat=y-xx*(y/xx);
+
+ @ T is same f. all estimations @
+ T = rows(u_hat)-pq_max;
+ y_adj = trimr(y, pq_max, 0);
+ xx = lagn(y, seqa(1,1,pq_max));
+ xx = xx~lagn(u_hat, seqa(1,1,pq_max));	
+ xx = trimr(xx, pq_max, 0);
+ 
+ @ holds results @
+ allLags = zeros((pq_max+1)^2, 5);
+
+ @ compute criteria f. all allowed combinations of p and q @
+ index = 1;
+ for p(0,pq_max,1);
+ 	 for q(0,pq_max,1);
+	 
+		if (p == 0 AND q == 0);
+			resids = y_adj;	
+		else;
+			sel=zeros(2*pq_max, 1);
+			for i(1,p,1);
+				sel[i, 1] = 1;
+			endfor;
+			for i(pq_max+1,pq_max+q,1);
+				sel[i, 1] = 1;
+			endfor;
+	
+			xx_i = selif(xx', sel)';
+			resids =  y_adj-xx_i*(y_adj/xx_i);
+		endif;
+		lnsigma2 = ln(resids'resids/T);
+		aic = lnsigma2 + 2/T*(p+q+k);
+		hq = lnsigma2 + 2/T*(p+q+k)*ln(ln(T));
+		sc = lnsigma2 + 1/T*(p+q+k)*ln(T);
+
+		allLags[index,.] = p~q~aic~hq~sc;
+	
+		index = index+1;
+	 endfor;
+
+ endfor; 
+
+ sel = minindc(allLags);
+ optLags = allLags[sel[3,1],.];
+ optLags = optLags | allLags[sel[4,1],.];
+ optLags = optLags | allLags[sel[5,1],.];
+ 
+retp(optLags, allLags);
+endp;
+
+/* 
+
+Forecasting using ARIMA estimation results, allowing f. fixed regressors
+
+Inputs:   
+
+b            Kx1 array of parameter estimates (AR|MA|fixed)
+y            Nx1 data
+p            scalar, AR order
+d            scalar, the order of differencing
+q            scalar, MA order
+dets         p+h x M array of fixed data f. forecast period, starts at T-p+1
+resids       (N-d)x1 vector, errors reported by ARIMA program
+ciLevel      CI level f. forecasts
+horizon      scalar, forecasts horizon
+
+Ouputs:   
+
+forec       3xh array, points | lower CI | upper CI
+fstderr     hx1 array of std. errors
+*/
+
+proc(2) = arimaForecast_uni(b,y,p,d,q,dets,resids,ciLevel,horizon);
+local n,eh,yh,db,i,phip,rp,m,theta,c,crit,sig;
+local forecas,fstderr,fl,sef,K,xBeta,detPart;
+    
+    K = cols(dets);
+    n = rows(y);
+    if cols(y) > 1;
+        errorlog "Data must be univariate.";
+    endif;
+    if d >= 1;
+        eh = zeros(d,1)|resids|zeros(horizon,1);
+    else;
+        eh = resids|zeros(horizon,1);
+    endif;
+    yh = y|zeros(horizon,1);
+    if d > 0;
+        db = 1|-1;
+        i = 2;
+        do while i <= d;
+            db = conv(db,1|-1,0,0);
+            i = i+1;
+        endo;
+    else;
+        db = 1;
+    endif;
+    if p >= 1;
+        phip = conv(db,1|-b[1:p],0,0);
+        phip = -phip[2:p+d+1];
+    elseif d > 0;
+        phip = -db[2:d+1];
+    else;
+        phip = 0;
+    endif;
+    rp = rows(phip);
+    m = maxc(rp|q);
+    if rp < m;
+        phip = phip|zeros(m-rp,1);
+    endif;
+    if q < m and q > 0;
+        theta = b[p+1:p+q]|zeros(m-q,1);
+    elseif q < m and q == 0;
+        theta = zeros(m,1);
+    else;
+        theta = b[p+1:p+q];
+    endif;
+    
+    xBeta = 0;
+    if K;
+      xBeta = dets*b[p+q+1:rows(b)];
+    endif;  
+	
+    c = zeros(horizon,1);
+    c[1] = 1;
+    if horizon > 1;
+        i = 2;
+        do while i <= horizon and i <= m+1;
+            c[i] = rev(phip[1:i-1])'c[1:i-1]-theta[i-1];
+            i = i+1;
+        endo;
+        do while i <= horizon;
+            c[i] = rev(phip)'c[i-m:i-1];
+            i = i+1;
+        endo;
+    endif;
+    c = c^2;
+    if ciLevel == .95;
+        crit = 1.9599639;
+    else;
+        crit = normalcritvals_uni(ciLevel);
+    endif;
+    sig = sqrt(resids'resids/(n-d-p-q-K));
+    forecas = zeros(horizon,3);
+    fstderr = zeros(horizon,1);
+    if p > 0;
+	    b = rev(1|-b[1:p]);
+	else;
+		b = 1;
+    endif;
+	i = 1;
+    fl = n;
+    do while fl <= n+horizon-1;
+        fstderr[i] = sig*sqrt(sumc(c[1:i]));
+        sef = crit*fstderr[i];
+		detPart = 0;
+		if K;
+			detPart = b'xBeta[i:rows(b)+i-1];
+		endif;	
+        forecas[i,2] = 	detPart+rev(phip)'yh[fl-m+1:fl]-rev(theta)'eh[fl-m+1:fl];
+        yh[fl+1] = forecas[i,2];
+        forecas[i,1] = forecas[i,2]-sef;
+        forecas[i,3] = forecas[i,2]+sef;
+        i = i+1;
+        fl = fl+1;
+    endo;
+ 
+forecas = (forecas[.,2]~forecas[.,1]~forecas[.,3])';	
+
+retp(forecas, fstderr);
+endp;
+
+
+proc(1)=normalcritvals_uni(z);
+    local p,pa,j,a,i;
+    p = (1-z)/2;
+    pa = 1;
+    a = .1;
+    j = 1;
+    i = .1;
+    do until abs(pa[j]-p) <= 1e-8;
+        a = seqa(a[j],i,29);
+        pa = cdfnc(a);
+        j = 1;
+        do while pa[j] >= p;
+            j = j+1;
+        endo;
+        j = j-1;
+        i = i*.1;
+    endo;
+    retp(a[j]);
+endp;

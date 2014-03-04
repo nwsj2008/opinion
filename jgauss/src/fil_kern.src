@@ -1,0 +1,340 @@
+/*
+ This file is part of the econometric software package JMulTi.
+ Copyright (C) 2000-2005  Ruud H. Koning, Markus Kraetzig
+
+ This program is free software; you can redistribute it and/or
+ modify it under the terms of the GNU General Public License
+ as published by the Free Software Foundation; either version 2
+ of the License, or (at your option) any later version.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, write to the Free Software
+ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ */
+#ifos2win 
+/* to be used by library creation, windows only */
+#include extern.dec
+#endif
+
+/* kernel.src 
+Source file with functions of the kernel library:
+    ukernel_kernel     procedure for univariate kernel estimation
+    mkernel_kernel     procedure for multivariate kernel estimation
+    bandw1_kernel      procedure for automatic bandwidth selection
+    nw_kernel          procedure for nonparametric regression
+    viewuknl_kernel    procedere for plotting the estimated density
+
+*/
+
+/* procedure to calculate a univariate kernel density estimate and its
+derivative
+usage:      {f, d, h} = ukernel_kernel(x, z, h, w, &kf);
+input:      x:      TxK vector where density is to be estimated
+                    it can also be Tx1, then it is the same for all
+            z:      nxK vector with observed data points
+            bw:      scalar bandwidth, if h<=0 bandwidth is determined by
+                    procedure bandw1(z)
+            w:      n vector with weights (can be 1)
+            &kf:    pointer to weighting function
+output:     f:      T vector with estimated density
+            d:      T vector with estimated derivative
+            h:      scaler bandwidth
+*/
+
+proc (3) = ukernel_wrapper_kernel(x,z,bw, kernel);
+local ret1,ret2,ret3;
+
+ret1={};ret2={};ret3={};
+
+if kernel == 1;
+  {ret1,ret2,ret3} =  ukernel_kernel(x,z,bw,1,&k_bw_kernel);
+elseif kernel == 2;
+  {ret1,ret2,ret3} =  ukernel_kernel(x,z,bw,1,&k_rect_kernel);
+elseif kernel == 3;
+  {ret1,ret2,ret3} =  ukernel_kernel(x,z,bw,1,&k_trian_kernel);
+elseif kernel == 4;
+  {ret1,ret2,ret3} =  ukernel_kernel(x,z,bw,1,&k_epan_kernel);
+else;
+  {ret1,ret2,ret3} =  ukernel_kernel(x,z,bw,1,&k_gauss_kernel);
+endif;    
+
+retp(ret1,ret2,ret3);
+endp;
+
+proc (3)=ukernel_kernel(x,z,bw,w, &kf);
+ local arg, i, n, f, d, k, kff, kfd, pkff,argl,argh,kffl,kffh,fl,fh,
+  hl,hh,j,m,h;
+ local kf:proc;
+ /*in this case assume, that x is the same for all z*/
+ if cols(x) < cols(z);
+   m = 1;
+   x = x[.,1];
+   do while m < cols(z); 
+     x = x~x[.,1];
+     m = m + 1;
+   endo;
+ endif;
+ n = rows(x);
+ k = cols(x);
+ h = zeros(cols(z),1);
+ f=zeros(n,cols(z));
+ d=zeros(n,cols(z));
+  
+ j = 1;
+ do while j <=cols(z); 
+   /* initialization */
+   i = 1;
+   
+   /* determine bandwidth */
+   if (bw<=0);
+     h[j]=bandw1_kernel(z[.,j]);
+   else;
+     h[j]=bw;
+   endif;
+   
+   do while (i<=n);
+     arg = (x[i,j]-z[.,j])/h[j];
+     {kff, kfd} = kf(arg);
+     f[i,j] = meanc(kff.*w)/h[j];
+     d[i,j] = meanc(kfd.*w)/(h[j]^2);
+     i=i+1;
+   endo;
+   j = j + 1;
+ endo;
+ retp(f,d,h );
+endp;
+
+
+/* procedure to calculate a multivariate kernel density estimate and its
+derivative
+usage:      {f, d, h} = mkernel_kernel(x, z, h, w, &kf);
+input:      x:      T x k matrix where density is to be estimated
+            z:      n x k matrix with observed data points
+            h:      scalar, bandwidth parameter (same bandwidth for all
+                    components), if h<=0 it is determined by eq 4.14 of
+                    Silverman 
+            w:      n vector with weights
+            &kf:    pointer to weighting function
+output:     f:      T vector with estimated density
+            d:      T x k matrix with estimated derivatives
+            h:      scalar, bandwidth used
+*/
+
+proc (3)=mkernel_kernel(x, z, h, w, &kf);
+ local arg,i,n,f,d,k,kff,kfd,pkff,p,deneq0;
+ local kf:proc;
+
+ i = 1;
+ n = rows(x);
+ k = cols(x);
+ if (h<=0);
+   p=1/(k+4);
+   h=(4/(k+2))^p*n^(-p);
+ endif;
+ f = zeros(n,1);
+ d = zeros(n,k);
+ do while (i<=n);
+  arg = (x[i,.]-z)/h;
+  {kff, kfd} = kf(arg);
+  pkff = prodc(kff');
+  f[i] = meanc(pkff.*w)/(h^k);
+  deneq0=kff .==0;
+  kff=kff+deneq0;
+  d[i,.] = meanc((kfd.*pkff.*w)./kff)'/(h^(k+1));
+  i = i+1;
+ endo;
+ retp( f,d,h );
+endp;
+
+
+/* computes Nadaraya-Watson kernel regression estimator
+
+usage:  {g,d,h} = nw_kernel(x,z,y,h,&kf);
+  input:  x:          T-vector where regression function is evaluated
+        z:          n-vector with data on independent variable
+        y:          n-vector with data on dependent variable
+        h:          scalar, bandwidth, if h<=0 the bandwidth is determined
+                    automatically using procedure bandw1
+        &kf:        pointer to univariate kernel density estimator
+output: g:          T-vector with values of regression evaluated in x
+        d:          T-vector with estimated derivative in x
+        h:          scalar bandwidth used
+*/
+
+proc (3) = nwkernel_wrapper_kernel(x,z,y,h,kernel);
+local ret1,ret2,ret3;
+local kf:proc;
+
+ret1={};ret2={};ret3={};
+
+if kernel == 1;
+  {ret1,ret2,ret3} =  nw_kernel(x,z,y,h,&k_bw_kernel);
+elseif kernel == 2;
+  {ret1,ret2,ret3} =  nw_kernel(x,z,y,h,&k_rect_kernel);
+elseif kernel == 3;
+  {ret1,ret2,ret3} =  nw_kernel(x,z,y,h,&k_trian_kernel);
+elseif kernel == 4;
+  {ret1,ret2,ret3} =  nw_kernel(x,z,y,h,&k_epan_kernel);
+else;
+  {ret1,ret2,ret3} =  nw_kernel(x,z,y,h,&k_gauss_kernel);
+endif;    
+
+retp(ret1,ret2,ret3);
+endp;
+
+
+
+proc (3)=nw_kernel(x, z, y,h,&kf);
+    local num, numder, denom, denomder, g, s, n, k, d,v;
+    local kf: proc;
+
+ n = rows(x);
+ k = cols(x);
+ g = zeros(n,1);
+ d = zeros(n,1);
+
+ if (k ne 1);
+  print "error in nw.g: too many columns in x";
+  retp( g, d );
+ endif;
+ if (cols(z) ne 1);
+  print "error in nw.g: too many columns in z";
+  retp( g, d );
+ endif;
+
+ {num,numder,h} = ukernel_kernel(x,z,h,y,&kf);
+ {denom,denomder,h} = ukernel_kernel(x,z,h,1,&kf);
+ s = (denom.==0);
+ g = num./(denom+s);
+ d = numder./(denom+s) - num.*denomder./(denom^2+s);
+ retp( (1-s).*g, (1-s).*d,h );
+endp;
+
+/* bandw1_kernel, bandw2_kernel
+procedure to calculate the optimal bandwidth in kernel estimation of a density.
+The optimal bandwidth is calculated according to 
+eq. 3.31 of Silverman (1986) : bandw1
+eq. 4.14 of Silverman (1986) : bandw2
+
+usage:      h=bandw1_kernel(y);
+input:      y:      n-vector whose density will be estimated;
+output:     h:      scalar, optimal bandwidth choice;
+
+*/
+
+proc bandw1_kernel(y);
+ local s, ys,n, a, iqr, qi1, qi3;
+ if (cols(y)>1);
+  errorlog "input error in bandw1.g: too many columns";
+  retp( -1 );
+ endif;
+ s=sqrt(vcx(y));
+ n=rows(y);
+ ys=sortc(y,1);
+ qi1=round(0.25*n);
+ qi3=round(0.75*n);
+ iqr=ys[qi3]-ys[qi1];
+ retp( 0.9*minc(s|(iqr/1.34))/n^0.2 );
+endp;
+
+proc bandw2_kernel(y);
+  local k, n;
+  k = cols(y);
+  n = rows(y);
+ retp( (4/(k+2))^(1/(k+4)) * n^(-1/(k+4)) );
+endp;
+
+
+/* view_ukernel
+procedure to plot kernel density estimate. Library pgraph must be activated.
+
+usage: call view_ukernel_kernel(x,f,h);
+input:      x:  n-vector with data points
+            f:  n x k matrix (k=1 or k=3) with estimated densities for
+                different bandwidths
+            h:  k-vector (k=1 or k=3) with bandwidths
+output:     none
+globals:    all globals of the pgraph library
+
+*/
+
+proc (0)=view_ukernel_kernel(x,f,h);
+ local data,k,xlow,xhigh,flow,fhigh,xlegend,ylegend;
+
+ /* error checking */
+ if (cols(f) ne rows(h));
+  errorlog "error in viewkrnl.g: rows(f) unequal to cols(h)";
+  retp();
+ endif;
+ /* set global variables pgraph */
+ _pnumht = 0.25;
+ k=cols(f);
+ xlow=minc(x);
+ xhigh=maxc(x);
+ flow=minc(minc(f));
+ fhigh=maxc(maxc(f));
+ xlegend=xlow;
+ ylegend=flow+0.8*(fhigh-flow);
+ _plegctl=1|4|xlegend|ylegend;
+ if (k==1);
+  _plegstr="h=" $+ ftos(h,"%*.*lf",5,3);
+  else;
+  _plegstr="h=" $+ ftos(h[1],"%*.*lf",5,3) $+ "\0h="
+   $+ftos(h[2],"%*.*lf",5,3)$+"\0h="$+ ftos(h[3],"%*.*lf",5,3);
+ endif;
+ data=sortc(x~f,1);
+ xy(data[.,1],data[.,2:cols(data)]);
+endp;
+
+/* This section contains some kernel functions. All functions take an
+n x k matrix u as their argument and return an n x k matrix with the
+function evaluated in each point of x and an n x k matrix d with the
+derivative of the function in each point of x.
+    k_bw_kernel:     biweight kernel function
+    k_epan_kernel:   Epanechnikov kernel
+    k_gauss_kernel:  Gaussian kernel
+    k_triang_kernel: triangular kernel
+    k_rect_kernel:   rectangular kernel
+
+usage:
+    {f,d}=k_bw_kernel(u);
+*/
+
+proc (2)=k_bw_kernel(u);
+ local select;
+ select = abs(u).<=1;
+ retp( 15/16*((1-u.^2).^2).*select, -15/4*u.*(1-u.^2).*select);
+endp;
+
+proc (2)=k_gauss_kernel(u);
+    retp( pdfn(u), -u.*pdfn(u) );
+endp;
+
+proc (2)=k_epan_kernel(u);
+    local c, s;
+    s = abs(u).<sqrt(5);
+    c = 0.75/sqrt(5);
+    retp( c*(1-0.2*u.^2).*s, -0.4*c*u.*s );
+endp;
+
+proc (2)=k_rect_kernel(u);
+    retp( 0.5*(abs(u).<1), 0*u );
+endp;
+
+proc (2)=k_trian_kernel(u);
+    local s, a;
+    a = abs(u);
+    s = a.<1;
+    retp( (1-a).*s, (-(u.>=0) + (u.<=0)).*s );
+endp;
+
+
+
+
+
+

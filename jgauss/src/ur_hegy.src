@@ -1,0 +1,712 @@
+/*
+ This file is part of the econometric software package JMulTi.
+ Copyright (C) 2000-2005  Rolf Tschernig, Markus Kraetzig
+
+ This program is free software; you can redistribute it and/or
+ modify it under the terms of the GNU General Public License
+ as published by the Free Software Foundation; either version 2
+ of the License, or (at your option) any later version.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, write to the Free Software
+ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ */
+
+/* RT, July 1998
+**
+** --------------------------------------------------------
+**                       HEGY_4.G
+** --------------------------------------------------------
+**
+** see Franses (1996, p.63-65) or
+**     Franses and Hobijn (1997, Journal of Applied Statistics, Vol 24, No 1, 25-47))
+**
+** teststate == 1: no const, no trend, no seasD 
+** teststate == 2: const, no  trend, no seasD 
+** teststate == 3: const, trend, no seasD 
+** teststate == 4: const, trend, seasD 
+** teststate == 5: const, no trend, seasD
+** lags == number of lags of y4 = y(t)-y(t-4)
+** xraw == Tx1 Data Matrix 
+** order of critVal Matrix: 1%,5%,10% for t(pi1), t(pi2), F34, F234, F1234
+** procedure for quarterly data
+*/
+
+proc (6) = hegy4_hegy(xraw,lags,teststate);
+  local anf,T,y1,y2,y3,y4,yright,y4lags,Tnew,lagvec,
+  vnam,m,b,stb,vc,stderr,sigma,cx,rsq,resid,garb,
+  seas_dum,trend_var,XX,R2,R3,R4,F34,F234,F1234,
+  fmt,mask,critVal;
+  
+  T           = rows(xraw);
+  _olsres     = 1;
+  __output    = 0;
+  @ ------------ make yi's for (5.11) ---------------------- @
+    
+  
+  y1      = xraw[4:T]+xraw[3:T-1]
+  +xraw[2:T-2]+xraw[1:T-3];
+  
+  y2      = -(xraw[4:T]-xraw[3:T-1]
+  +xraw[2:T-2]-xraw[1:T-3]);
+  
+  y3      = -(xraw[3:T]-xraw[1:T-2]);
+  
+  y4      = xraw[5:T]-xraw[1:T-4];
+  @ ------------------- make (5.11) ------------------------ @
+  
+  
+  yright  =   y1[1:rows(y1)-1]
+            ~ y2[1:rows(y2)-1]
+            ~ y3[1:rows(y3)-2]
+            ~ y3[2:rows(y3)-1];
+  
+  /*create lagged y4 vectors by shifting and deleting*/
+  if lags > 0;
+    lagvec  = seqa(1,1,lags);
+    y4lags  = shiftr( (ones(1,rows(lagvec)) .*. y4)',lagvec,-exp(20))' ;
+    y4lags  = y4lags[lags+1:rows(y4lags),.];
+/*     y4lags  = delif(y4lags,y4lags .== -exp(20)); */
+    Tnew    = rows(y4lags);
+    yright  = yright[rows(yright)-Tnew+1:rows(yright),.] ~ y4lags;
+  else;
+    Tnew    = rows(yright);
+    y4lags  = 0;
+  endif;
+  
+  
+  
+  @ ------ include deterministic regressor (5.10) ------------- @
+  
+  trend_var   = seqa(T-rows(yright)+1,1,T);
+  seas_dum    = ones(trunc(T/4)+1,1) .*. eye(4);
+  
+  if teststate == 1; @no const, no  trend,  no seasD @
+    
+    __con       = 0;
+    { vnam,m,b,stb,vc,stderr,sigma,cx,rsq,resid,garb } =
+    ols(0,y4[rows(y4)-Tnew+1:rows(y4)],
+    yright);
+    __con       = 1;
+    
+    
+    @   F-tests @
+    
+    XX  = m[2:rows(m)-1,2:rows(m)-1];
+    
+    R2   = (0~0~1~0)|(0~0~0~1);     @  for pi3=pi4=0 @
+    R3   = (0~1~0~0)|(0~0~1~0)|(0~0~0~1); @  for pi2=pi3=pi4=0 @
+    R4   = eye(4);                  @  for pi1=pi2=pi3=pi4=0 @
+    
+    if lags > 0;
+      
+      R2      = R2 ~ zeros(2,rows(lagvec));
+      R3      = R3 ~ zeros(3,rows(lagvec));
+      R4      = R4 ~ zeros(4,rows(lagvec));
+    endif;
+    
+    F34  = (R2*b)'inv(R2*inv(XX)*R2')*(R2*b) / (2*sigma^2);
+    F234 = (R3*b)'inv(R3*inv(XX)*R3')*(R3*b) / (3*sigma^2);
+    F1234= (R4*b)'inv(R4*inv(XX)*R4')*(R4*b) / (4*sigma^2);
+    critVal =   (-2.54~-1.91~-1.59)|
+                (-2.53~-1.93~-1.61)|
+                (4.85~3.11~2.39)|
+                (4.05~2.78~2.22)|
+                (3.58~2.55~2.09);
+    
+  elseif teststate == 2; @ const, no  trend,  no seasD @
+    __con       = 1;
+    { vnam,m,b,stb,vc,stderr,sigma,cx,rsq,resid,garb } =
+    ols(0,y4[rows(y4)-Tnew+1:rows(y4)],
+    yright);
+
+
+
+    @   F-tests @
+
+    XX  = m[1:rows(m)-1,1:rows(m)-1];
+
+    R2   = (0~0~0~1~0)|(0~0~0~0~1);     @  for pi3=pi4=0 @
+    R3   = (0~0~1~0~0)|(0~0~0~1~0)|(0~0~0~0~1); @  for pi2=pi3=pi4=0 @
+    R4   = zeros(4,1) ~ eye(4);         @  for pi1=pi2=pi3=pi4=0 @
+
+    if lags > 0;
+
+        R2  = R2 ~ zeros(2,rows(lagvec));
+        R3  = R3 ~ zeros(3,rows(lagvec));
+        R4  = R4 ~ zeros(4,rows(lagvec));
+    endif;
+
+    F34  = (R2*b)'inv(R2*inv(XX)*R2')*(R2*b) / (2*sigma^2);
+    F234 = (R3*b)'inv(R3*inv(XX)*R3')*(R3*b) / (3*sigma^2);
+    F1234= (R4*b)'inv(R4*inv(XX)*R4')*(R4*b) / (4*sigma^2);
+    critVal =   (-3.42~-2.85~-2.55)|
+	        (-2.53~-1.93~-1.61)|
+	        (4.83~3.08~2.37)|
+		(4.01~2.76~2.20)|
+		(4.52~3.36~2.83);
+
+
+elseif teststate == 3; @ const,   trend, no  seasD @
+
+    __con       = 1;
+    yright      = trend_var[rows(y4)-Tnew+1:rows(y4)] ~ yright;
+    { vnam,m,b,stb,vc,stderr,sigma,cx,rsq,resid,garb } =
+                      ols(0,y4[rows(y4)-Tnew+1:rows(y4)],
+                        yright);
+
+
+
+        @   F-tests @
+
+    XX  = m[1:rows(m)-1,1:rows(m)-1];
+
+    R2   = zeros(2,2) ~ ((0~0~1~0)|(0~0~0~1));  @  for pi3=pi4=0 @
+    R3   = zeros(3,2) ~ ((0~1~0~0)|(0~0~1~0)|(0~0~0~1));
+                                        @  for pi2=pi3=pi4=0 @
+    R4   = zeros(4,2) ~ eye(4);         @  for pi1=pi2=pi3=pi4=0 @
+
+    if lags > 0;
+
+        R2  = R2 ~ zeros(2,rows(lagvec));
+        R3  = R3 ~ zeros(3,rows(lagvec));
+        R4  = R4 ~ zeros(4,rows(lagvec));
+    endif;
+
+    F34  = (R2*b)'inv(R2*inv(XX)*R2')*(R2*b) / (2*sigma^2);
+    F234 = (R3*b)'inv(R3*inv(XX)*R3')*(R3*b) / (3*sigma^2);
+    F1234= (R4*b)'inv(R4*inv(XX)*R4')*(R4*b) / (4*sigma^2);
+    critVal =   (-3.98~-3.40~-3.11)|
+	        (-2.53~-1.93~-1.61)|
+	        (4.76~3.05~2.35)|
+		(3.96~2.74~2.18)|
+		(5.44~4.19~3.59);
+
+
+elseif teststate == 4; @ const,   trend,   seasD @
+
+
+    __con   = 0;
+    yright  = seas_dum[T-rows(yright)+1:T,.]~
+                      trend_var[rows(y4)-Tnew+1:rows(y4)]~
+                      yright;
+    { vnam,m,b,stb,vc,stderr,sigma,cx,rsq,resid,garb } =
+                      ols(0,y4[rows(y4)-Tnew+1:rows(y4)],
+                      yright);
+    __con   = 1;
+
+
+
+    @   F-tests @
+
+    XX  = m[2:rows(m)-1,2:rows(m)-1];
+
+    R2   = zeros(2,5) ~ ((0~0~1~0)|(0~0~0~1));     @  for pi3=pi4=0 @
+    R3   = zeros(3,5) ~ ((0~1~0~0)|(0~0~1~0)|(0~0~0~1));
+                                    @ for pi2=pi3=pi4=0 @
+    R4   = zeros(4,5) ~ eye(4);     @ for pi1=pi2=pi3=pi4=0 @
+
+    if lags > 0;
+
+        R2  = R2 ~ zeros(2,rows(lagvec));
+        R3  = R3 ~ zeros(3,rows(lagvec));
+        R4  = R4 ~ zeros(4,rows(lagvec));
+    endif;
+
+    F34  = (R2*b)'inv(R2*inv(XX)*R2')*(R2*b) / (2*sigma^2);
+    F234 = (R3*b)'inv(R3*inv(XX)*R3')*(R3*b) / (3*sigma^2);
+    F1234= (R4*b)'inv(R4*inv(XX)*R4')*(R4*b) / (4*sigma^2);
+    critVal =   (-3.96~-3.39~-3.10)|
+	        (-3.41~-2.82~-2.53)|
+	        (8.79~6.55~5.48)|
+		(7.62~5.93~5.09)|
+		(7.93~6.31~5.55);
+
+elseif teststate == 5; @ const, no  trend,  seasD @
+
+    __con   = 0;
+    yright  = seas_dum[T-rows(yright)+1:T,.] ~ yright;
+    { vnam,m,b,stb,vc,stderr,sigma,cx,rsq,resid,garb } =
+                      ols(0,y4[rows(y4)-Tnew+1:rows(y4)],
+                            yright);
+    __con   = 1;
+
+
+
+    @   F-tests @
+
+    XX  = m[2:rows(m)-1,2:rows(m)-1];
+
+    R2   = zeros(2,4) ~ ((0~0~1~0)|(0~0~0~1));     @  for pi3=pi4=0 @
+    R3   = zeros(3,4) ~ ((0~1~0~0)|(0~0~1~0)|(0~0~0~1));
+                                    @ for pi2=pi3=pi4=0 @
+    R4   = zeros(4,4) ~ eye(4);     @ for pi1=pi2=pi3=pi4=0 @
+
+    if lags > 0;
+
+        R2  = R2 ~ zeros(2,rows(lagvec));
+        R3  = R3 ~ zeros(3,rows(lagvec));
+        R4  = R4 ~ zeros(4,rows(lagvec));
+    endif;
+
+    F34  = (R2*b)'inv(R2*inv(XX)*R2')*(R2*b) / (2*sigma^2);
+    F234 = (R3*b)'inv(R3*inv(XX)*R3')*(R3*b) / (3*sigma^2);
+    F1234= (R4*b)'inv(R4*inv(XX)*R4')*(R4*b) / (4*sigma^2);
+    critVal =   (-3.41~-2.84~-2.54)|
+	        (-3.41~-2.83~-2.53)|
+	        (8.79~6.57~5.52)|
+		(7.63~5.95~5.09)|
+		(7.07~5.56~4.86);
+
+
+else;
+
+    @hegyq_1: choose valid combination for const, trend, seasD@
+     b = {.}; stderr = {.}; sigma={.};resid = {.};
+    F34 = {.}; F234 = {.}; F1234 = {.};
+
+endif;
+
+
+
+retp(rows(yright),b~(b ./ stderr),sigma,resid,F34|F234|F1234,critVal);
+endp;
+
+
+
+
+/* Markus Kraetzig, Jan 2001
+**
+** --------------------------------------------------------
+**                       HEGY_12.G
+** --------------------------------------------------------
+**
+** see Franses (1996, p.63-65) or
+**     Franses and Hobijn (1997, Journal of Applied Statistics, Vol 24, No 1, 25-47)
+**
+** teststate == 1: no const, no trend, no seasD 
+** teststate == 2: const, no  trend, no seasD 
+** teststate == 3: const, trend, no seasD 
+** teststate == 4: const, trend, seasD 
+** teststate == 5: const, no trend, seasD
+** lags == number of lags of y12 = y(t)-y(t-12)
+** xraw == Tx1 Data Matrix 
+** order of critVal Matrix: 1%,5%,10% for t(pi1), t(pi2), F34, F56, F78, F910, F1112, F2_12, F1_12
+** procedure for quarterly data
+*/
+
+proc (6 ) = hegy12_hegy(xraw,lags,teststate);
+local anf,T,y1_1,y2_1,y3_1,y3_2,y4_1,y4_2,y5_1,y5_2,y6_1,y6_2,y7_1,y7_2,y12,
+	yright,y12lags,Tnew,lagvec,
+        vnam,m,b,stb,vc,stderr,sigma,cx,rsq,resid,garb,
+        seas_dum,trend_var,XX,R34,R56,R78,R910,R1112,R1_12,R2_12,F34,
+	F56,F78,F910,F1112,F1_12,F2_12,fmt,mask,critVal;
+
+T           = rows(xraw);
+_olsres     = 1;
+__output    = 0; 
+
+@ ------------ make yi's for (5.11) ---------------------- @
+
+/* B is the Lag operator */
+
+@at t-1    (1+B)(1+B^2)(1+B^4+B^8) @  
+y1_1 = xraw[12:T-1] + xraw[11:T-2] + xraw[10:T-3] + xraw[9:T-4] + xraw[8:T-5] + xraw[7:T-6] + xraw[6:T-7] + xraw[5:T-8] + xraw[4:T-9]+ xraw[3:T-10]+ xraw[2:T-11]+ xraw[1:T-12];  
+      
+@at t-1    -(1-B)(1+B^2)(1+B^4+B^8)@
+y2_1 = -(xraw[12:T-1] - xraw[11:T-2] + xraw[10:T-3] - xraw[9:T-4] + xraw[8:T-5] - xraw[7:T-6] + xraw[6:T-7] - xraw[5:T-8] + xraw[4:T-9] - xraw[3:T-10]+ xraw[2:T-11] - xraw[1:T-12]);  
+        
+@at t-1    -(1-B^2)(1+B^4+B^8)@      
+y3_1 = -(xraw[12:T-1] - xraw[10:T-3] + xraw[8:T-5]- xraw[6:T-7]+ xraw[4:T-9]- xraw[2:T-11]) ;   
+
+@at t-2    -(1-B^2)(1+B^4+B^8)@      
+y3_2 = -(xraw[11:T-2] - xraw[9:T-4] + xraw[7:T-6]- xraw[5:T-8]+ xraw[3:T-10]- xraw[1:T-12])  ;  
+
+
+@at t-1    -(1-B^4)(1-sqrt(3)*B+B^2)(1+B^2+B^4)@             
+y4_1 = -(xraw[12:T-1] - sqrt(3)*xraw[11:T-2] + 2*xraw[10:T-3] - sqrt(3)*xraw[9:T-4] + xraw[8:T-5]  - xraw[6:T-7] + sqrt(3)*xraw[5:T-8] - 2*xraw[4:T-9] + sqrt(3)*xraw[3:T-10] - xraw[2:T-11]);      
+
+@at t-2    -(1-B^4)(1-sqrt(3)*B+B^2)(1+B^2+B^4)@             
+y4_2 = -(xraw[11:T-2] - sqrt(3)*xraw[10:T-3] + 2*xraw[9:T-4] - sqrt(3)*xraw[8:T-5] + xraw[7:T-6]  - xraw[5:T-8] + sqrt(3)*xraw[4:T-9] - 2*xraw[3:T-10] + sqrt(3)*xraw[2:T-11] - xraw[1:T-12]);      
+
+
+@at t-1    -(1-B^4)(1+sqrt(3)*B+B^2)(1+B^2+B^4)@             
+y5_1 = -(xraw[12:T-1] + sqrt(3)*xraw[11:T-2] + 2*xraw[10:T-3] + sqrt(3)*xraw[9:T-4] + xraw[8:T-5]  - xraw[6:T-7] - sqrt(3)*xraw[5:T-8] - 2*xraw[4:T-9] - sqrt(3)*xraw[3:T-10] - xraw[2:T-11]);      
+
+@at t-2    -(1-B^4)(1+sqrt(3)*B+B^2)(1+B^2+B^4)@             
+y5_2 = -(xraw[11:T-2] + sqrt(3)*xraw[10:T-3] - 2*xraw[9:T-4] + sqrt(3)*xraw[8:T-5] + xraw[7:T-6]  - xraw[5:T-8] - sqrt(3)*xraw[4:T-9] - 2*xraw[3:T-10] - sqrt(3)*xraw[2:T-11] - xraw[1:T-12]);      
+
+
+@at t-1    -(1-B^4)(1-B^2+B^4)(1-B+B^2)@             
+y6_1 = -(xraw[12:T-1] - xraw[11:T-2] + xraw[9:T-4] - xraw[8:T-5]  + xraw[6:T-7] -xraw[5:T-8] + xraw[3:T-10] - xraw[2:T-11]);      
+
+@at t-2    -(1-B^4)(1-B^2+B^4)(1-B+B^2)@             
+y6_2 = -(xraw[11:T-2] - xraw[10:T-3] + xraw[8:T-5] - xraw[7:T-6]  + xraw[5:T-8] -xraw[4:T-9] + xraw[2:T-11] - xraw[1:T-12]);      
+
+@at t-1    -(1-B^4)(1-B^2+B^4)(1+B+B^2)@             
+y7_1 = -(xraw[12:T-1] + xraw[11:T-2] - xraw[9:T-4] - xraw[8:T-5]  + xraw[6:T-7] + xraw[5:T-8] - xraw[3:T-10] - xraw[2:T-11]);      
+
+@at t-2    -(1-B^4)(1-B^2+B^4)(1+B+B^2)@             
+y7_2 = -(xraw[11:T-2] + xraw[10:T-3] - xraw[8:T-5] - xraw[7:T-6]  + xraw[5:T-8] + xraw[4:T-9] - xraw[2:T-11] - xraw[1:T-12]);      
+
+@at t@
+y12 = xraw[13:T] - xraw[1:T-12];
+
+@now the timeshifts are done and the regressor matrix is build@
+
+   yright  =   y1_1~y2_1~y3_1~y3_2~y4_1~y4_2~y5_1~y5_2~y6_1~y6_2~y7_1~y7_2;
+   
+/*create lagged y12 vectors by shifting and deleting*/
+if lags > 0;
+    lagvec  = seqa(1,1,lags);
+    y12lags  = shiftr( (ones(1,rows(lagvec)) .*. y12)',lagvec,-exp(20) )' ;
+    y12lags  = trimr(y12lags,lags,0);
+    Tnew    = rows(y12lags);
+    yright  = yright[rows(yright)-Tnew+1:rows(yright),.] ~ y12lags;
+else;
+    Tnew    = rows(yright);
+    y12lags  = 0;
+endif;
+
+
+
+@ ------ include deterministic regressor (5.10) ------------- @
+
+trend_var   = seqa(T-rows(yright)+1,1,T);
+seas_dum    = ones(trunc(T/12)+1,1) .*. eye(12);
+
+if teststate == 1; @no const, no  trend,  no seasD @
+
+    __con       = 0;
+    { vnam,m,b,stb,vc,stderr,sigma,cx,rsq,resid,garb } =
+                      ols(0,y12[rows(y12)-Tnew+1:rows(y12)],
+                            yright);
+    __con       = 1;
+
+
+    @   F-tests @
+
+    XX  = m[2:rows(m)-1,2:rows(m)-1];
+
+   
+    R34   = (0~0~1~0~0~0~0~0~0~0~0~0)|(0~0~0~1~0~0~0~0~0~0~0~0);     @  for pi3=pi4=0 @
+    R56   = (0~0~0~0~1~0~0~0~0~0~0~0)|(0~0~0~0~0~1~0~0~0~0~0~0);     @  for pi5=pi6=0 @
+    R78   = (0~0~0~0~0~0~1~0~0~0~0~0)|(0~0~0~0~0~0~0~1~0~0~0~0);     @  for pi7=pi8=0 @
+    R910  = (0~0~0~0~0~0~0~0~1~0~0~0)|(0~0~0~0~0~0~0~0~0~1~0~0);     @  for pi9=pi10=0 @
+    R1112 = (0~0~0~0~0~0~0~0~0~0~1~0)|(0~0~0~0~0~0~0~0~0~0~0~1);     @  for pi11=pi12=0 @
+    R1_12 =  eye(12);                                               @  for pi1=...=pi12=0 @ 
+    R2_12 =  zeros(11,1)~eye(11);                           @  for pi2=...=pi12=0 @
+
+    if lags > 0;
+        R34      = R34 ~ zeros(2,rows(lagvec));
+        R56      = R56 ~ zeros(2,rows(lagvec));
+        R78      = R78 ~ zeros(2,rows(lagvec));
+        R910     = R910 ~ zeros(2,rows(lagvec));
+	R1112    = R1112 ~ zeros(2,rows(lagvec));
+        R1_12      = R1_12 ~ zeros(12,rows(lagvec));
+        R2_12      = R2_12 ~ zeros(11,rows(lagvec));
+    endif;
+
+    F34  = (R34*b)'inv(R34*inv(XX)*R34')*(R34*b) / (2*sigma^2);
+    F56  = (R56*b)'inv(R56*inv(XX)*R56')*(R56*b) / (2*sigma^2);
+    F78  = (R78*b)'inv(R78*inv(XX)*R78')*(R78*b) / (2*sigma^2);
+    F910 = (R910*b)'inv(R910*inv(XX)*R910')*(R910*b) / (2*sigma^2);
+    F1112  = (R1112*b)'inv(R1112*inv(XX)*R1112')*(R1112*b) / (2*sigma^2);
+    F1_12= (R1_12*b)'inv(R1_12*inv(XX)*R1_12')*(R1_12*b) / (12 *sigma^2);
+    F2_12= (R2_12*b)'inv(R2_12*inv(XX)*R2_12')*(R2_12*b) / (11 *sigma^2);
+    critVal =   (-2.51~-1.93~-1.59)|
+		(-2.53~-1.94~-1.60)|
+		(4.74~3.07~2.36)|
+		(4.61~3.06~2.38)|
+		(4.69~3.10~2.40)|
+		(4.75~3.11~2.35)|
+		(4.65~3.11~2.41)|
+		(2.37~1.90~1.66)|
+		(2.34~1.88~1.65);
+
+
+
+
+
+elseif teststate == 2; @ const, no  trend,  no seasD @
+    __con       = 1;
+    { vnam,m,b,stb,vc,stderr,sigma,cx,rsq,resid,garb } =
+                      ols(0,y12[rows(y12)-Tnew+1:rows(y12)],
+                            yright);
+
+
+
+    @   F-tests @
+
+    XX  = m[1:rows(m)-1,1:rows(m)-1];
+
+    R34   = zeros(2,1)~((0~0~1~0~0~0~0~0~0~0~0~0)|(0~0~0~1~0~0~0~0~0~0~0~0));     @  for pi3=pi4=0 @
+    R56   = zeros(2,1)~((0~0~0~0~1~0~0~0~0~0~0~0)|(0~0~0~0~0~1~0~0~0~0~0~0));     @  for pi5=pi6=0 @
+    R78   = zeros(2,1)~((0~0~0~0~0~0~1~0~0~0~0~0)|(0~0~0~0~0~0~0~1~0~0~0~0));     @  for pi7=pi8=0 @
+    R910  = zeros(2,1)~((0~0~0~0~0~0~0~0~1~0~0~0)|(0~0~0~0~0~0~0~0~0~1~0~0));     @  for pi9=pi10=0 @
+    R1112 = zeros(2,1)~((0~0~0~0~0~0~0~0~0~0~1~0)|(0~0~0~0~0~0~0~0~0~0~0~1));     @  for pi11=pi12=0 @
+    R1_12   = zeros(12,1) ~ eye(12);                                       @  for pi1=...=pi12=0 @
+    R2_12 =  zeros(11,2)~eye(11);                           @  for pi2=...=pi12=0 @
+
+    if lags > 0;
+        R34      = R34 ~ zeros(2,rows(lagvec));
+        R56      = R56 ~ zeros(2,rows(lagvec));
+        R78      = R78 ~ zeros(2,rows(lagvec));
+        R910     = R910 ~ zeros(2,rows(lagvec));
+	R1112    = R1112 ~ zeros(2,rows(lagvec));
+        R1_12      = R1_12 ~ zeros(12,rows(lagvec));
+        R2_12      = R2_12 ~ zeros(11,rows(lagvec));
+    endif;
+
+    F34  = (R34*b)'inv(R34*inv(XX)*R34')*(R34*b) / (2*sigma^2);
+    F56  = (R56*b)'inv(R56*inv(XX)*R56')*(R56*b) / (2*sigma^2);
+    F78  = (R78*b)'inv(R78*inv(XX)*R78')*(R78*b) / (2*sigma^2);
+    F910 = (R910*b)'inv(R910*inv(XX)*R910')*(R910*b) / (2*sigma^2);
+    F1112  = (R1112*b)'inv(R1112*inv(XX)*R1112')*(R1112*b) / (2*sigma^2);
+    F1_12= (R1_12*b)'inv(R1_12*inv(XX)*R1_12')*(R1_12*b) / (12 *sigma^2);
+    F2_12= (R2_12*b)'inv(R2_12*inv(XX)*R2_12')*(R2_12*b) / (11 *sigma^2);
+    critVal =   (-3.40~-2.82~-2.52)|
+		(-2.54~-1.94~-1.60)|
+		(4.72~3.07~2.36)|
+		(4.63~3.05~2.38)|
+		(4.70~3.09~2.39)|
+		(4.73~3.09~2.34)|
+		(4.65~3.10~2.40)|
+		(2.36~1.89~1.66)|
+		(2.56~2.07~1.84);
+
+
+elseif teststate == 3; @ const,   trend, no  seasD @
+
+    __con       = 1;
+    yright      = trend_var[rows(y12)-Tnew+1:rows(y12)] ~ yright;
+    { vnam,m,b,stb,vc,stderr,sigma,cx,rsq,resid,garb } =
+                      ols(0,y12[rows(y12)-Tnew+1:rows(y12)],
+                        yright);
+
+
+
+        @   F-tests @
+
+    XX  = m[1:rows(m)-1,1:rows(m)-1];
+
+    R34   = zeros(2,2)~((0~0~1~0~0~0~0~0~0~0~0~0)|(0~0~0~1~0~0~0~0~0~0~0~0));     @  for pi3=pi4=0 @
+    R56   = zeros(2,2)~((0~0~0~0~1~0~0~0~0~0~0~0)|(0~0~0~0~0~1~0~0~0~0~0~0));     @  for pi5=pi6=0 @
+    R78   = zeros(2,2)~((0~0~0~0~0~0~1~0~0~0~0~0)|(0~0~0~0~0~0~0~1~0~0~0~0));     @  for pi7=pi8=0 @
+    R910  = zeros(2,2)~((0~0~0~0~0~0~0~0~1~0~0~0)|(0~0~0~0~0~0~0~0~0~1~0~0));     @  for pi9=pi10=0 @
+    R1112 = zeros(2,2)~((0~0~0~0~0~0~0~0~0~0~1~0)|(0~0~0~0~0~0~0~0~0~0~0~1));     @  for pi11=pi12=0 @
+    R1_12   = zeros(12,2) ~ eye(12);                                       @  for pi1=...=pi12=0 @
+    R2_12 =  zeros(11,3)~eye(11);                           @  for pi2=...=pi12=0 @	    
+
+    if lags > 0;
+        R34      = R34 ~ zeros(2,rows(lagvec));
+        R56      = R56 ~ zeros(2,rows(lagvec));
+        R78      = R78 ~ zeros(2,rows(lagvec));
+        R910     = R910 ~ zeros(2,rows(lagvec));
+	R1112    = R1112 ~ zeros(2,rows(lagvec));
+        R1_12      = R1_12 ~ zeros(12,rows(lagvec));
+        R2_12      = R2_12 ~ zeros(11,rows(lagvec));
+    endif;
+
+    F34  = (R34*b)'inv(R34*inv(XX)*R34')*(R34*b) / (2*sigma^2);
+    F56  = (R56*b)'inv(R56*inv(XX)*R56')*(R56*b) / (2*sigma^2);
+    F78  = (R78*b)'inv(R78*inv(XX)*R78')*(R78*b) / (2*sigma^2);
+    F910 = (R910*b)'inv(R910*inv(XX)*R910')*(R910*b) / (2*sigma^2);
+    F1112  = (R1112*b)'inv(R1112*inv(XX)*R1112')*(R1112*b) / (2*sigma^2);
+    F1_12= (R1_12*b)'inv(R1_12*inv(XX)*R1_12')*(R1_12*b) / (12 *sigma^2);
+    F2_12= (R2_12*b)'inv(R2_12*inv(XX)*R2_12')*(R2_12*b) / (11 *sigma^2);
+    critVal =   (-3.93~-3.37~-3.09)|
+		(-2.54~-1.94~-1.59)|
+		(4.71~3.05~2.35)|
+		(4.60~3.05~2.38)|
+		(4.69~3.08~2.39)|
+		(4.73~3.08~2.34)|
+		(4.65~3.09~2.39)|
+		(2.36~1.88~1.66)|
+		(2.75~2.30~2.07);
+
+
+elseif teststate == 4; @ const,   trend,   seasD @
+
+
+    __con   = 0;
+    yright  = seas_dum[T-rows(yright)+1:T,.]~
+                      trend_var[rows(y12)-Tnew+1:rows(y12)]~
+                      yright;
+    { vnam,m,b,stb,vc,stderr,sigma,cx,rsq,resid,garb } =
+                      ols(0,y12[rows(y12)-Tnew+1:rows(y12)],
+                      yright);
+    __con   = 1;
+
+
+
+    @   F-tests @
+
+    XX  = m[2:rows(m)-1,2:rows(m)-1];
+    R34   = zeros(2,13)~((0~0~1~0~0~0~0~0~0~0~0~0)|(0~0~0~1~0~0~0~0~0~0~0~0));     @  for pi3=pi4=0 @
+    R56   = zeros(2,13)~((0~0~0~0~1~0~0~0~0~0~0~0)|(0~0~0~0~0~1~0~0~0~0~0~0));     @  for pi5=pi6=0 @
+    R78   = zeros(2,13)~((0~0~0~0~0~0~1~0~0~0~0~0)|(0~0~0~0~0~0~0~1~0~0~0~0));     @  for pi7=pi8=0 @
+    R910  = zeros(2,13)~((0~0~0~0~0~0~0~0~1~0~0~0)|(0~0~0~0~0~0~0~0~0~1~0~0));     @  for pi9=pi10=0 @
+    R1112 = zeros(2,13)~((0~0~0~0~0~0~0~0~0~0~1~0)|(0~0~0~0~0~0~0~0~0~0~0~1));     @  for pi11=pi12=0 @
+    R1_12   = zeros(12,13) ~ eye(12);                                       @  for pi1=...=pi12=0 @
+    R2_12 =  zeros(11,14)~eye(11);                           @  for pi2=...=pi12=0 @	    
+
+    if lags > 0;
+        R34      = R34 ~ zeros(2,rows(lagvec));
+        R56      = R56 ~ zeros(2,rows(lagvec));
+        R78      = R78 ~ zeros(2,rows(lagvec));
+        R910     = R910 ~ zeros(2,rows(lagvec));
+	R1112    = R1112 ~ zeros(2,rows(lagvec));
+        R1_12      = R1_12 ~ zeros(12,rows(lagvec));
+        R2_12      = R2_12 ~ zeros(11,rows(lagvec));
+    endif;
+
+    F34  = (R34*b)'inv(R34*inv(XX)*R34')*(R34*b) / (2*sigma^2);
+    F56  = (R56*b)'inv(R56*inv(XX)*R56')*(R56*b) / (2*sigma^2);
+    F78  = (R78*b)'inv(R78*inv(XX)*R78')*(R78*b) / (2*sigma^2);
+    F910 = (R910*b)'inv(R910*inv(XX)*R910')*(R910*b) / (2*sigma^2);
+    F1112  = (R1112*b)'inv(R1112*inv(XX)*R1112')*(R1112*b) / (2*sigma^2);
+    F1_12= (R1_12*b)'inv(R1_12*inv(XX)*R1_12')*(R1_12*b) / (12 *sigma^2);
+    F2_12= (R2_12*b)'inv(R2_12*inv(XX)*R2_12')*(R2_12*b) / (11 *sigma^2);
+
+    critVal =   (-3.91~-3.35~-3.08)|
+		(-3.34~-2.81~-2.51)|
+		(8.38~6.35~5.45)|
+		(8.55~6.48~5.46)|
+		(8.39~6.30~5.33)|
+		(8.50~6.40~5.47)|
+		(8.75~6.46~5.36)|
+		(5.15~4.44~4.07)|
+		(5.34~4.58~4.26);
+
+
+
+
+elseif teststate == 5; @ const, no  trend,  seasD @
+
+    __con   = 0;
+    yright  = seas_dum[T-rows(yright)+1:T,.] ~ yright;
+    { vnam,m,b,stb,vc,stderr,sigma,cx,rsq,resid,garb } =
+                      ols(0,y12[rows(y12)-Tnew+1:rows(y12)],
+                            yright);
+    __con   = 1;
+
+
+
+    @   F-tests @
+
+    XX  = m[2:rows(m)-1,2:rows(m)-1];
+    R34   = zeros(2,12)~((0~0~1~0~0~0~0~0~0~0~0~0)|(0~0~0~1~0~0~0~0~0~0~0~0));     @  for pi3=pi4=0 @
+    R56   = zeros(2,12)~((0~0~0~0~1~0~0~0~0~0~0~0)|(0~0~0~0~0~1~0~0~0~0~0~0));     @  for pi5=pi6=0 @
+    R78   = zeros(2,12)~((0~0~0~0~0~0~1~0~0~0~0~0)|(0~0~0~0~0~0~0~1~0~0~0~0));     @  for pi7=pi8=0 @
+    R910  = zeros(2,12)~((0~0~0~0~0~0~0~0~1~0~0~0)|(0~0~0~0~0~0~0~0~0~1~0~0));     @  for pi9=pi10=0 @
+    R1112 = zeros(2,12)~((0~0~0~0~0~0~0~0~0~0~1~0)|(0~0~0~0~0~0~0~0~0~0~0~1));     @  for pi11=pi12=0 @
+    R1_12   = zeros(12,12) ~ eye(12);                                       @  for pi1=...=pi12=0 @
+    R2_12 =  zeros(11,13)~eye(11);                           @  for pi2=...=pi12=0 @	        
+
+    if lags > 0;
+        R34      = R34 ~ zeros(2,rows(lagvec));
+        R56      = R56 ~ zeros(2,rows(lagvec));
+        R78      = R78 ~ zeros(2,rows(lagvec));
+        R910     = R910 ~ zeros(2,rows(lagvec));
+	R1112    = R1112 ~ zeros(2,rows(lagvec));
+        R1_12      = R1_12 ~ zeros(12,rows(lagvec));
+        R2_12      = R2_12 ~ zeros(11,rows(lagvec));
+    endif;
+
+    F34  = (R34*b)'inv(R34*inv(XX)*R34')*(R34*b) / (2*sigma^2);
+    F56  = (R56*b)'inv(R56*inv(XX)*R56')*(R56*b) / (2*sigma^2);
+    F78  = (R78*b)'inv(R78*inv(XX)*R78')*(R78*b) / (2*sigma^2);
+    F910 = (R910*b)'inv(R910*inv(XX)*R910')*(R910*b) / (2*sigma^2);
+    F1112  = (R1112*b)'inv(R1112*inv(XX)*R1112')*(R1112*b) / (2*sigma^2);
+    F1_12= (R1_12*b)'inv(R1_12*inv(XX)*R1_12')*(R1_12*b) / (12 *sigma^2);
+    F2_12= (R2_12*b)'inv(R2_12*inv(XX)*R2_12')*(R2_12*b) / (11 *sigma^2);
+
+    critVal =   (-3.40~-2.81~-3.51)|
+		(-3.34~-2.81~-2.51)|
+		(8.40~6.35~5.45)|
+		(8.58~6.48~5.46)|
+		(8.39~6.33~5.32)|
+		(8.56~6.41~5.46)|
+		(8.76~6.47~5.36)|
+		(5.17~4.44~4.08)|
+		(5.05~4.37~4.04);
+
+
+else;
+
+    @hegyq_1: choose valid combination for const, trend, seasD@
+     b = {.}; stderr = {.}; sigma={.};resid = {.};
+    F34 = {.}; F56 = {.}; F78 = {.};F910 = {.};F1112 = {.};F1_12 = {.};F2_12 = {.};
+
+endif;
+
+
+
+retp(rows(yright),b~(b ./ stderr),sigma,resid,F34|F56|F78|F910|F1112|F1_12|F2_12,critVal);
+endp;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

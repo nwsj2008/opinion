@@ -1,0 +1,248 @@
+2008-12-16 13:52:04,000 INFO  segment.SegmentRunner - 分词进程启动
+2008-12-16 13:52:04,171 INFO  cfg.Environment - Hibernate 3.1.3
+2008-12-16 13:52:04,171 INFO  cfg.Environment - hibernate.properties not found
+2008-12-16 13:52:04,203 INFO  cfg.Environment - using CGLIB reflection optimizer
+2008-12-16 13:52:04,218 INFO  cfg.Environment - using JDK 1.4 java.sql.Timestamp handling
+2008-12-16 13:52:04,359 INFO  cfg.Configuration - configuring from resource: /hibernate.cfg.xml
+2008-12-16 13:52:04,359 INFO  cfg.Configuration - Configuration resource: /hibernate.cfg.xml
+2008-12-16 13:52:04,453 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbCluster.hbm.xml
+2008-12-16 13:52:04,734 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbCluster -> tb_cluster
+2008-12-16 13:52:04,765 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbClusterTopic.hbm.xml
+2008-12-16 13:52:04,812 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbClusterTopic -> tb_cluster_topic
+2008-12-16 13:52:04,953 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbHotTopic.hbm.xml
+2008-12-16 13:52:05,000 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbHotTopic -> tb_hot_topic
+2008-12-16 13:52:05,000 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbParserBbs.hbm.xml
+2008-12-16 13:52:05,031 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbParserBbs -> tb_parser_bbs
+2008-12-16 13:52:05,031 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbParserNews.hbm.xml
+2008-12-16 13:52:05,078 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbParserNews -> tb_parser_news
+2008-12-16 13:52:05,078 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbReBbs.hbm.xml
+2008-12-16 13:52:05,093 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbReBbs -> tb_re_bbs
+2008-12-16 13:52:05,109 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbReNews.hbm.xml
+2008-12-16 13:52:05,125 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbReNews -> tb_re_news
+2008-12-16 13:52:05,125 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbSensitiveTopic.hbm.xml
+2008-12-16 13:52:05,156 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbSensitiveTopic -> tb_sensitive_topic
+2008-12-16 13:52:05,156 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbAuRef.hbm.xml
+2008-12-16 13:52:05,171 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbAuRef -> tb_au_ref
+2008-12-16 13:52:05,171 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbUser.hbm.xml
+2008-12-16 13:52:05,203 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbUser -> tb_user
+2008-12-16 13:52:05,203 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbAu.hbm.xml
+2008-12-16 13:52:05,203 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbAu -> tb_au
+2008-12-16 13:52:05,203 INFO  cfg.Configuration - Configured SessionFactory: null
+2008-12-16 13:52:05,218 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbCluster.tbSensitiveTopics -> tb_sensitive_topic
+2008-12-16 13:52:05,218 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbCluster.tbHotTopics -> tb_hot_topic
+2008-12-16 13:52:05,218 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbCluster.tbClusterTopics -> tb_cluster_topic
+2008-12-16 13:52:05,218 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbParserBbs.tbSensitiveTopics -> tb_sensitive_topic
+2008-12-16 13:52:05,218 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbParserBbs.tbClusterTopics -> tb_cluster_topic
+2008-12-16 13:52:05,218 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbParserBbs.tbReBbses -> tb_re_bbs
+2008-12-16 13:52:05,218 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbParserNews.tbClusterTopics -> tb_cluster_topic
+2008-12-16 13:52:05,218 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbParserNews.tbReNewses -> tb_re_news
+2008-12-16 13:52:05,218 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbParserNews.tbSensitiveTopics -> tb_sensitive_topic
+2008-12-16 13:52:05,218 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbReBbs.tbSensitiveTopics -> tb_sensitive_topic
+2008-12-16 13:52:05,218 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbReNews.tbSensitiveTopics -> tb_sensitive_topic
+2008-12-16 13:52:05,218 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbUser.tbAuRefs -> tb_au_ref
+2008-12-16 13:52:05,218 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbAu.tbAuRefs -> tb_au_ref
+2008-12-16 13:52:05,250 INFO  connection.DriverManagerConnectionProvider - Using Hibernate built-in connection pool (not for production use!)
+2008-12-16 13:52:05,250 INFO  connection.DriverManagerConnectionProvider - Hibernate connection pool size: 20
+2008-12-16 13:52:05,250 INFO  connection.DriverManagerConnectionProvider - autocommit mode: false
+2008-12-16 13:52:05,281 INFO  connection.DriverManagerConnectionProvider - using driver: com.mysql.jdbc.Driver at URL: jdbc:mysql://localhost:3306/yqfx
+2008-12-16 13:52:05,281 INFO  connection.DriverManagerConnectionProvider - connection properties: {user=root, password=****}
+2008-12-16 13:52:06,046 INFO  cfg.SettingsFactory - RDBMS: MySQL, version: 5.0.41-community-nt
+2008-12-16 13:52:06,046 INFO  cfg.SettingsFactory - JDBC driver: MySQL-AB JDBC Driver, version: mysql-connector-java-5.0.8 ( Revision: ${svn.Revision} )
+2008-12-16 13:52:06,078 INFO  dialect.Dialect - Using dialect: org.hibernate.dialect.MySQLDialect
+2008-12-16 13:52:06,093 INFO  transaction.TransactionFactoryFactory - Using default transaction strategy (direct JDBC transactions)
+2008-12-16 13:52:06,093 INFO  transaction.TransactionManagerLookupFactory - No TransactionManagerLookup configured (in JTA environment, use of read-write or transactional second-level cache is not recommended)
+2008-12-16 13:52:06,093 INFO  cfg.SettingsFactory - Automatic flush during beforeCompletion(): disabled
+2008-12-16 13:52:06,093 INFO  cfg.SettingsFactory - Automatic session close at end of transaction: disabled
+2008-12-16 13:52:06,093 INFO  cfg.SettingsFactory - JDBC batch size: 50
+2008-12-16 13:52:06,093 INFO  cfg.SettingsFactory - JDBC batch updates for versioned data: disabled
+2008-12-16 13:52:06,093 INFO  cfg.SettingsFactory - Scrollable result sets: enabled
+2008-12-16 13:52:06,093 INFO  cfg.SettingsFactory - JDBC3 getGeneratedKeys(): enabled
+2008-12-16 13:52:06,093 INFO  cfg.SettingsFactory - JDBC result set fetch size: 50
+2008-12-16 13:52:06,093 INFO  cfg.SettingsFactory - Connection release mode: auto
+2008-12-16 13:52:06,093 INFO  cfg.SettingsFactory - Maximum outer join fetch depth: 3
+2008-12-16 13:52:06,093 INFO  cfg.SettingsFactory - Default batch fetch size: 4
+2008-12-16 13:52:06,093 INFO  cfg.SettingsFactory - Generate SQL with comments: disabled
+2008-12-16 13:52:06,093 INFO  cfg.SettingsFactory - Order SQL updates by primary key: disabled
+2008-12-16 13:52:06,093 INFO  cfg.SettingsFactory - Query translator: org.hibernate.hql.ast.ASTQueryTranslatorFactory
+2008-12-16 13:52:06,093 INFO  ast.ASTQueryTranslatorFactory - Using ASTQueryTranslatorFactory
+2008-12-16 13:52:06,109 INFO  cfg.SettingsFactory - Query language substitutions: {}
+2008-12-16 13:52:06,109 INFO  cfg.SettingsFactory - Second-level cache: enabled
+2008-12-16 13:52:06,109 INFO  cfg.SettingsFactory - Query cache: disabled
+2008-12-16 13:52:06,109 INFO  cfg.SettingsFactory - Cache provider: org.hibernate.cache.EhCacheProvider
+2008-12-16 13:52:06,109 INFO  cfg.SettingsFactory - Optimize cache for minimal puts: disabled
+2008-12-16 13:52:06,109 INFO  cfg.SettingsFactory - Structured second-level cache entries: disabled
+2008-12-16 13:52:06,125 INFO  cfg.SettingsFactory - Echoing all SQL to stdout
+2008-12-16 13:52:06,125 INFO  cfg.SettingsFactory - Statistics: disabled
+2008-12-16 13:52:06,125 INFO  cfg.SettingsFactory - Deleted entity synthetic identifier rollback: disabled
+2008-12-16 13:52:06,125 INFO  cfg.SettingsFactory - Default entity-mode: pojo
+2008-12-16 13:52:06,203 INFO  impl.SessionFactoryImpl - building session factory
+2008-12-16 13:52:07,234 INFO  impl.SessionFactoryObjectFactory - Not binding factory to JNDI, no JNDI name configured
+2008-12-16 13:52:07,953 INFO  segment.SegmentRunner - TbParserBbs分词结束
+2008-12-16 13:52:07,984 INFO  segment.SegmentRunner - TbReBbs分词结束
+2008-12-16 13:52:14,453 INFO  segment.SegmentRunner - TbParserNews分词结束
+2008-12-16 13:52:14,656 INFO  segment.SegmentRunner - TbReNews分词结束
+2008-12-16 13:52:14,656 INFO  analysis.AnalysisThreadFactory - 分词进程结束
+2008-12-16 13:52:14,656 INFO  cluster.ClusterRunner - 聚类线程启动
+2008-12-16 13:52:14,750 INFO  cluster.ClusterRunner - 聚类线程结束
+2008-12-16 14:11:27,640 INFO  segment.SegmentRunner - 分词进程启动
+2008-12-16 14:11:27,781 INFO  cfg.Environment - Hibernate 3.1.3
+2008-12-16 14:11:27,796 INFO  cfg.Environment - hibernate.properties not found
+2008-12-16 14:11:27,812 INFO  cfg.Environment - using CGLIB reflection optimizer
+2008-12-16 14:11:27,812 INFO  cfg.Environment - using JDK 1.4 java.sql.Timestamp handling
+2008-12-16 14:11:27,937 INFO  cfg.Configuration - configuring from resource: /hibernate.cfg.xml
+2008-12-16 14:11:27,937 INFO  cfg.Configuration - Configuration resource: /hibernate.cfg.xml
+2008-12-16 14:11:28,000 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbCluster.hbm.xml
+2008-12-16 14:11:28,234 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbCluster -> tb_cluster
+2008-12-16 14:11:28,265 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbClusterTopic.hbm.xml
+2008-12-16 14:11:28,328 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbClusterTopic -> tb_cluster_topic
+2008-12-16 14:11:28,453 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbHotTopic.hbm.xml
+2008-12-16 14:11:28,500 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbHotTopic -> tb_hot_topic
+2008-12-16 14:11:28,500 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbParserBbs.hbm.xml
+2008-12-16 14:11:28,531 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbParserBbs -> tb_parser_bbs
+2008-12-16 14:11:28,531 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbParserNews.hbm.xml
+2008-12-16 14:11:28,578 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbParserNews -> tb_parser_news
+2008-12-16 14:11:28,578 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbReBbs.hbm.xml
+2008-12-16 14:11:28,593 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbReBbs -> tb_re_bbs
+2008-12-16 14:11:28,593 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbReNews.hbm.xml
+2008-12-16 14:11:28,640 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbReNews -> tb_re_news
+2008-12-16 14:11:28,640 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbSensitiveTopic.hbm.xml
+2008-12-16 14:11:28,656 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbSensitiveTopic -> tb_sensitive_topic
+2008-12-16 14:11:28,656 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbAuRef.hbm.xml
+2008-12-16 14:11:28,687 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbAuRef -> tb_au_ref
+2008-12-16 14:11:28,687 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbUser.hbm.xml
+2008-12-16 14:11:28,718 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbUser -> tb_user
+2008-12-16 14:11:28,718 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbAu.hbm.xml
+2008-12-16 14:11:28,718 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbAu -> tb_au
+2008-12-16 14:11:28,734 INFO  cfg.Configuration - Configured SessionFactory: null
+2008-12-16 14:11:28,734 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbCluster.tbSensitiveTopics -> tb_sensitive_topic
+2008-12-16 14:11:28,734 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbCluster.tbHotTopics -> tb_hot_topic
+2008-12-16 14:11:28,734 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbCluster.tbClusterTopics -> tb_cluster_topic
+2008-12-16 14:11:28,734 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbParserBbs.tbSensitiveTopics -> tb_sensitive_topic
+2008-12-16 14:11:28,734 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbParserBbs.tbClusterTopics -> tb_cluster_topic
+2008-12-16 14:11:28,734 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbParserBbs.tbReBbses -> tb_re_bbs
+2008-12-16 14:11:28,734 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbParserNews.tbClusterTopics -> tb_cluster_topic
+2008-12-16 14:11:28,734 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbParserNews.tbReNewses -> tb_re_news
+2008-12-16 14:11:28,734 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbParserNews.tbSensitiveTopics -> tb_sensitive_topic
+2008-12-16 14:11:28,734 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbReBbs.tbSensitiveTopics -> tb_sensitive_topic
+2008-12-16 14:11:28,734 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbReNews.tbSensitiveTopics -> tb_sensitive_topic
+2008-12-16 14:11:28,734 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbUser.tbAuRefs -> tb_au_ref
+2008-12-16 14:11:28,734 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbAu.tbAuRefs -> tb_au_ref
+2008-12-16 14:11:28,750 INFO  connection.DriverManagerConnectionProvider - Using Hibernate built-in connection pool (not for production use!)
+2008-12-16 14:11:28,750 INFO  connection.DriverManagerConnectionProvider - Hibernate connection pool size: 20
+2008-12-16 14:11:28,750 INFO  connection.DriverManagerConnectionProvider - autocommit mode: false
+2008-12-16 14:11:28,765 INFO  connection.DriverManagerConnectionProvider - using driver: com.mysql.jdbc.Driver at URL: jdbc:mysql://localhost:3306/yqfx
+2008-12-16 14:11:28,781 INFO  connection.DriverManagerConnectionProvider - connection properties: {user=root, password=****}
+2008-12-16 14:11:29,203 INFO  cfg.SettingsFactory - RDBMS: MySQL, version: 5.0.41-community-nt
+2008-12-16 14:11:29,203 INFO  cfg.SettingsFactory - JDBC driver: MySQL-AB JDBC Driver, version: mysql-connector-java-5.0.8 ( Revision: ${svn.Revision} )
+2008-12-16 14:11:29,250 INFO  dialect.Dialect - Using dialect: org.hibernate.dialect.MySQLDialect
+2008-12-16 14:11:29,265 INFO  transaction.TransactionFactoryFactory - Using default transaction strategy (direct JDBC transactions)
+2008-12-16 14:11:29,265 INFO  transaction.TransactionManagerLookupFactory - No TransactionManagerLookup configured (in JTA environment, use of read-write or transactional second-level cache is not recommended)
+2008-12-16 14:11:29,265 INFO  cfg.SettingsFactory - Automatic flush during beforeCompletion(): disabled
+2008-12-16 14:11:29,265 INFO  cfg.SettingsFactory - Automatic session close at end of transaction: disabled
+2008-12-16 14:11:29,265 INFO  cfg.SettingsFactory - JDBC batch size: 50
+2008-12-16 14:11:29,265 INFO  cfg.SettingsFactory - JDBC batch updates for versioned data: disabled
+2008-12-16 14:11:29,265 INFO  cfg.SettingsFactory - Scrollable result sets: enabled
+2008-12-16 14:11:29,265 INFO  cfg.SettingsFactory - JDBC3 getGeneratedKeys(): enabled
+2008-12-16 14:11:29,265 INFO  cfg.SettingsFactory - JDBC result set fetch size: 50
+2008-12-16 14:11:29,265 INFO  cfg.SettingsFactory - Connection release mode: auto
+2008-12-16 14:11:29,265 INFO  cfg.SettingsFactory - Maximum outer join fetch depth: 3
+2008-12-16 14:11:29,265 INFO  cfg.SettingsFactory - Default batch fetch size: 4
+2008-12-16 14:11:29,265 INFO  cfg.SettingsFactory - Generate SQL with comments: disabled
+2008-12-16 14:11:29,265 INFO  cfg.SettingsFactory - Order SQL updates by primary key: disabled
+2008-12-16 14:11:29,265 INFO  cfg.SettingsFactory - Query translator: org.hibernate.hql.ast.ASTQueryTranslatorFactory
+2008-12-16 14:11:29,281 INFO  ast.ASTQueryTranslatorFactory - Using ASTQueryTranslatorFactory
+2008-12-16 14:11:29,281 INFO  cfg.SettingsFactory - Query language substitutions: {}
+2008-12-16 14:11:29,281 INFO  cfg.SettingsFactory - Second-level cache: enabled
+2008-12-16 14:11:29,281 INFO  cfg.SettingsFactory - Query cache: disabled
+2008-12-16 14:11:29,281 INFO  cfg.SettingsFactory - Cache provider: org.hibernate.cache.EhCacheProvider
+2008-12-16 14:11:29,281 INFO  cfg.SettingsFactory - Optimize cache for minimal puts: disabled
+2008-12-16 14:11:29,281 INFO  cfg.SettingsFactory - Structured second-level cache entries: disabled
+2008-12-16 14:11:29,296 INFO  cfg.SettingsFactory - Echoing all SQL to stdout
+2008-12-16 14:11:29,296 INFO  cfg.SettingsFactory - Statistics: disabled
+2008-12-16 14:11:29,296 INFO  cfg.SettingsFactory - Deleted entity synthetic identifier rollback: disabled
+2008-12-16 14:11:29,296 INFO  cfg.SettingsFactory - Default entity-mode: pojo
+2008-12-16 14:11:29,343 INFO  impl.SessionFactoryImpl - building session factory
+2008-12-16 14:11:30,531 INFO  impl.SessionFactoryObjectFactory - Not binding factory to JNDI, no JNDI name configured
+2008-12-16 14:11:30,953 INFO  segment.SegmentRunner - TbParserBbs分词结束
+2008-12-16 14:11:30,968 INFO  segment.SegmentRunner - TbReBbs分词结束
+2008-12-16 14:11:50,218 INFO  segment.SegmentRunner - 分词进程启动
+2008-12-16 14:11:50,296 INFO  cfg.Environment - Hibernate 3.1.3
+2008-12-16 14:11:50,296 INFO  cfg.Environment - hibernate.properties not found
+2008-12-16 14:11:50,296 INFO  cfg.Environment - using CGLIB reflection optimizer
+2008-12-16 14:11:50,312 INFO  cfg.Environment - using JDK 1.4 java.sql.Timestamp handling
+2008-12-16 14:11:50,421 INFO  cfg.Configuration - configuring from resource: /hibernate.cfg.xml
+2008-12-16 14:11:50,421 INFO  cfg.Configuration - Configuration resource: /hibernate.cfg.xml
+2008-12-16 14:11:50,484 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbCluster.hbm.xml
+2008-12-16 14:11:50,656 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbCluster -> tb_cluster
+2008-12-16 14:11:50,703 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbClusterTopic.hbm.xml
+2008-12-16 14:11:50,750 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbClusterTopic -> tb_cluster_topic
+2008-12-16 14:11:50,859 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbHotTopic.hbm.xml
+2008-12-16 14:11:50,906 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbHotTopic -> tb_hot_topic
+2008-12-16 14:11:50,906 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbParserBbs.hbm.xml
+2008-12-16 14:11:50,937 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbParserBbs -> tb_parser_bbs
+2008-12-16 14:11:50,937 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbParserNews.hbm.xml
+2008-12-16 14:11:50,968 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbParserNews -> tb_parser_news
+2008-12-16 14:11:50,968 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbReBbs.hbm.xml
+2008-12-16 14:11:51,000 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbReBbs -> tb_re_bbs
+2008-12-16 14:11:51,000 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbReNews.hbm.xml
+2008-12-16 14:11:51,031 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbReNews -> tb_re_news
+2008-12-16 14:11:51,031 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbSensitiveTopic.hbm.xml
+2008-12-16 14:11:51,046 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbSensitiveTopic -> tb_sensitive_topic
+2008-12-16 14:11:51,046 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbAuRef.hbm.xml
+2008-12-16 14:11:51,078 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbAuRef -> tb_au_ref
+2008-12-16 14:11:51,078 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbUser.hbm.xml
+2008-12-16 14:11:51,093 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbUser -> tb_user
+2008-12-16 14:11:51,093 INFO  cfg.Configuration - Reading mappings from resource: edu/opinion/common/db/TbAu.hbm.xml
+2008-12-16 14:11:51,109 INFO  cfg.HbmBinder - Mapping class: edu.opinion.common.db.TbAu -> tb_au
+2008-12-16 14:11:51,109 INFO  cfg.Configuration - Configured SessionFactory: null
+2008-12-16 14:11:51,125 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbCluster.tbSensitiveTopics -> tb_sensitive_topic
+2008-12-16 14:11:51,125 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbCluster.tbHotTopics -> tb_hot_topic
+2008-12-16 14:11:51,125 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbCluster.tbClusterTopics -> tb_cluster_topic
+2008-12-16 14:11:51,125 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbParserBbs.tbSensitiveTopics -> tb_sensitive_topic
+2008-12-16 14:11:51,125 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbParserBbs.tbClusterTopics -> tb_cluster_topic
+2008-12-16 14:11:51,125 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbParserBbs.tbReBbses -> tb_re_bbs
+2008-12-16 14:11:51,125 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbParserNews.tbClusterTopics -> tb_cluster_topic
+2008-12-16 14:11:51,125 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbParserNews.tbReNewses -> tb_re_news
+2008-12-16 14:11:51,125 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbParserNews.tbSensitiveTopics -> tb_sensitive_topic
+2008-12-16 14:11:51,125 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbReBbs.tbSensitiveTopics -> tb_sensitive_topic
+2008-12-16 14:11:51,125 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbReNews.tbSensitiveTopics -> tb_sensitive_topic
+2008-12-16 14:11:51,125 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbUser.tbAuRefs -> tb_au_ref
+2008-12-16 14:11:51,125 INFO  cfg.HbmBinder - Mapping collection: edu.opinion.common.db.TbAu.tbAuRefs -> tb_au_ref
+2008-12-16 14:11:51,140 INFO  connection.DriverManagerConnectionProvider - Using Hibernate built-in connection pool (not for production use!)
+2008-12-16 14:11:51,140 INFO  connection.DriverManagerConnectionProvider - Hibernate connection pool size: 20
+2008-12-16 14:11:51,140 INFO  connection.DriverManagerConnectionProvider - autocommit mode: false
+2008-12-16 14:11:51,140 INFO  connection.DriverManagerConnectionProvider - using driver: com.mysql.jdbc.Driver at URL: jdbc:mysql://localhost:3306/yqfx
+2008-12-16 14:11:51,140 INFO  connection.DriverManagerConnectionProvider - connection properties: {user=root, password=****}
+2008-12-16 14:11:51,500 INFO  cfg.SettingsFactory - RDBMS: MySQL, version: 5.0.41-community-nt
+2008-12-16 14:11:51,500 INFO  cfg.SettingsFactory - JDBC driver: MySQL-AB JDBC Driver, version: mysql-connector-java-5.0.8 ( Revision: ${svn.Revision} )
+2008-12-16 14:11:51,546 INFO  dialect.Dialect - Using dialect: org.hibernate.dialect.MySQLDialect
+2008-12-16 14:11:51,562 INFO  transaction.TransactionFactoryFactory - Using default transaction strategy (direct JDBC transactions)
+2008-12-16 14:11:51,562 INFO  transaction.TransactionManagerLookupFactory - No TransactionManagerLookup configured (in JTA environment, use of read-write or transactional second-level cache is not recommended)
+2008-12-16 14:11:51,562 INFO  cfg.SettingsFactory - Automatic flush during beforeCompletion(): disabled
+2008-12-16 14:11:51,562 INFO  cfg.SettingsFactory - Automatic session close at end of transaction: disabled
+2008-12-16 14:11:51,562 INFO  cfg.SettingsFactory - JDBC batch size: 50
+2008-12-16 14:11:51,562 INFO  cfg.SettingsFactory - JDBC batch updates for versioned data: disabled
+2008-12-16 14:11:51,562 INFO  cfg.SettingsFactory - Scrollable result sets: enabled
+2008-12-16 14:11:51,562 INFO  cfg.SettingsFactory - JDBC3 getGeneratedKeys(): enabled
+2008-12-16 14:11:51,562 INFO  cfg.SettingsFactory - JDBC result set fetch size: 50
+2008-12-16 14:11:51,562 INFO  cfg.SettingsFactory - Connection release mode: auto
+2008-12-16 14:11:51,562 INFO  cfg.SettingsFactory - Maximum outer join fetch depth: 3
+2008-12-16 14:11:51,562 INFO  cfg.SettingsFactory - Default batch fetch size: 4
+2008-12-16 14:11:51,562 INFO  cfg.SettingsFactory - Generate SQL with comments: disabled
+2008-12-16 14:11:51,562 INFO  cfg.SettingsFactory - Order SQL updates by primary key: disabled
+2008-12-16 14:11:51,562 INFO  cfg.SettingsFactory - Query translator: org.hibernate.hql.ast.ASTQueryTranslatorFactory
+2008-12-16 14:11:51,562 INFO  ast.ASTQueryTranslatorFactory - Using ASTQueryTranslatorFactory
+2008-12-16 14:11:51,562 INFO  cfg.SettingsFactory - Query language substitutions: {}
+2008-12-16 14:11:51,562 INFO  cfg.SettingsFactory - Second-level cache: enabled
+2008-12-16 14:11:51,562 INFO  cfg.SettingsFactory - Query cache: disabled
+2008-12-16 14:11:51,562 INFO  cfg.SettingsFactory - Cache provider: org.hibernate.cache.EhCacheProvider
+2008-12-16 14:11:51,578 INFO  cfg.SettingsFactory - Optimize cache for minimal puts: disabled
+2008-12-16 14:11:51,578 INFO  cfg.SettingsFactory - Structured second-level cache entries: disabled
+2008-12-16 14:11:51,578 INFO  cfg.SettingsFactory - Echoing all SQL to stdout
+2008-12-16 14:11:51,578 INFO  cfg.SettingsFactory - Statistics: disabled
+2008-12-16 14:11:51,578 INFO  cfg.SettingsFactory - Deleted entity synthetic identifier rollback: disabled
+2008-12-16 14:11:51,593 INFO  cfg.SettingsFactory - Default entity-mode: pojo
+2008-12-16 14:11:51,640 INFO  impl.SessionFactoryImpl - building session factory
+2008-12-16 14:11:52,703 INFO  impl.SessionFactoryObjectFactory - Not binding factory to JNDI, no JNDI name configured
+2008-12-16 14:11:53,218 INFO  segment.SegmentRunner - TbParserBbs分词结束
+2008-12-16 14:11:53,234 INFO  segment.SegmentRunner - TbReBbs分词结束

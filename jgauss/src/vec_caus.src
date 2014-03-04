@@ -1,0 +1,311 @@
+/*
+ This file is part of the econometric software package JMulTi.
+ Copyright (C) 2000-2005  Alexander Benkwitz, Markus Kraetzig
+
+ This program is free software; you can redistribute it and/or
+ modify it under the terms of the GNU General Public License
+ as published by the Free Software Foundation; either version 2
+ of the License, or (at your option) any later version.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, write to the Free Software
+ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ */
+
+ 
+#ifos2win 
+/* to be used by library creation, windows only */
+#include extern.dec
+external matrix __XLM_LOADED;
+#endif
+
+/*
+** PURPOSE
+** Performs causality tests.
+**
+** SYNTAX
+** {grangerStatistic, grangerDf1, grangerDf2, granger_P_value,
+**       instantStatistic, instantDf, instant_P_value} = 
+** vec_causality(y,py,x,px,d, ySelection,Cx,Cd,isVecm);
+**
+** INPUT
+**        y / (py+T,K) / matrix / endogenous observations
+**        py/ (1,1)    / matrix / number of lags of endogenous variable
+**        x / (px+T,M) / matrix / exogenous observations
+**        px/ (1,1)    / matrix / number of lags of exogenous variable
+**        d / (py+T,N)    / matrix / deterministic values
+**        ySelection / (K,1) / matrix / 0-1 matrix
+**        Cx/ (K,(px+1)*M)   / matrix / subset restrictions for exogenous variables
+**        Cd/ (K,N)          / matrix / subset restrictions for deterministic variables
+**        isVecm/ (1,1)    / matrix / 0 or 1, indicates whether underlying model is model is I(1), if 1 the restrictions are only set up to A(py-1) 
+** OUTPUT
+**        grangerStatistic 
+**        grangerDf1
+**        grangerDf2 
+**        granger_P_value
+**        instantStatistic
+**        instantDf
+**        instant_P_value
+**
+** REMARK
+**        Restrictions for instanteanous causality were imposed on the covariance matrix
+**        of the residuals.
+*/
+proc(7)=vec_causality(y,py,x,px,d, ySelection,Cx,Cd,isVecm);
+	local grangerStatistic, grangerDf1, grangerDf2, granger_P_value,
+	      instantStatistic, instantDf, instant_P_value,
+	      K,T,C,N,n_i,temp,
+	      b_hat,cv_b_hat,u_hat,cv_u_hat,
+	      sigma,D_inv;
+	K = cols(y);
+	T = rows(y)-py;
+	/* correction to make sure that rows(x) satisfied T+px 	 */
+	if rows(x) and rows(x)/=T+px;
+	   x = x[rows(x)-T-px+1:rows(x),.];
+	endif;
+	if rows(d);
+		d = d[py+1:py+T,.];
+	endif;
+	if isVecm > 0;
+	  isVecm = 1;
+	endif;
+	@ compute test statistic @
+	local parY, parX, parD, msg;
+	{parY, parX, parD, u_hat, cv_b_hat, cv_u_hat, msg} = 
+	        vml__gls_sr(y,x,d,py,px, 1, Cx, Cd,isVecm);
+    
+	b_hat = parY~parX~parD;
+
+
+	/*
+	** compute test for granger causality 
+	*/
+	if py-isVecm >0;
+		N=round(sumc(ySelection))*round(sumc(.not(ySelection)))*(py-isVecm);
+		C=zeros(N,rows(cv_b_hat));
+		n_i=1;
+		for p_i (1,py-isVecm,1);
+			for i (1,K,1);
+				for j (1,K,1);
+					if ySelection[i]==1 AND ySelection[j]==0;
+						C[n_i,(i-1)*K+j+(p_i-1)*K*K]=1;
+						n_i=n_i+1;
+					endif;
+				endfor;
+			endfor;
+		endfor;
+
+		grangerStatistic=vec(b_hat)'*C'*inv(C*(cv_b_hat/T)*C')*C*vec(b_hat)/N;
+
+		@ compute first degree of freedom @
+		grangerDf1=N;
+		@ compute second degree of freedom @
+		grangerDf2=K*T-(K^2)*py;
+		if rows(Cx)>0;
+			grangerDf2=grangerDf2-round(sumc(vecr(Cx)));
+		endif;
+		if rows(Cd)>0;
+			grangerDf2=grangerDf2-round(sumc(vecr(Cd)));
+		endif;
+		@ compute p-value @
+		granger_P_value = cdffc(grangerStatistic,grangerDf1,grangerDf2);
+	else;
+		grangerStatistic={};
+		grangerDf1={};
+		grangerDf2={};
+		granger_P_value={};
+	endif;
+
+
+	/*
+	** Testing for instantaneous causality
+	*/
+	sigma=vechc(cv_u_hat);
+	temp=delif(seqa(1,1,rows(sigma)),vechc(ySelection.==ySelection'));
+	N=round(sumc(ySelection))*round(sumc(.not(ySelection)));
+	C=zeros(N,rows(sigma));
+
+	for i (1,N,1);
+   		C[i,temp[i]]=1;
+	endfor;
+	D_inv = pinv(duplicationMatrix(K));
+	instantStatistic = T*sigma'*C'*inv(2*C*D_inv*(cv_u_hat.*.cv_u_hat)*D_inv'*C')*C*sigma;
+	instantDf = N;
+	instant_P_value = cdfchic(instantStatistic,instantDf);
+
+	retp(grangerStatistic, grangerDf1, grangerDf2, granger_P_value,
+	      instantStatistic, instantDf, instant_P_value);
+endp;
+
+/**
+**
+** PURPOSE Computes series of decomposed forecast error.
+**
+** SYNTAX  vd = vec_fevd(orth_ir);
+**
+** INPUT
+**         orth_ir / (N,K*K) / matrix / series of vectorized orthogonal impulse responses
+** OUTPUT
+**         vd / (N-1,K*K) / matrix / series of decomposed forecast error
+**
+** REMARK
+**        If $X$ is the matrix of decomposed forecast errors than the element
+**        $x_{i,j}$ is the proportion of forecast error in variable $i$ that is accounted
+**        for by an innovation in variable $j$. Thus summing the rows of $X$ should lead to 1.
+**        The output {\tt vd} is organized such that $i$-th row contains vec$(X')'$
+**        which is the matrix of decomposed forecast errors at forecast horizon $i$.
+**
+**
+*/
+proc(1)=vec_fevd(orth_ir);
+	local K,y,mse,theta,mse_h,temp;
+
+
+	K=round(sqrt(cols(orth_ir)));
+
+	/* computing MSE */
+	mse = zeros(rows(orth_ir),K);
+	mse_h=zeros(K,K);
+	for h (1,rows(mse),1);
+		theta=reshape(orth_ir[h,.],K,K);
+		mse_h=mse_h+theta*theta';
+		mse[h,.]=diag(mse_h)';
+	endfor;
+
+	/* and the rest */
+	orth_ir=orth_ir^2;
+	y=zeros(rows(orth_ir)-1,cols(orth_ir));
+	for i (1,rows(y),1);
+		temp=sumc(orth_ir[1:i,.]./(mse[i,.].*.ones(1,K)))';
+		y[i,.]=temp;
+	endfor;
+
+	retp(y);
+endp;
+/**
+** PURPOSE Plots matrix of decomposed forecast errors.
+**
+** SYNTAX
+**         call vec_fevd_plot(vd,Ny,ySelection);
+**
+** INPUT
+**        vd / (N,K*K) / matrix / series of vectorized matrices of decomposed forecast errors.
+**        Ny / (K,1)   / string array / names of variables
+**        ySelection / (K,1) / matrix / selection vector (1=make plot, 0=hide)
+**        h /  (1,1) / matrix / forecast horizon, must be at least 2
+**        bartypes /  (k,2) / matrix / 1st column with shading, 2nd column with color, when empty default is used
+**
+** OUTPUT
+**        graphic display
+**
+** REMARK
+**
+**
+*/
+proc(0)=vec_fevd_plot(vd,Ny,ySelection,h, bartypes);
+	local temp, x, K, i, tshift, N;
+
+	K=round(sqrt(cols(vd)));
+	if not(round(K*K)==cols(vd));
+		errorlog("Wrong number of columns!");
+		retp();
+	endif;
+
+	if rows(vd)<h;
+		h = rows(vd);
+	endif;
+	if rows(vd)>h;
+		vd = vd[1:h,.];
+	endif;
+
+	ySelection = selif(seqa(1,1,rows(ySelection)),ySelection);
+	if scalmiss(ySelection);
+		ySelection=seqa(1,1,K);
+	endif;
+	N=rows(ySelection);
+
+	if rows(Ny)/=K;
+		Ny="y"$+ftocv(seqa(1,1,K),1,0);
+	endif;
+
+	/* for all plots */
+
+	@ legend in default position (computed by gauss), variable font size @
+	if N>2;
+		_plegctl = {4 9 0 0};
+	else;
+		_plegctl = {4 7 0 0};
+	endif;
+	if Ny$/="";
+		_plegstr=Ny[rows(Ny)];
+		for i (rows(Ny)-1,1,-1);
+			_plegstr = _plegstr$+"\0"$+Ny[i];
+		endfor;
+	else;
+		_plegstr = "";
+	endif;
+	_pbarwid = 0.6;       /* overlapping */
+	_paxht = .2;
+	/* the default bar type */
+	if cols(bartypes) < 2;
+	  _pbartyp = { 6 9, 6 10, 6 11, 6 12, 6 13, 6 14, 6 1, 6 2 , 6 3, 6 4, 6 5, 6 6, 6 7, 6 8, 6 8 };
+	else;
+	  _pbartyp = bartypes;
+	endif;	
+	_pnum = 2;
+
+	/* plot */
+	
+	_ptitlht=0;
+
+	_ptitle = "Forecast Error Variance Decomposition (FEVD)";
+	ylabel("Proportions of FEV");
+	xlabel("Time Index");
+
+	begwind;
+
+	setGlobalPlot_plot();
+	
+	@ thanks to Sune Karlsson! @
+	tshift = smwintit_plot( N, 1, _ptitle, 0 );
+	_pdate = "";
+	ytics(0,1,.1,1);
+	if N<2;
+		_ptitlht=.2;
+	else;
+		_ptitlht = .4;
+	endif;
+	i=1;
+	do while (i<(N+1));
+	  setwind(tshift + i);
+		title("Forecast Error of '"$+Ny[ySelection[i]]$+"'");
+		if  __jm_show_plot_title == 0;
+		  _ptitle = "";
+		endif;
+		_ptitlht = __jm_height_plot_title; 
+		x=rev(cumsumc(vd[.,(ySelection[i]-1)*K+1:ySelection[i]*K]'))';
+		bar(0,x);    
+		i=i+1;
+	endo;
+	endwind;
+	if __XLM_LOADED;
+		dllcall showLastGraphic;
+	endif;
+
+
+endp;
+
+
+
+
+
+
+
+
+
+

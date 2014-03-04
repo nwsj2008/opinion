@@ -1,0 +1,475 @@
+/*
+ This file is part of the econometric software package JMulTi.
+ Copyright (C) 2000-2005  Alexander Benkwitz
+
+ This program is free software; you can redistribute it and/or
+ modify it under the terms of the GNU General Public License
+ as published by the Free Software Foundation; either version 2
+ of the License, or (at your option) any later version.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, write to the Free Software
+ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ */
+#ifos2win 
+/* to be used by library creation, windows only */
+#include var.dec
+#endif
+
+/*
+** SYNTAX  
+** {parY, parX, parD, u, cv_par, cvu, msg} 
+**    = vml__gls_lr(y,x,d, py,px, Ry,Ry_c, Rx,Rx_c, Rd,Rd_c);
+**
+** PURPOSE 
+** GLS estimation with linear constraints.
+**
+** INPUT    y    / (py+T,K)       / observations for endogenous variables
+**          x    / (px+T,L)       / observations for predetermined variables
+**                                  that enter the model with lags (see {\tt px})
+**               / (0,0)          / if model does not include such variables
+**                                  {\tt x=\{\}}
+**          d    / (T,M)          / observations for predetermined variables that 
+**                                  do not enter the model with lags
+**               / (0,0)          / if model does not include such variables
+**                                  {\tt d=\{\}}
+**          py   / (1,1)          / number of presample values in {\tt y} and 
+**                                  lag number for endogenous variables
+**          px   / (1,1)          / number of presample values in {\tt x} and 
+**                                  lag number for this variable
+**          Ry   / (K*K*py,M)     / 
+**               / (0,0)          / if none
+**          Ry_c / (K*K*py,1)     /
+**               / (0,0)          / if none
+**          Rx   / (L*K*(px+1),N) /
+**               / (0,0)          / if none
+**          Rx_c / (L*K*(px+1),1) /
+**               / (0,0)          / if none
+**          Rd   / (M*K,O)        /
+**               / (0,0)          / if none
+**          Rd_c / (M*K,1)        /
+**               / (0,0)          / if none
+**
+** OUTPUT   
+** parY  / (K,K*py)     /
+**       / (0,0)        /
+** parX  / (K,L*(px+1)) /
+**       / (0,0)        /
+** parD  / (K,M)        /
+**       / (0,0)        /
+** u     / (T,K)        /
+** cv_par/ (K*(K*py+L*(px+1)+M),K*(K*py+L*(px+1)+M)) /
+** cv_u  / (K,K)        /
+** msg   / (1,1)        / string  /
+**
+** REMARK  
+** {\tt cv\_b\_hat} is the estimated asymptotic covariance matrix of {\tt vec(b\_hat)}
+**
+** For speed use {\tt vml\_\_gls\_sr()} if subset restrictions were specified. 
+**
+** SEE
+** vml__gls_sr
+**
+**
+*/
+proc(7)=vml__gls_lr(y,x,d,py,px, Ry,Ry_c, Rx,Rx_c, Rd,Rd_c,isVECM);
+	local T,K,n1,n2,n3,y_lhs,Z,R,R_c,
+	      parY,parX,parD,u,cv_par,cvu,cvu_i,ZZ,ZZi,g,b,cvuDiv,n,
+	      old__var_gls_cvu, d0,d1,msg,iter_i;
+
+
+	T = rows(y) - py;
+	K = cols(y);
+	if cols(x)==0; 
+	  px=0; 
+	endif;
+	py = maxc(py|0);
+   	n1 = py*K;
+	n2 = cols(x)*(px+1);
+   	n3 = cols(d);
+	n =  n1+n2+n3;
+	msg = "";
+
+	{y_lhs,Z,R,R_c}=vml__prepareLS(y,x,d,py,px, Ry,Ry_c, Rx,Rx_c, Rd,Rd_c);
+	
+      /* check whether subset model or not */      
+      if (cols(R) and cols(R) < n) or isVECM;
+		cvuDiv = T;
+      else; 
+		cvuDiv = T-n; /* no subset */
+      endif;
+  	  
+	y_lhs = y_lhs';
+	if rows(Z); Z=Z'; endif;
+
+	if rows(R_c);
+		y_lhs = y_lhs-(Z'.*.eye(K))*R_c; 
+	endif;
+
+
+	@ now estimate @
+	__var_iter=maxc(1|__var_iter);
+	old__var_gls_cvu = __var_gls_cvu;
+	/***iteration loop***/
+	iter_i = 1;
+	do while iter_i <= __var_iter;
+	/***iteration loop***/
+
+
+	if R==0;
+		@ white noise model @
+		parY     = {};
+		parX     = {};
+		parD     = {};
+		u        = y_lhs';
+		cv_par   = {};
+		cvu     = (u'*u)/cvuDiv;
+	else;
+		ZZ = Z*Z';
+
+		@ get an estimate for the residual covariance matrix 'cvu' from an OLS estimation @
+			if K==1 and rows(__var_gls_cvu)==1 and __var_gls_cvu>0;
+				@ if you are smart you can directly input a guess for cvu (e.g. in iteration) @
+					cvu = __var_gls_cvu;
+					if feq(det(cvu),0);
+						"";
+						errorlog("The covariance argument for GLS estimation is singular.");
+						  
+						retp(-10,-10,-10,-10,-10,-10,-10);
+					endif;
+
+			elseif __var_gls_cvu==0;
+				@ estimate cvu from unconstraint OLS (fastest) @
+					g=solpd(Z*y[py+1:py+T,.],ZZ)';
+					u=(y[py+1:py+T,.]'-g*Z);
+					cvu=u*u'/cvuDiv;
+
+			elseif __var_gls_cvu==-1;
+				@ estimate cvu from constraint OLS @
+					g = solpd(R'*(Z.*.eye(K))*vec(y_lhs),R'*(ZZ.*.eye(K))*R);
+					b = R*g;
+					if rows(R_c);
+						b = b+R_c;
+					endif;
+					b     = reshape(b,n1+n2+n3,K)';		
+					u     = (y_lhs - b * Z)';
+					cvu   = u'*u/cvuDiv;
+
+			else;
+				@ error ! @ 
+	   				"";
+		   			errorlog("Bad value for global variable '__var_gls_cvu'");
+					errorlog("(Controls the estimation of residual covariance matrix");
+					errorlog(" in GLS estimation.)");
+					retp(-10,-10,-10,-10,-10,-10,-10);
+			endif;
+			cvu_i = invpd(cvu);
+				
+
+		@ compute now the generalized LS estimator @
+			g = solpd(R'*(Z.*.cvu_i)*vec(y_lhs),R'*(ZZ.*.cvu_i)*R);
+			b = R*g;
+			if rows(R_c);
+				b = b+R_c;
+			endif;
+			b     = reshape(b,n1+n2+n3,K)';		
+			u     = (y_lhs - b * Z)';
+			cvu   = u'*u/cvuDiv; 
+
+			g = (ZZ)/T;
+			cv_par = R*solpd(R', R'*(g.*.invpd(cvu))*R);
+
+			if n1; parY = b[.,1:n1];             else; parY={}; endif;
+			if n2; parX = b[.,n1+1:n1+n2];       else; parX={}; endif;
+			if n3; parD = b[.,n1+n2+1:n1+n2+n3];  else; parD={}; endif;
+	endif;
+
+
+	@ analyse i-th iteration @
+		if iter_i>1;
+		   	d1 = det(cvu);
+   			d0 = det(__var_gls_cvu);
+			msg = "Stopped after "$+ftocv(iter_i,1,0)$+" iterations: ";
+			if abs((ln(d1)-ln(d0))/ln(d0))<=__var_tol;
+				msg=msg$+"Tolerance level reached.";
+				break;
+			else;
+				msg=msg$+"Maximum number of iterations reached.";
+			endif;
+	   	endif;
+		__var_gls_cvu = cvu;
+
+	
+	/***iteration loop***/
+	iter_i = iter_i + 1;
+	endo;
+   	__var_gls_cvu = old__var_gls_cvu;
+	/***iteration loop***/
+
+	retp(parY, parX, parD, u, cv_par, cvu, msg);
+endp;
+
+/*
+** SYNTAX 
+** {parY, parX, parD, u, cv_par, cvu, msg} = vml__gls_sr(y,x,d,py,px, sr_y, sr_x, sr_d);
+**
+** PURPOSE 
+** GLS estimation with subset restrictions.
+**
+** INPUT
+** y     /  (py+T,K)       / observations for endogenous variables
+** x     /  (px+T,L)       / observations for predetermined variables
+**                           that enter the model with lags (see {\tt px})
+**       /  (0,0)          / if model does not include such variables
+**                           {\tt x=\{\}}
+** d     /  (T,M)          / observations for predetermined variables that 
+**                           do not enter the model with lags
+**       /  (0,0)          / if model does not include such variables
+**                           {\tt d=\{\}}
+** py    / (1,1)           / number of presample values in {\tt y} and 
+**                           lag number for endogenous variables
+** px    / (1,1)           / number of presample values in {\tt x} and 
+**                           lag number for this variable
+** sr_y  / (K,py*K)        / Subset restriction matrix
+**       / (1,1)           / $=1$ or $=0$ as shortcut for matrix of ones and zeros.
+**       / (0,0)           / Empty matrix as shortcut for $=1$
+** sr_x  / (K,(px+1)*L)    / Subset restriction matrix
+**       / (1,1)           / $=1$ or $=0$ as shortcut for matrix of ones and zeros.
+**       / (0,0)           / Empty matrix as shortcut for $=1$
+** sr_d  / (K,M)           / Subset restriction matrix
+**       / (1,1)           / $=1$ or $=0$ as shortcut for matrix of ones and zeros.
+**       / (0,0)           / Empty matrix as shortcut for $=1$
+**
+** OUTPUT
+**
+**
+**
+** REMARK
+** This procedure traps problems while matrix inversion.
+** The first returned argument should be checked against scalerr to see whether
+** problems occurred during calling this procedure.
+**
+*/
+proc(7)=vml__gls_sr(y,x,d,py,px, sr_y, sr_x, sr_d, isVECM);
+	local T,K,r,n,n1,n2,n3,Z,parY,parX,parD,u,cv_par,cvu,cvu_i,g,b,cvDiv,sr,
+	      zbuffer,zi,zj,zcz,zcy,lastRow,lastCol,tmp,old__var_gls_cvu,d0,d1,msg,iter_i;
+
+	  
+	T = rows(y) - py;
+	K = cols(y);
+	if cols(x)==0; px=0; endif;
+	py = maxc(py|0);
+   	n1 = py*K;
+	n2 = cols(x)*(px+1);
+   	n3 = cols(d);
+	n  = n1+n2+n3;
+	msg = "";
+
+	@ synchronize sr matrices @
+		sr_y = vml__syncSRMatrix(sr_y,K,n1);
+		sr_x = vml__syncSRMatrix(sr_x,K,n2);
+		sr_d = vml__syncSRMatrix(sr_d,K,n3);
+		sr   = sr_y~sr_x~sr_d;
+
+/* change 10-03-02
+*/
+	@ 'sr' _must_ contain _only_ zeros and ones! @
+		sr = .not .not sr;
+/* end change.
+*/
+		
+	@ compute number of parameters in restricted model @	
+		if rows(sr);
+			r = sumc(vecr(sr));		
+		else;
+			r = 0;
+		endif;
+		
+	@ compute divisor for covariance estimation @
+	/* check whether subset model or not */
+	if r < rows(vecr(sr)) or isVECM;
+	  cvDiv = T;
+	else;
+	  cvDiv = T-n; /* not restricted */
+	endif;
+ 
+	 
+	@ create regressor and regressand @
+		Z = vml__getRegMatrix(y,x,d,py,px);
+
+	@ now estimate @
+	__var_iter=maxc(1|__var_iter);
+	old__var_gls_cvu = __var_gls_cvu;
+	/***iteration loop***/
+	iter_i = 1;
+	do while iter_i <= __var_iter;
+	/***iteration loop***/
+
+
+	if r==0;
+		@ white noise model @
+			parY = {};
+			parX = {};
+			parD = {};
+			cv_par = {};
+			if n1>0;
+				parY = zeros(K,n1);
+			endif;
+			if n2>0;
+				parX = zeros(K,n2);
+			endif;
+			if n3>0;
+				parD = zeros(K,n3);
+			endif;
+			if n>0;
+				cv_par = zeros(K*n,K*n);
+			endif;
+			u   = y';
+			cvu = (u'*u)/cvDiv;
+	else;
+
+		@ get an estimate for the residual covariance matrix 'cvu' from an OLS estimation @
+			if rows(__var_gls_cvu)==K and __var_gls_cvu>0;
+				@ if you are smart you can directly input a guess for cvu (e.g. in iteration) @
+					cvu = __var_gls_cvu;
+
+			elseif __var_gls_cvu == 0;
+				@ estimate cvu from unconstraint OLS (fastest) @
+				   	   tmp ={};
+					   trap 1;
+					   tmp = invpd(Z'*Z);
+					   trap 0;
+					   if scalerr(tmp);
+					     Z;
+					     errorlog("Matrix Z not invertible in GLS estimation.");
+					     retp(-10,-10,-10,-10,-10,-10,-10);
+					   endif;
+
+					g=tmp*Z'*y[py+1:py+T,.];
+					u=y[py+1:py+T,.]-Z*g;
+					cvu=u'*u/cvDiv;
+			elseif __var_gls_cvu == -1;
+				@ estimate cvu from constraint OLS @
+					b = sr;
+					for i(1,K,1);
+						tmp = selif(seqa(1,1,n),sr[i,.]');
+						if not(scalmiss(tmp));
+							zi = Z[.,tmp'];
+							b[i,tmp'] = solpd(zi'*y[py+1:py+T,i],zi'*zi)';
+						endif; 
+					endfor;
+					u   = y[py+1:py+T,.]-Z*b';
+					cvu = u'*u/cvDiv;
+
+			else;
+				@ error ! @ 
+	   				"";
+		   			errorlog("Bad value for global variable '__var_gls_cvu'");
+					errorlog("(Controls the estimation of residual covariance matrix");
+					errorlog(" in GLS estimation.)");
+					retp(-10,-10,-10,-10,-10,-10,-10);
+			endif;
+			cvu_i = invpd(cvu);
+
+
+		@ compute now the generalized LS estimator @
+			zbuffer = 0;
+			for i(1,K,1);
+				tmp=i;
+				zbuffer = vput(zbuffer,selif(z',sr[i,.]')',"z"$+ftocv(tmp,1,0));
+			endfor;
+
+			zcz = zeros(r,r);
+			lastRow=0;
+			for i(1,K,1);
+				tmp=i;
+   				zi = vread(zbuffer,"z"$+ftocv(tmp,1,0));
+				if not(scalmiss(zi));
+					lastCol=0;
+					for j(1,K,1);
+						tmp=j;
+						zj = vread(zbuffer,"z"$+ftocv(tmp,1,0));
+						if not(scalmiss(zj));
+							zcz[lastRow+1:lastRow+cols(zi),lastCol+1:lastCol+cols(zj)]=
+								cvu_i[i,j]*zi'*zj ;
+							lastCol = lastCol + cols(zj);
+						endif;
+					endfor;
+					lastRow = lastRow+cols(zi);
+				endif;
+			endfor;
+
+			zcy = zeros(r,1);
+			lastRow = 0;
+			for i(1,K,1);
+				tmp=i;
+   				zi = vread(zbuffer,"z"$+ftocv(tmp,1,0));
+				if not(scalmiss(zi));
+   					zcy[lastRow+1:lastRow+cols(zi)]=
+						zi'*sumc((cvu_i[i,.].*y[py+1:py+T,.])');
+					lastRow = lastRow+cols(zi);
+				endif;
+			endfor;
+			g = solpd(zcy,zcz);
+			b = vecr(sr);
+			b[selif(seqa(1,1,K*n),vecr(sr))] = g;
+			b = reshape(b,K,n);		
+
+			u   = y[py+1:py+T,.]-Z*b';
+			cvu = u'*u/cvDiv;
+		
+			tmp = selif(seqa(1,1,K*n),vec(sr));
+			g = (Z'*Z)/T;
+			g = g.*.invpd(cvu);
+			g = g[tmp,tmp];
+			cv_par = zeros(K*n,K*n);
+			cv_par[tmp,tmp]=invpd(g);
+	
+			
+			if n1; parY = b[.,1:n1];              else; parY={}; endif;
+			if n2; parX = b[.,n1+1:n1+n2];        else; parX={}; endif;
+			if n3; parD = b[.,n1+n2+1:n1+n2+n3];  else; parD={}; endif;
+	endif;
+
+
+	@ analyse i-th iteration @
+		if iter_i>1;
+		   	d1 = det(cvu);
+   			d0 = det(__var_gls_cvu);
+			msg = "Stopped after "$+ftocv(iter_i,1,0)$+" iterations: ";
+			if abs((ln(d1)-ln(d0))/ln(d0))<=__var_tol;
+				msg=msg$+"Tolerance level reached.";
+				break;
+			else;
+				msg=msg$+"Maximum number of iterations reached.";
+			endif;
+	   	endif;
+		__var_gls_cvu = cvu;
+
+	
+	/***iteration loop***/
+	iter_i = iter_i + 1;
+	endo;
+   	__var_gls_cvu = old__var_gls_cvu;
+	/***iteration loop***/
+
+	retp(parY, parX, parD, u, cv_par, cvu, msg);
+endp;
+
+
+
+
+
+
+
+
+
+
+
+
+

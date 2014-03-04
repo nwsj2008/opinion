@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<dataset source="猪流感" time="2009-06-16 21:31:46">
+	<dataitems itemname="observation">
+		<dataitem timespan="2009-05-25 00" value="8.0" />
+		<dataitem timespan="2009-05-25 12" value="73.0" />
+		<dataitem timespan="2009-05-26 00" value="82.0" />
+		<dataitem timespan="2009-05-26 12" value="142.0" />
+		<dataitem timespan="2009-05-27 00" value="145.0" />
+		<dataitem timespan="2009-05-27 12" value="180.0" />
+		<dataitem timespan="2009-05-28 00" value="199.0" />
+		<dataitem timespan="2009-05-28 12" value="243.0" />
+		<dataitem timespan="2009-05-29 00" value="243.0" />
+		<dataitem timespan="2009-05-29 12" value="262.0" />
+		<dataitem timespan="2009-05-30 00" value="267.0" />
+		<dataitem timespan="2009-05-30 12" value="306.0" />
+		<dataitem timespan="2009-05-31 00" value="314.0" />
+		<dataitem timespan="2009-05-31 12" value="434.0" />
+		<dataitem timespan="2009-06-01 00" value="434.0" />
+		<dataitem timespan="2009-06-01 12" value="443.0" />
+		<dataitem timespan="2009-06-02 00" value="444.0" />
+		<dataitem timespan="2009-06-02 12" value="449.0" />
+		<dataitem timespan="2009-06-03 00" value="450.0" />
+		<dataitem timespan="2009-06-03 12" value="460.0" />
+		<dataitem timespan="2009-06-04 00" value="460.0" />
+		<dataitem timespan="2009-06-04 12" value="463.0" />
+		<dataitem timespan="2009-06-05 00" value="482.0" />
+		<dataitem timespan="2009-06-05 12" value="513.0" />
+		<dataitem timespan="2009-06-06 00" value="515.0" />
+		<dataitem timespan="2009-06-06 12" value="528.0" />
+		<dataitem timespan="2009-06-07 00" value="532.0" />
+		<dataitem timespan="2009-06-07 12" value="538.0" />
+		<dataitem timespan="2009-06-08 00" value="546.0" />
+		<dataitem timespan="2009-06-08 12" value="561.0" />
+		<dataitem timespan="2009-06-09 00" value="571.0" />
+		<dataitem timespan="2009-06-09 12" value="589.0" />
+		<dataitem timespan="2009-06-10 00" value="608.0" />
+		<dataitem timespan="2009-06-10 12" value="663.0" />
+		<dataitem timespan="2009-06-11 00" value="669.0" />
+		<dataitem timespan="2009-06-11 12" value="802.0" />
+		<dataitem timespan="2009-06-12 00" value="843.0" />
+		<dataitem timespan="2009-06-12 12" value="917.0" />
+		<dataitem timespan="2009-06-13 00" value="946.0" />
+		<dataitem timespan="2009-06-13 12" value="1138.0" />
+		<dataitem timespan="2009-06-14 00" value="1178.0" />
+		<dataitem timespan="2009-06-14 12" value="1290.0" />
+		<dataitem timespan="2009-06-15 00" value="1342.0" />
+		<dataitem timespan="2009-06-15 12" value="1453.0" />
+	</dataitems>
+	<dataitems itemname="forecast">
+		<dataitem timespan="2009-06-14 00" value="1178.0"
+			lowerci="1178.0" upperci="1178.0" />
+		<dataitem timespan="2009-06-14 12" value="1313.1097805036877"
+			lowerci="1243.6471974843225" upperci="1382.572363523053" />
+		<dataitem timespan="2009-06-15 00" value="1352.8559198743874"
+			lowerci="1254.095184188904" upperci="1451.6166555598707" />
+		<dataitem timespan="2009-06-15 12" value="1451.8904335578293"
+			lowerci="1300.8664990280463" upperci="1602.9143680876123" />
+		<dataitem timespan="2009-06-16 00" value="1491.0904390344035"
+			lowerci="1301.1467735950398" upperci="1681.0341044737672" />
+		<dataitem timespan="2009-06-16 12" value="1567.244766406693"
+			lowerci="1329.4055195763988" upperci="1805.0840132369874" />
+		<dataitem timespan="2009-06-17 00" value="1605.854196359321"
+			lowerci="1327.801389408706" upperci="1883.9070033099358" />
+		<dataitem timespan="2009-06-17 12" value="1667.494508198486"
+			lowerci="1345.811309378327" upperci="1989.1777070186452" />
+		<dataitem timespan="2009-06-18 00" value="1705.5745071550848"
+			lowerci="1345.1689774261727" upperci="2065.980036883997" />
+		<dataitem timespan="2009-06-18 12" value="1758.006219917936"
+			lowerci="1357.8976725008288" upperci="2158.1147673350433" />
+		<dataitem timespan="2009-06-19 00" value="1795.6522027441567"
+			lowerci="1359.2001721550776" upperci="2232.104233333236" />
+	</dataitems>
+</dataset>

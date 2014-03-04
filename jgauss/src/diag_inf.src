@@ -1,0 +1,208 @@
+/*
+ This file is part of the econometric software package JMulTi.
+ Copyright (C) 2000-2005  Markus Kraetzig
+
+ This program is free software; you can redistribute it and/or
+ modify it under the terms of the GNU General Public License
+ as published by the Free Software Foundation; either version 2
+ of the License, or (at your option) any later version.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, write to the Free Software
+ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ */
+
+/* procedure that takes y, x and d matrix as input und returns 
+
+written by Markus Kraetzig 2001
+
+infocrits and a vector of optimal laglength 
+maxlag -- to search from  startlag  up to maxlag
+exlag -- lags of exogenous variables
+yr -- TxK matrix of endogenous variables
+x -- TxS matrix of exogenous variables
+d -- TxM matrix of deterministic variables
+*/
+
+
+proc(2)=var_infocrit(yr, x, d, startlag, maxlag,exlag);
+local  b,j,i, resid, dime, sigma, aic_out, aic, alags, fpe, fpe_out, flags, hlags, slags, sc, sc_out, hq, hq_out, opt, t,max,y,z;
+clear aic_out,fpe_out,hq_out,sc_out;
+if d == 0;
+  d = {};
+endif;
+if x == 0;
+  x = {};
+endif;
+
+if exlag <= maxlag;
+  max = maxlag;
+else;
+  if rows(x) > 0;
+    max = exlag;
+  else;
+    max = maxlag;
+  endif;
+endif;
+
+y = yr[max+1:rows(yr),.];
+t = rows(y);
+j = startlag;
+dime=cols(yr);
+do while j <= maxlag;
+  z = ones(1,t);
+  if rows(d) > 0;
+    z = z|d[max+1:rows(d),.]';
+  endif;
+  if rows(x) > 0;
+    i = 0;
+    do while i <= exlag;
+      z = z|x[max+1-i:rows(x)-i,.]';
+      i = i+1;
+    endo;
+  endif;
+  if rows(y) > 0;
+    i = 0;
+    do while i < j;
+      z = z|yr[max-i:rows(yr)-1-i,.]';
+      i = i+1;
+    endo;
+  endif;
+  if j>0 or rows(x)>0 or rows(d)>0;
+    z=trimr(z,1,0);
+  endif;
+  b = inv(z*z')*z*y;
+  resid = y'-b'*z;
+  sigma=(resid*resid')/t;
+  aic = ln(det(sigma))+2*j*dime^2/t;
+  aic_out=aic_out|aic;
+  fpe = ((t+rows(z))/(t-rows(z)))^dime*det(sigma);
+  fpe_out = fpe_out|fpe;
+  sc = ln(det(sigma))+ln(t)/t*j*dime^2;
+  sc_out=sc_out|sc;
+  hq = ln(det(sigma))+2*ln(ln(t))/t*j*dime^2;
+  hq_out=hq_out|hq;
+  j=j+1;
+endo;
+
+aic_out=aic_out[2:rows(aic_out),.];
+fpe_out=fpe_out[2:rows(fpe_out),.];
+sc_out=sc_out[2:rows(sc_out),.];
+hq_out=hq_out[2:rows(hq_out),.];
+
+alags=indnv(minc(aic_out),aic_out)-1;
+flags=indnv(minc(fpe_out),fpe_out)-1;
+hlags=indnv(minc(hq_out),hq_out)-1;
+slags=indnv(minc(sc_out),sc_out)-1;
+opt=alags|flags|hlags|slags;
+opt = opt + startlag;
+retp(aic_out~fpe_out~hq_out~sc_out,opt);
+endp;
+
+
+/* just give the values of the information criteria
+input:
+resids = T x K of resids from VAR
+p = used lags ins VAR
+n_of_para = the number of parameters estimated in the model
+in the FPE, the average estimated coefficients in each equation are used
+output: 
+inf = AIC|FPE|SC|HQ
+*/
+proc(1)=display_infocrit(resids, n_of_para);
+local inf,t,dime,sigma;
+inf=zeros(4,1);
+dime=cols(resids);
+t=rows(resids);
+sigma=(resids'*resids)./t;
+
+inf[1,1] = ln(det(sigma))+2*n_of_para/t;
+
+inf[2,1] = ((t+n_of_para/dime)/(t-n_of_para/dime))^dime*det(sigma);
+
+inf[3,1] = ln(det(sigma))+ln(t)/t*n_of_para;
+
+inf[4,1] = ln(det(sigma))+2*ln(ln(t))/t*n_of_para;
+
+retp(inf);
+endp;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

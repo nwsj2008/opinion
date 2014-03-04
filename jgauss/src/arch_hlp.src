@@ -1,0 +1,183 @@
+/*
+ This file is part of the econometric software package JMulTi.
+ Copyright (C) 2000-2005  Helmut Herwartz, Christian Kascha, Markus Kraetzig
+
+ This program is free software; you can redistribute it and/or
+ modify it under the terms of the GNU General Public License
+ as published by the Free Software Foundation; either version 2
+ of the License, or (at your option) any later version.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, write to the Free Software
+ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ */
+/**
+ * Helper Procedures in ARCH library, shared by arch_a*.src files
+ * author: Markus Kraetzig, mk@mk-home.de, Jan 2003
+ */
+
+/**
+ * AUTHORS	    
+ * PD Dr. Helmut Herwartz     helmut@wiwi.hu-berlin.de
+ * Christian Kascha	      christian_kascha@gmx.de
+ *
+ * Chair of Econometrics
+ * Humboldt University Berlin
+ * Spandauer Str. 1
+ * 10178 Berlin
+ * ise.wiwi.hu-berlin.de/oekonometrie/engl/indexeng.html		
+ * Berlin, January 2003
+ */
+
+ 
+/********** Estimation of Parameters using the BHHH - Algorithm ************* 
+
+INPUT   
+ableit method pointer to function computing the first derivative
+lik    method pointer to function computing the likelihood
+
+OUTPUT	
+g    Parameters plus loglikelihood ((q+3) x 1)
+
+*****************************************************************************/
+
+proc(1)=BHHH_arch_arch(r2,q,theta,e2,Z,T,&ableit,&lik);
+local stelle,th,steps,ende2,step,temp,sig,iterat,ab1,theta1,j,abl,abl2,liks,ab11,ab2t,ende, maxIter;
+local ableit:proc;
+local lik:proc;
+
+maxIter = 10000;
+
+th=theta;
+steps=0.5~0.1~0.01~0.005~0;
+step=2;
+stelle=0;
+ende2=0;
+
+iterat=1;
+do until ende2 == 1 or iterat > maxIter;
+
+  theta=th;
+  theta1=zeros(rows(theta),5);
+  
+  abl=Ableit(e2,Z,theta);
+  
+  abl2=abl*abl';
+  abl=sumc(abl');
+  
+  
+  j=1;
+  do until j>5;
+    temp=th+step*steps[.,j]*inv(abl2)*abl;
+    
+    theta1[.,j]=temp;
+    
+    j=j+1;
+  endo;
+  
+  theta1=abs(theta1); 
+  
+  ab11=zeros(5,1);
+  ab11[5,.]=LIK(Z,T,q,th,e2); 
+  
+  ende=0;
+  j=4;
+  do until (j < 1) or (ende == 1);
+    liks=lik(Z,T,q,theta1[.,j],e2);
+    ab11[j,.]=liks;
+    if ab11[j+1,.] lt ab11[j,.];
+      ende=1;
+    endif;
+    j=j-1;
+  endo; 
+  
+  stelle=minindc(ab11[(j+1):rows(ab11),.])+j;
+  
+  ab1=ab11[stelle,.];
+  if ((ab1-ab11[5,.])^2/abs(ab11[5,.])) lt 0.00000001;
+    ende2=1;
+  endif;
+  th=theta1[.,stelle];
+  iterat=iterat+1;
+endo;
+
+liks=lik(Z,T,q,th,e2);
+
+
+retp(th|liks);
+endp;  
+
+
+/* ******************************************************************************* */
+/* ********* Generation of Matrix of "explanatory errors " ********************* */
+/*
+OUTPUT
+        ger         Matrix of errors  ((T-q) x (q+1)), global name: Z
+                
+                
+*/
+/* ******************************************************************************* */
+proc(1)=genZ_garch_arch(r2,q);                            
+local ger;
+
+ger=ones(rows(r2),1)~lagn(r2,seqa(1,1,q));
+ger=ger[q+1:rows(ger),.];
+retp(ger);
+endp;
+
+
+/* ******************************************************************************* */
+/* ********* Generation of Matrix of "explanatory errors " ********************* */
+/*
+ARCH models only
+
+OUTPUT
+ger 		Matrix of errors  ((T-q) x (q+1)), global name: Z
+				
+*/
+/* ********************************************************************************/
+
+proc(1)=genZ_arch_arch(r2,T,q);
+local a,b,c,d,e,f,g,ger;
+a=r2[1:T-1,1];
+b=r2[1:T-2,1];
+c=r2[1:T-3,1];
+d=r2[1:T-4,1];
+e=r2[1:T-5,1];
+b=0|b;
+c=0|0|c;
+d=0|0|0|d;
+e=0|0|0|0|e; 
+
+ger=ones(T-1,1)~a~b~c~d~e;
+f=T-1; 
+g=q+1;
+ger=ger[q:f,1:g];
+
+retp(ger);
+endp;
+
+proc(1)=genZ0_arch_arch(r2,T,q,ucvar);
+local a,b,c,d,g,e,ger;
+a=r2[1:T-1,1];
+b=r2[1:T-2,1];
+c=r2[1:T-3,1];
+d=r2[1:T-4,1];
+e=r2[1:T-5,1];
+a=ucvar|a;
+b=ucvar|ucvar|b;
+c=ucvar|ucvar|ucvar|c;
+d=ucvar|ucvar|ucvar|ucvar|d;
+e=ucvar|ucvar|ucvar|ucvar|ucvar|e;
+
+ger=ones(T,1)~a~b~c~d~e;
+g=q+1;
+ger=ger[1:q,1:g];
+
+retp(ger);
+endp;

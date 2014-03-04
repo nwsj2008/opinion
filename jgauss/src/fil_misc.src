@@ -1,0 +1,156 @@
+/*
+ This file is part of the econometric software package JMulTi.
+ Copyright (C) 2000-2005  Paul Soderlind, Markus Kraetzig
+
+ This program is free software; you can redistribute it and/or
+ modify it under the terms of the GNU General Public License
+ as published by the Free Software Foundation; either version 2
+ of the License, or (at your option) any later version.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, write to the Free Software
+ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ */
+
+/*-----------------------------------------------------------------------
+**  hodpres_filter
+**  Author: Paul Soderlind <nepso@HHS.SE>
+**  An efficient HP-filter. Any comments are welcome.
+**  Provided without guarantees for free public, non-commercial use.
+**  Date: 30 May 1997
+**
+**
+**  Purpose:   HP-filtering of a several time series, assuming no missing
+**             values.
+**
+**  Usage:     { gy,cy } = hodpres_filter( y,lambda );
+**
+**  Input:     y            NxM matrix with M time series
+**             lambda       degree of smoothness (1600 is a common value)
+**
+**  Output:    gy           NxM matrix of trend component
+**             cy           NxM matrix of cyclical component
+**
+**
+**
+**  Note:      (a) This procedure uses Toeplitz() to set up the K matrix,
+**             and the band matrix routines for inverting. This gives
+**             a fast code with very small storage requirements.
+**
+**             (b) The trend component, gy, is calculated as
+**             gy = inv(A) * y, where  A =  I + lambda*K'K. The cyclical
+**             component is then cy = y - gy. The matrix K is as follows
+**
+**                    1 -2  1  0  0 ... 0  0  0
+**                    0  1 -2  1  0 ... 0  0  0
+**               K =  0  0  1 -2  1 ... 0  0  0
+**                    .  .  .  .  .     .  .  .
+**                    .  .  .  .  .     .  .  .
+**                    0  0  0  0  0 ... 1 -2  1
+**
+**
+**  Reference: Danthine and Girardin (1989), "Business Cycles In Switzerland:
+**             A Comparative Study," European Economic Review 33, 31-50.
+**
+**
+**  Paul Soderlind, 30 May 1997.
+-----------------------------------------------------------------------*/
+
+proc(1) = hodpres_filter( y,lambda );
+
+  local N,gk,K,A,bandA,CholA,gy,cy;
+  
+  N = rows(y);
+
+  if N < 5;                         /*pattern of A different if N < 5*/
+    retp( error(0),error(0) );
+  endif;
+
+  gk = 1|(-2)|1|zeros(2,1);       /*prototype 5x5 K matrix*/
+  K = upmat(toeplitz(gk));
+  K = trimr(k,0,2);
+  A = eye(5)+lambda*k'*k;         /*prototype 5x5 A matrix*/
+  bandA = band(A,2);            /*band from A, extending to TxT matrix*/
+  bandA = bandA[1:2,.] | (ones(N-4,1).*bandA[3,.]) | bandA[4:5,.];
+  CholA = bandchol( bandA );    /*Cholesky decomp of band representation*/
+  gy = bandcholsol( y,CholA );      /*solving for "trend" component*/
+  cy = y - gy;                      /*"cyclical" component*/
+
+  retp( gy~cy );
+
+endp;
+/*-----------------------------------------------------------------------*/
+
+
+
+/*
+benötigt pgraph und plot;
+
+Variable ACT:
+        0 = Spektrum berechnen 
+        1 = wie 0, aber Log-Skala
+Variable M
+	windowsize of Bartlett window (1 - T)
+	1 = periodogram
+Variable X
+	T x K data matrix
+
+example: 	
+x=rndn(100,2);
+fs=spectrum(x,20,1);
+
+*/
+
+
+proc(1)=spectrum_filter(X,M,ACT);
+
+local n,NS,bart,c,h,F,S,Stmp,z,i,xx;
+m=trunc(m);
+if m < 1;
+  m = 1;
+endif;
+n=rows(x);
+x=x-meanc(x)'; 
+i = 1;
+do while i <= cols(x);
+  xx = x[.,i];
+  NS=2^(CEIL(LOG(N)/LOG(2))+1);
+  /* Compute ACVF(xx) with Bartlett window */
+  IF M==1;
+    BART=ONES(N,1); 
+  ELSE;
+    bart=seqa(1,-1/n,m).*(1+cos(pi.*seqa(0,1/m,m)))./2;
+    IF M<N;
+      BART=BART|zeros(n-m,1);
+    ENDIF;
+  ENDIF;
+  /* ACVF */
+  C=BART.*TRIMR(REAL(rfft(abs(NS*rfft((xx)|ZEROS(NS-N,1)))^2)),0,NS-N)/N;
+  /* smoothed periodogram */
+  /* h=real(rfft(c|zeros(NS-N,1))); */
+  h=real(rfft(c));
+  NS=ROWS(H);
+  Stmp=(NS*2*H[1:NS/2+1]-C[1]);
+  Stmp=rows(Stmp).*Stmp./sumc(Stmp);
+  if i == 1;
+    S = Stmp;
+  else;
+    S = S~Stmp;
+  endif;
+  i = i + 1;
+endo;
+f=seqa(0,2*pi/NS,(NS/2+1));
+if m == 1;
+  f = trimr(f,1,0);
+  s = trimr(s,1,0);
+endif;
+if ACT==1 and minc(minc(s))>0;
+  s=log(s);
+endif;
+retp(f~S);
+endp;

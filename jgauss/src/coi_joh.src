@@ -1,0 +1,836 @@
+/*
+ This file is part of the econometric software package JMulTi.
+ Copyright (C) 2000-2005  Carsten Trenkler, Markus Kraetzig
+
+ This program is free software; you can redistribute it and/or
+ modify it under the terms of the GNU General Public License
+ as published by the Free Software Foundation; either version 2
+ of the License, or (at your option) any later version.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, write to the Free Software
+ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ */
+
+/* ************************************************************** */
+/* ** this is the main method to call the other procedures ****** 
+written by Carsten Trenkler 2000*/
+/* ************************************************************** */
+/* yy        = TxK Data Matrix */
+/* dummies   = matrix of the dummies (without seasonal dummies) */
+/* dummies_r = matrix of the restricted dummies (without seasonal dummies), not lagged */
+/* seasdum   = centered seasonal dummies */
+/* p         = number lags to include */
+/* teststate = 1:const ; */
+/*	       2:const+trend ; */
+/* 	       3:trend orthogonal to cointegration relation (breaks are ignored, should also
+                 not be included in dummies or dummies_r) */
+
+/* break_index = indices telling the procedure when the breaks happen, 
+                 the index is 1 based and is related to the overall sample, not lag truncated,
+		 important in computation of critical values because relative sample lengths are required, 
+		 actual breaks must be properly specified via variables in dummies and dummies_r
+		 possible values:
+                       
+                  {} no breaks, or 
+                  1 x 1 scalar with breakindex-allowing 1 shift or
+		  2 x 1 vector with breakindizes-allowing 2 shifts */
+		  
+/* isTrendBreak = 1 - specified breaks in break_index are in levels and trend (only valid in teststate 2)
+                  0 - specified breaks in break_index are in levels only (teststate=1 or teststate=2) */
+/* output    = LR statistic, critical values (1%,5%,10%), pvalues */
+
+proc(1) = johtest_cointjoh(yy,dummies, seasdum,dummies_r,p,teststate,break_index,isTrendBreak);
+	local trend, const, y, y_1, dy, dy_k, co, tr, co_re, tr_re;
+	local lr_stat,lr_mod,evec,skk,s0k,s00,y_1r,z,tv, t, n;
+	local betap,beta,alpha,beta_o,alpha_o,psi,omega,et;
+	local crall_all,crit_all, i,maxrank,season,p_val,p_val_all,dummies_r_lagged;
+	
+	season = 0;
+	if rows(seasdum) > 1;
+	  season = 1;
+	endif;
+	t = rows(yy);
+	n = cols(yy);
+	
+	/* dummies are lagged here as well*/
+	{trend,const,y,y_1,dy,dy_k,dummies_r_lagged} = datan_cointjoh(yy,t,p,dummies_r);	
+	
+	
+	if(teststate == 1);
+	  co = 1;tr = 0;co_re = 1;tr_re = 0;isTrendBreak = 0;
+	elseif (teststate == 2);
+	  co = 1;tr = 1;co_re = 0;tr_re = 1;
+	elseif (teststate == 3);
+	  co = 1;tr = 0;co_re = 0;tr_re = 0;isTrendBreak = 0;break_index={};
+	endif;
+	
+	/* computation of the test statistic */
+	{lr_stat,lr_mod,evec,skk,s0k,s00,y_1r,z,tv} = johlr_cointjoh(y_1,dy,dy_k,dummies,dummies_r_lagged,seasdum,trend,
+	tr,const,co,tr_re,co_re,n,p,t,season);
+
+	
+	{betap,beta,alpha,beta_o,alpha_o,psi,omega,et} = para_cointjoh(evec,skk,s0k,s00,dy,y_1r,z,1,p,n,tv);
+	crall_all = {};
+	p_val_all = {};
+	i = 0;
+	maxrank = n - 1;
+	/* when trend orthogonal to coint relation, test only up to r=n-2 */
+	if teststate == 3;
+	  maxrank = n - 2;
+	  lr_stat = trimr(lr_stat,0,1);
+	endif;
+	
+	/* all critical values are computed from the response surface, Doornik (98) in case of no breaks, or 
+	Johansen, Mosconi, Nielsen (2000) in case of max 2 breaks in levels (untrended model) / levels and trend (trended model), 
+	or Trenkler (2004) in case of trended model but breaks only in levels */
+	
+	do while i <= maxrank;
+	  {p_val,crit_all}=rs_wrapper_cointjoh(break_index, isTrendBreak, T, n, i, teststate, lr_stat[i+1]);	  
+	  crall_all = crall_all|crit_all;   /* critical values 90%,95%,99%   */
+	  p_val_all = p_val_all|p_val; 
+	  i = i+1;
+	endo;                    
+
+retp(LR_stat~crall_all~p_val_all);
+endp;
+
+/* 
+constructing time series from data 
+*/
+proc(7) = datan_cointjoh(yy,t,p,dummies_r);
+
+     local trend,const,y,y_1,dy,dy_k,q,dummies_r_lagged;
+
+/* ********************* */
+/*   Dimension   T x K  */
+/* ********************* */
+
+
+/* Deterministic Parts */
+
+dummies_r_lagged = lag1(dummies_r);
+trend = seqa(1,1,t);
+const = ones(t,1);               /* constant term */
+
+/* y, y_1 and dy */
+
+y = yy;
+y_1 = lag1(y);
+dy = y - lag1(y);
+
+
+
+/* Matrix of lagged differences of y */
+
+
+dy_k = zeros(t,1);
+if p >=2;
+   q = 1; 
+   do while (q <= (p-1)); 
+   
+      dy_k  = dy_k~lagn(dy,q);
+      q  = q + 1 ;
+    endo ;
+
+dy_k = trimr(dy_k',1,0)';
+
+else;         
+
+endif;
+
+retp(trend,const,y,y_1,dy,dy_k,dummies_r_lagged);
+
+endp;
+
+
+/* ******************************************************************* */
+/* ****** Reduced rank regression for Johansen-Tests with dummies ****** */
+/* ******************************************************************* */
+
+
+proc(9)=johlr_cointjoh(y_1,dy,dy_k,dummies,dummies_r,seas,trend,tr,const,co,
+                          tr_re,co_re,n,p,t,season);
+
+     local y_1r,z,r0t,rkt,skk,s0k,s00,sig,sig2,skk1_2;
+     local ev,evec,ev1,eve1,ev2,eve2,ev3,zz,m,tv,i;
+     local lr_stat,lr_mod;
+
+ 
+
+     /* ********************************************************** */
+     /* ***** Dimension: T x K *********************************** */
+     /* ********************************************************** */
+
+
+
+y_1 = trimr(y_1,p,0);  /* trim the first p rows of the matrix y_1 */
+dy = trimr(dy,p,0);  /* trim the first p rows of the matrix dy */
+dy_k  = trimr(dy_k,p,0);   /* trim the first p rows of the matrix dy_k*/
+
+const = trimr(const,p,0);  /* trim the first p rows of the vector c */
+trend = trimr(trend,p,0); /* trim the first p rows of the vector trend */
+
+if rows(dummies); 
+dummies = trimr(dummies,p,0);   /* trim the first p rows of the matrix dummies*/ 
+endif;
+if rows(dummies_r);
+dummies_r = trimr(dummies_r,p,0);   /* trim the first p rows of the matrix dummies_r*/ 
+endif;
+if season == 1; 
+seas = trimr(seas,p,0);   /* trim the first p rows of the matrix seas123*/ 
+endif;
+ 
+/********** Construction of Matrix Z *********/
+
+z = zeros((t-p),1);
+
+if tr == 1 and tr_re == 0; /* sonst const in ECM restringiert*/
+   z= z~const~trend;
+elseif (tr == 1 and tr_re == 1) or (tr == 0 and co == 1 and co_re == 0);
+   z = z~const;
+endif;
+
+if p>=2; /* nur dann dy_k besetzt*/
+   z = z~dy_k;
+endif;
+
+if rows(dummies);
+   z = z~dummies;
+endif;
+
+if season == 1;
+  z = z~seas;
+endif;
+
+
+/********** Construction of y_1r ************/
+
+   y_1r = y_1; 
+if tr == 1 and tr_re == 1;
+   y_1r = y_1r~(trend-1);      /* trend restricted to the long-run  */
+elseif tr == 0 and co ==1 and co_re == 1;
+   y_1r = y_1r~const;   /* constant restricted to the long-run  */
+endif;
+
+/* dummies_r are already lagged in datan method */
+if rows(dummies_r);
+   y_1r = y_1r~dummies_r;
+endif;
+
+/* ********** Partialling out the short-run dynamics *********** */
+
+tv = cols(z)>1; /* Check whether z contains variables */
+
+if tv == 1;
+
+   z = trimr(z',1,0)';
+
+   r0t = dy - z*solpd(z'*dy, z'*z); 
+           /* residuals: effects of z is partialled out  from dy by regression */
+
+   rkt = y_1r - z*solpd(z'*y_1r, z'*z); 
+         /* residuals: effects of z are partialled out from y_t-k by regression       */
+
+else;
+
+   r0t = dy;
+   rkt = y_1r;
+   
+endif; 
+
+
+  /* Calculating the second-moment matrices of the residuals and their  */
+  /* cross-products                                                     */
+	
+     skk   = rkt'rkt/rows(rkt);
+     s0k   = rkt'r0t/rows(rkt) ;  /* s0k is sk0 in COINT;   sk0 = s0k' */ 
+     s00   = r0t'r0t/rows(r0t) ; 
+
+/* Set of equations to be solved to get the eigenvalues */
+/*"s0k"; s0k; "s00"; s00; "skk"; skk; */
+     sig   = s0k*invpd(s00)*(s0k');
+
+
+/*****************************************************************************/
+/********** Calculation of the eigenvalues and vectors:  ******************/
+/********** method suggested by Johansen (1995), pp. 95 ****************/
+/*****************************************************************************/
+
+
+/*1st step*/
+
+{ev1,eve1} = eighv(skk);   /*"ev1"; ev1; "b"; b; "eve1"; eve1; */
+                           
+                     /*"ev1"; ev1^(-0.5);*/
+                     /*rows(eve1); cols(eve1); rows(ev1); cols(ev1); (n+1+s_dum+v_dum);*/
+
+skk1_2 = eve1*diagrv(zeros(cols(y_1r),cols(y_1r)), ev1^(-0.5))*eve1';
+
+                      /*"skk1_2"; skk1_2;"skk1"; inv(skk); "skk2"; skk1_2*skk1_2';*/
+
+
+/*2nd step*/
+
+sig2 = skk1_2*sig*skk1_2;                   /*"sig2"; sig2;*/
+
+{ev2,eve2} = eigrs2(sig2);                    /*"ev2"; ev2;  "eve2"; eve2;*/
+    
+                                                            /*ev2;*/
+/*Normalization*/
+
+eve2 = skk1_2*eve2;
+                                                          /*"eve2"; eve2; "eve2'*skk*eve2"; eve2'*skk*eve2;
+                                                          "eve2'*sig*eve2"; eve2'*sig*eve2;*/
+
+														  
+
+eve2 = eve2*inv(chol(eve2'skk*eve2));
+
+                         /* "eve2"; eve2;
+                          "eve2'*skk*eve2"; eve2'*skk*eve2;
+                          "eve2'*sig*eve2"; eve2'*sig*eve2;*/
+
+
+    
+/* Normalize the eigenvectors such that (d'skk*d) = I */
+
+
+  /*"d";d; d'sig*d; */
+  /*d= d'*skk*d;*/
+ 
+
+/******************************************************************************/
+
+
+/* Order the eigenvalues and eigenvectors */
+
+
+     zz    = ev2~(eve2') ;                  /* matrix of eigenvalues and eigenvectors; */
+     zz    = rev(sortc(zz,1)) ;  /* sorts eigenvalues and eigenvectors from */
+                                           /* biggest to smallest (according to the  */
+                                           /* order of the eigenvalues, first column); */
+     ev     = zz[.,1] ;               /* eigenvalues; */
+     evec   = zz[.,2:cols(zz)]' ;  /* eigenvectors (in columns); */
+                                               /* long-run coefficients  */
+                          
+     
+
+/*** Calculation of the Trace-Statistic and its finite sample modification ***/
+
+     ev3 = trimr(ev,0,(cols(y_1r)-n));
+     lr_stat = 0;
+     lr_mod = 0;
+
+     i = 0;
+     do while i <= (n-1);
+           lr_stat   =  lr_stat|-(t-p)*sumc(trimr(ln(1-ev3),i,0));
+
+           lr_mod   =  lr_mod|-(t-(n+1)*p+i-1)*sumc(trimr(ln(1-ev3),i,0));
+           
+           i = i+1;
+      endo;
+      
+      lr_stat = trimr(lr_stat,1,0);
+      lr_mod = trimr(lr_mod,1,0);
+    
+retp(lr_stat,lr_mod,evec,skk,s0k,s00,y_1r,z,tv);
+endp;
+
+/************************************************************/
+/************************************************************/
+/************************************************************/
+
+proc(8) = para_cointjoh(evec,skk,s0k,s00,dy,y_1r,z,r,p,n,tv);
+
+
+      local betap,beta,alpha,beta_o,alpha_o,psi;
+      local omega,et;
+      local betap_o,beta_o1;
+
+if r==0;
+   betap = zeros(cols(evec),n);
+   beta = zeros(n,n);
+   alpha=zeros(n,n);
+   beta_o = eye(n);
+   alpha_o = eye(n);
+
+else;
+   betap = evec[.,1:r]; 
+   beta = evec[1:n,1:r];
+   alpha = s0k'*betap;
+
+/*beta_o1 =   skk*evec[.,(r+1):n];
+beta_o = beta_o1[1:n,.];
+betap_o = skk*evec[.,(r+1):cols(evec)];
+alpha_o = invpd(s00)*s0k'*evec[.,(r+1):n];*/
+
+
+   trap 1;
+   beta_o = null(beta'); /* orthogonal complement of the column */
+                        /* space of beta', using the QR decomposition */
+
+   if scalerr(beta_o) == 1;  
+       "";  "There is no null space of beta!"; /* check whether the orthogonal*/
+                                               /* exists */
+   endif;                                    /* null space exists  */
+
+
+   trap 1;
+   alpha_o = null(alpha'); /*orthogonal complement of the column space */
+                           /* of alpha, using the QR decomposition     */
+
+
+   if scalerr(alpha_o) ==1;
+        "";"there is no null space of alpha!";
+   endif;
+endif;
+
+/*"betap";betap; 
+"beta";beta; "beta_o";beta_o;  
+"alpha";alpha; "alpha_o"; alpha_o;
+"al_o";alpha'alpha_o; 
+"be_o";beta'beta_o;*/
+
+
+dy = trimr(dy,p,0);  /* trim the first p rows of the matrix dy */
+
+if tv==1;
+   psi = dy'z*invpd(z'z) - alpha*betap'y_1r'*z*invpd(z'z);
+else;
+   psi = 0;
+endif;
+
+omega = s00-alpha*alpha';  
+et = dy'-alpha*betap'*y_1r'-psi*z'; 
+et = et'; 
+
+retp(betap,beta,alpha,beta_o,alpha_o,psi,omega,et);
+endp;
+
+
+
+/* ******************************************************************** */
+/* ************ Procedure containing the asymptotical critical ******** */
+/* ************      values of Johansen's trace test           ******** */
+/* *** (constant unrestricted, trend restricted to the long-run) ****** */
+/* ***************** Johansen, 1995, Tab. 15.4 ************************ */
+/* ******************************************************************** */
+
+
+proc(1) = trctasy_cointjoh(n,r);
+          local johct, crit_asy;
+
+          let johct[12,3] =
+
+          /*    90%       95%       99%              n-r  */
+
+                10.56     12.39     16.39      /*     1   */
+                22.95     25.47     30.65      /*     2   */
+                39.08     42.20     48.59      /*     3   */
+                58.96     62.61     70.22      /*     4   */
+                82.68     86.96     95.38      /*     5   */
+               110.00    114.96    124.61      /*     6   */
+               141.31    146.75    157.53      /*     7   */
+               176.13    182.45    194.12      /*     8   */
+               214.72    221.56    234.65      /*     9   */
+               257.08    264.23    278.80      /*    10   */
+               306.47    311.13    326.73      /*    11   */
+               356.39    361.07    377.54;     /*    12   */
+
+if n-r < 13;
+  crit_asy = johct[(n-r),.];
+else;
+  crit_asy = zeros(1,3);
+endif;
+
+
+retp(crit_asy);
+endp;
+
+
+
+
+/* ******************************************************************** */
+/* ************ Procedure containing the asymptotical critical ******** */
+/* ************      values of Johansen's trace test           ******** */
+/* ************  (constant unrestricted,  no linear trend)     ******** */
+/* ********************* Johansen, 1995, Tab.15.3 ********************* */
+/* ******************************************************************** */
+
+
+proc(1) = trcrasy_cointjoh(n,r);
+          local johc, crit_asy;
+
+          let johc[12,3] =
+
+          /*    90%       95%       99%              n-r  */
+
+                2.71       3.84      6.64      /*     1   */
+                13.31     15.34     19.69      /*     2   */
+                26.70     29.38     34.87      /*     3   */
+                43.84     47.21     53.91      /*     4   */
+                64.74     68.68     76.37      /*     5   */
+                89.37     93.92    102.95      /*     6   */
+               117.73    123.04    133.04      /*     7   */
+               149.99    155.75    166.95      /*     8   */
+               185.83    192.30    204.64      /*     9   */
+               228.55    232.60    246.17      /*    10   */
+               272.03    276.37    291.58      /*    11   */
+               319.21    323.93    339.64;      /*    12   */
+
+
+if n-r < 13;
+  crit_asy = johc[(n-r),.];
+else;
+  crit_asy = zeros(1,3);
+endif;
+
+
+
+retp(crit_asy);
+endp;
+
+
+
+/* ******************************************************************** */
+/* ************ Procedure containing the asymptotical critical ******** */
+/* ************       values of Johansen's trace test          ******** */
+/* ************ (constant restricted to the long-run, no trend) ******* */
+/* ******************* Johansen, 1995, Tab.15.2 *********************** */
+/* ******************************************************************** */
+
+
+proc(1) = trccasy_cointjoh(n,r);
+          local johc, crit_asy;
+
+          let johc[12,3] =
+
+          /*    90%       95%        99%              n-r  */
+
+               7.50        9.13      12.73      /*     1   */
+               17.79      19.99      24.74      /*     2   */
+               31.88      34.80      40.84      /*     3   */
+               49.92      53.42      60.42      /*     4   */
+	       71.66      75.74      83.93      /*     5   */
+	       97.17      101.84     111.38     /*     6   */
+	       126.71     132.00     142.34     /*     7   */
+	       159.74     165.73     177.42     /*     8   */
+	       196.66     203.34     216.08     /*     9   */
+	       237.35     244.56     258.31     /*     10   */
+	       281.63     289.71     304.89     /*     11   */
+	       333.26     338.10     354.32;    /*     12   */
+
+
+
+if n-r < 13;
+  crit_asy = johc[(n-r),.];
+else;
+  crit_asy = zeros(1,3);
+endif;
+retp(crit_asy);
+endp;
+
+/* zeros values instead of missing values */
+proc lag0_cointjoh(x,p);
+   local y;
+   y =  shiftr(x', p, 0);
+   retp(y');
+endp;
+
+
+
+/* Computes response surface of various test cases, also allowing f. up to 2 breaks
+   in trend or trend and const 
+   
+   Input:
+   break_index = indices telling the procedure when the breaks happen, important in 
+                 computation of critical values because relative sample lengths are required
+		 possible values:
+                       
+                  {} no breaks, or 
+                  1 x 1 scalar with breakindex-allowing 1 shift or
+		  2 x 1 vector with breakindizes-allowing 2 shifts
+		  
+   isTrendBreak = 1 - specified breaks in break_index are in levels and trend (only valid in teststate 2)
+                  0 - specified breaks in break_index are in levels only (teststate=1 or teststate=2)
+   T              sample size
+   n              dimension of process
+   r              rank to test
+   teststate     1 const, 2 const+trend or 3 orth trend
+   stat       computed test statistic
+   
+   Output:
+   computed p_value of testStat
+   vector of crit values f. 0.90~0.95~0.99 sign. levels
+   
+*/
+proc(2) = rs_wrapper_cointjoh(break_index,isTrendBreak,T,n,r, teststate, stat);
+local p_val, crit_vals;
+
+p_val     = {};
+crit_vals = {};
+
+/* no breaks, all testcases are possible, including orthogonal trend */
+if rows(break_index) == 0;
+  {p_val, crit_vals}=pv_doornik_cointjoh(stat, n-r, teststate);
+  retp(p_val, crit_vals);
+endif;
+
+/* max 2 breakpoints allowed */
+if rows(break_index) < 3;
+  
+  /* const, no trend, up to 2 breaks allowed JMN (2000)*/
+  if teststate == 1;
+    {p_val, crit_vals}=pv_breaks_cointjoh(stat, n-r, 0, break_index,T);
+    retp(p_val, crit_vals);
+  endif;
+
+  if teststate == 2;    
+    /* const and trend, 2 breaks allowed in levels + trend JMN (2000)*/
+    if isTrendBreak;
+      {p_val, crit_vals}=pv_breaks_cointjoh(stat, n-r, 1, break_index,T);
+      retp(p_val, crit_vals);
+      
+    /* const and trend, 2 breaks allowed but in levels only Trenkler (2004)*/  
+     else;
+      {p_val, crit_vals}=pv_breaks_cointjoh(stat, n-r, 2, break_index,T);
+      retp(p_val, crit_vals);
+    endif;    
+  endif;
+
+  /* orthogonal trend (testcase == 3) does not allow breaks, defaults to missing values */  
+endif;
+
+/* no critical value available f. other versions */
+retp(miss(1,1),miss(1,1)~miss(1,1)~miss(1,1));
+endp;
+
+
+/* Procedure to compute critical values and p-values f. Johansen Test with restricted constant,  */
+/* Restricted trend and othogonal trend according to Doornik (1998).                            */
+/* The setup assumes no breaks. The p-values are computed via a Chi^2 distribution using the    */
+/* estimated mean and variance of a Gamma distribution of which the Chi^2 distribution is a     */
+/* special case.  */
+/* stat      = Value of test statistic of Johansen test */
+/* pr        = number of stochastic trends */
+/* Specification of deterministic terms: */
+/* teststate = 1:const ; */
+/*	       2:const+trend ; */
+/* 	       3:trend orthogonal to cointegration relation */
+  
+proc(2) = pv_doornik_cointjoh(stat, pr, teststate);
+local p_val, crit_vals,p,mean,variance;
+local cdfv,chiv1,cvalue,chiv3;
+
+p= {0.90, 0.95, 0.99};  /* 1 - significance level  computation of critical value */
+
+
+/*Computation of mean and variance respective Chi^2 distributions*/
+
+if teststate == 1;
+mean = pr*2.01 + (pr^2)*2;
+  if pr == 1;
+  mean = mean + 0.06;
+  elseif pr == 2;
+  mean = mean + 0.05;
+  endif;
+variance = 0.75 + pr*3.60 + (pr^2)*3;
+  if pr == 1;
+  variance = variance - 0.40;
+  elseif pr == 2;
+  variance = variance - 0.30;
+  endif;
+
+elseif teststate == 2;
+mean = 0.50 + pr*4.05 + (pr^2)*2;
+  if pr == 1;
+  mean = mean - 0.23;
+  elseif pr == 2;
+  mean = mean - 0.07;
+  endif;
+variance = 3.20 + pr*5.70 + (pr^2)*3;
+  if pr == 1;
+  variance = variance - 1.30;
+  elseif pr == 2;
+  variance = variance - 0.50;
+  endif;
+
+elseif teststate == 3;
+mean = -1.55 + pr*1.05 + (pr^2)*2;
+  if pr == 1;
+  mean = mean - 0.50;
+  elseif pr == 2;
+  mean = mean - 0.23;
+  endif;
+variance =  pr*1.80 + (pr^2)*3;
+  if pr == 1;
+  variance = variance - 2.80;
+  elseif pr == 2;
+  variance = variance - 1.10;
+  endif;
+
+endif;
+
+
+/*Determination of degree of freedoms for Chi^2 distribution using the mean and*/
+/*variance of the Gamma distribution. */
+
+cdfv=2*(mean^2)./variance;
+
+
+/*Computation of critical value for given significance level using correction */
+/*according to relation between the Chi^2 and Gamma distributions.            */
+local tmp;
+tmp=ones(rows(p),cols(p))*cdfv;
+chiv1=cdfchii(p,tmp);
+crit_vals=chiv1./(2*mean./variance);
+
+/*Computation of p-value for the given test statistic using correction */
+/*according to relation between the Chi^2 and Gamma distributions.     */
+
+chiv3 = (2*mean.*stat)./ variance;
+p_val = cdfchic(chiv3,cdfv);
+
+/*Output*/
+
+retp(p_val, crit_vals');
+endp;
+
+
+
+/* Procedure to compute critical and p-values f. Johansen Test with up to two breaks in the level*/
+/* and the trend f. test versions with restricted constant and trend respectively according to */
+/* Johansen, Mosconi & Nielsen (2000).                                                         */
+
+/* When a trend is specified the computation of the p-values assumes that a trend break is allowed*/
+/* f. when testing!!! The p-values are computed via a Chi^2 distribution using the estimated   */
+/* mean and variance of a Gamma distribution of which the Chi^2 distribution is a special case. */
+
+/* stat      = Value of test statistic of Johansen test */
+/* pr        = number of stochastic trends */
+/* Specification of deterministic terms: */
+/* tr = 0 no trend */
+/*      1 trend */
+  
+proc(2) = pv_breaks_cointjoh(stat, pr, tr, break_index, T);
+local p_val, crit_vals,p,mean,variance,logmean,logvariance;
+local cdfv,chiv1,cvalue,chiv3,a,b,tmp,q;
+
+p= {0.90, 0.95, 0.99};  /* 1 - significance level  computation of critical value */
+
+/* default when break_index empty: no breaks specified, can be compared with Doornik variant */
+
+a=0;    /* Relative length of smallest sample length, in case of one break only a = 0 */
+b=0;    /* Relative length of second smallest sample length, in case of no break a= 0 and b = 0 */
+q=1;
+if  rows(break_index)==1;
+  q=2;
+  a=0;
+  break_index=break_index-1;
+  b=minc(break_index|T-break_index)/T;
+elseif  rows(break_index)==2;
+  q=3;
+  break_index       = break_index-ones(2,1);
+  break_index       = sortc(break_index,1);
+  tmp               = break_index[1]|break_index[2]-break_index[1]|T-break_index[2];
+  a                 = minc(tmp)/T;
+  tmp[minindc(tmp)] = T; /* set old minimum to something big*/
+  b                 = minc(tmp)/T;
+elseif  rows(break_index) > 2;
+  tmp="Response surface can not be computed, too many breaks ("$+ftocv(rows(break_index),1,0)$+"> 2).";
+  errorlog(tmp);
+  retp(-10,-10);
+endif;
+
+p= {0.90, 0.95, 0.99};  /* 1 - significance level f. computation of critical value */
+
+/*Computation of log(mean) and log(variance) for respective Chi^2 distributions*/
+
+/************ Johansen Mosconi Nielsen 2000 **************/  
+
+/* breaks in level, no trend in model*/  
+if tr == 0; 
+  logmean = 2.80 + pr * 0.501 + a*1.43 +b * 0.399 - pr^2 *0.0309 - pr*a * 0.0600 - a^2 * 5.72 - a*b * 1.12 - b^2 * 1.70 
+            + pr^3 * 0.000974 + pr*a^2 * 0.168 + a^3 * 6.34 + a*b^2 * 1.89 + b^3 * 1.85 - pr^(-1) * 2.19 - a*pr^(-1) * 0.438 
+	    + b*pr^(-1) * 1.79 + a^2*pr^(-1) * 6.03 + a*b*pr^(-1) * 3.08 - b^2 * pr^(-1) * 1.97 - a^3*pr^(-1) * 8.08 
+	    - a*b^2 * pr^(-1) * 5.79 + pr^(-2) * 0.717 -  b*pr^(-2) * 1.29 - a^2*pr^(-2) * 1.52 + b^2*pr^(-2) * 2.87 
+	    - b^3 * pr^(-2) * 2.03;
+	    
+  logvariance = 3.78 + pr * 0.346 + a*0.859  - pr^2 *0.0106 - pr*a * 0.0339 - a^2 * 2.35 + a^3 * 3.95 - b^3 * 0.282 
+            - pr^(-1) * 2.73 + a*pr^(-1) * 0.874 + b*pr^(-1) * 2.36 - a^2*pr^(-1) * 2.88 - b^2 * 4.44 + b^3 * pr^(-1) * 4.31 
+	    + pr^(-2) * 1.02 -  b*pr^(-2) * 0.807;
+	    
+elseif tr ==1; /* breaks in trend and level */  
+  logmean = 3.06 + pr * 0.456 + a*1.47 +b * 0.993 - pr^2 *0.0269 - pr*a * 0.0363 - pr*b * 0.0195 - a^2 * 4.21 - b^2 * 2.35 
+            + pr^3 * 0.000840 + a^3 * 6.01 - a^2*b * 1.33 + b^3 * 2.04 - pr^(-1) * 2.05 - a*pr^(-1) * 0.304 + b*pr^(-1) * 1.06 
+	    + a^2*pr^(-1) * 9.35 + a*b*pr^(-1) * 3.82 + b^2 * pr^(-1) * 2.12 - a^3*pr^(-1) * 22.8 - a*b^2 * pr^(-1) * 7.15 
+	    - b^3 * pr^(-1) * 4.95 + pr^(-2) * 0.681 -  b*pr^(-2) * 0.828 - a^2*pr^(-2) * 5.43 + a^3*pr^(-2) * 13.1 + b^3 * pr^(-2) * 1.50;
+	    
+  logvariance = 3.97 + pr * 0.314 + a*1.79 + b * 0.256 - pr^2 *0.00898 - pr*a * 0.0688 - a^2 * 4.08 + a^3 * 4.75 - b^3 * 0.587 
+            - pr^(-1) * 2.47 + a*pr^(-1) * 1.62 + b*pr^(-1) * 3.13 - a^2*pr^(-1) * 4.52 - a*b*pr^(-1) * 1.21 - b^2 * pr^(-1) * 5.87 
+	    + b^3 * pr^(-1) * 4.89 + pr^(-2) * 0.874 -  b*pr^(-2) * 0.865;
+
+/************ Trenkler 2004 **************/  
+/* trended model but breaks only in levels, means trend in EC, constant outside, level shift in EC */	    
+elseif tr == 2;  
+  logmean = 2.913346 + pr * 0.480281 + a*1.726007 + b * 0.44062 - pr^2 *0.028898 - pr*a * 0.073905 - pr*b * 0.005719 
+         - a^2 * 7.522604 - b^2 * 1.609212 + pr^3 * 0.000905 + pr*a^2 * 0.181141 + a^3 * 10.614757 - a^2*b * 1.989878
+         + a*b^2 * 1.103045 + b^3 * 1.933605 - pr^(-1) * 2.247682 + a*pr^(-1) * 5.01416 + b*pr^(-1) * 5.68821 
+         - a^2*pr^(-1) * 15.666691 - a*b*pr^(-1) * 13.829846 - b^2 * pr^(-1) * 19.398541 + a^3*pr^(-1) * 26.23415 
+         + a*b^2 * pr^(-1) * 23.738097 + b^3 * pr^(-1) * 19.17728 + pr^(-2) * 0.759001 - a*pr^(-2) * 2.82934 
+         - b*pr^(-2) * 3.033323 + a^2*pr^(-2) * 9.488995 + a*b * pr^(-2) * 8.634744 + b^2 * pr^(-2) * 10.886123 
+         - a^3*pr^(-2) * 17.072167 - a*b^2 * pr^(-2) * 15.38262 - b^3 * pr^(-2) * 11.289174;
+ 
+  logvariance = 3.285483 + pr * 0.478603 + a*2.0256 + b * 0.728255 - pr^2 *0.028806 - pr*a * 0.076218 - pr*b * 0.016659 
+         - a^2 * 6.37074 - a*b * 2.489197 - b^2 * 2.304168 + pr^3 * 0.000925 + pr*a^2 * 0.133114 + a^2*b * 11.155688 
+         + a*b^2 * 1.986969 + b^3 * 2.78877 - pr^(-1) * 1.962806 + a*pr^(-1) * 2.01659 + b*pr^(-1) * 4.727603 
+         - b^2*pr^(-1) * 14.162348 - a^2*b*pr^(-1) * 15.881742 + b^3 * pr^(-1) * 11.600396 + pr^(-2) * 0.6472 
+         + a*pr^(-2) * 1.478928 - b*pr^(-2) * 1.983787 - a^2 * pr^(-2) * 19.4037 - a*b*pr^(-2) * 5.319733 
+         + b^2 * pr^(-2) * 3.593335 + a^3 * pr^(-2) * 46.235534 + a*b^2 * pr^(-2) * 15.327548;
+
+endif;
+
+
+
+/* Computation of mean and variance with consideration of number of subperiods*/
+
+mean = exp(logmean) - (3-q)*pr;
+variance=exp(logvariance)-2*(3-q)*pr;
+
+
+/*Determination of degree of freedoms f. Chi^2 distribution using the mean and*/
+/*variance of the Gamma distribution. */
+
+cdfv=2*(mean^2)./variance;
+
+
+/*Computation of critical value f. given significance level using correction */
+/*according to relation between the Chi^2 and Gamma distributions.            */
+
+
+tmp=ones(rows(p),cols(p))*cdfv;
+chiv1=cdfchii(p,tmp);
+crit_vals=chiv1./(2*mean./variance);
+
+/* get directly via Gamma function (incomplete in Gauss) */
+/* 1-cdfgam((mean^2)./variance,stat*(mean./variance)); */
+
+/*Computation of p-value f. the given test statistic using correction */
+/*according to relation between the Chi^2 and Gamma distributions.     */
+
+chiv3 = (2*mean.*stat)./ variance;
+p_val = cdfchic(chiv3,cdfv);
+
+retp(p_val, crit_vals');
+endp;
+
+
+
+
+

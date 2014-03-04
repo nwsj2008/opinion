@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ConfigHolder xmlns="java:com.jstatcom.engine" engine="GAUSS">
+  <ConfigHolder$KeyValPair key="EXE_LOCATION" value="C:\mteng80\engauss.exe"/>
+  <ConfigHolder$KeyValPair key="GAUSS_VERSION" value="8.0"/>
+  <ConfigHolder$KeyValPair key="GCG_FILENAME" value="jgauss.gcg"/>
+  <ConfigHolder$KeyValPair key="TEMP_DIR" value="c:\temp"/>
+  <ConfigHolder$KeyValPair key="SHARED_MEM_SIZE" value="800000"/>
+  <ConfigHolder$KeyValPair key="COMPILE_CFG" value="compile.xml"/>
+  <ConfigHolder$KeyValPair key="LIB_CFG" value="lib.xml"/>
+</ConfigHolder>

@@ -1,0 +1,650 @@
+/*
+ This file is part of the econometric software package JMulTi.
+ Copyright (C) 2000-2005  Lijian Yang, Rolf Tschernig, Markus Kraetzig
+
+ This program is free software; you can redistribute it and/or
+ modify it under the terms of the GNU General Public License
+ as published by the Free Software Foundation; either version 2
+ of the License, or (at your option) any later version.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, write to the Free Software
+ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ */
+
+/*  RT and LY, June 1998, August 1999, May 2000, November 2000,
+**  prepared for JMULTI September 2001
+**
+**  --------------------------------------------------------------------------
+**                            CAFP_SEL.SRC 
+**
+**                            depends on:
+**                            CAFP.DEC
+**                            CAFP_PRC.SRC
+**                            CAFP_PAR.SRC
+**  the C++ library: cafpe is needed
+**  --------------------------------------------------------------------------
+**
+**  xraw:    Tx1 timeseries
+**  xresid:  Tx1 of residuals of timeseries
+**  outpath: path to output files  
+**  (all other inputs described in following sections)
+**  --------------------------------------------------------------------------
+**
+**  GAUSS program to carry out lag selection for seasonal and nonseasonal models
+**  using the nonparametric AFPE and CAFPE criteria and the linear FPE, AIC,
+**  SC, HQ criteria.
+** 
+**
+**  The program prepares the call of the subroutine FPE_NPS_NONPARAM which prepares and
+**  conducts the estimation of the criteria for all desired lag combinations.
+**  In addition, the program saves the output of that subroutine to GAUSS
+**  output files.
+**  Printed output is produced by FPE_NPS_NONPARAM
+*/
+
+
+@ --------- Read Controls and check parameter setting ---------------- @
+
+/*  RT and LY, February 1998, August 1999, May 16, 2000, November 2000
+**  adjusted for JMULTI September 2001
+**
+**
+**  File with control parameters for using CAFPEJM.PRG, GCAFPEJM.PRG
+**
+**  The file contains three sections:
+**  Section I:  Setting these parameters is always necessary
+**              It allows to treat the following models with
+**              default settings for the model selection procedure:
+**              conditional mean estimation:
+**              - nonlinear autoregressive model (NAR),
+**              - seasonal/periodic nonlinear autoregressive model (SNAR)
+**              - seasonal dummy nonlinear autoregressive (SDNAR) model
+**                  with four seasons
+**              - seasonal shift nonlinear autoregressive (SHNAR) model
+**              conditional volatility estimation:
+**              - nonlinear autoregressive (NAR_RES)
+**              - seasonal dummy nonlinear autoregressive model (SDNAR_RES)
+**                  with four seasons
+**
+**  Section II: a description of all the settings
+**
+**  Section III: lists all default settings that are chosen with each
+**              prespecified model setting chosen in Section I:
+**                  mod_meth = "NAR", "SNAR", "SNAR12", "SDNAR",
+**                              "SHNAR", "SHNAR12",
+**                              "NAR_RES", "SDNAR_RES";
+**              It further allows to add additional newly defined
+**              default setting just by adding a new elseif section
+**              with a new mod_meth setting.
+**
+**  Literature:
+**      Tschernig, Rolf and Yang, Lijian (1999).
+**          Nonparametric Lag Selection for Time Series,
+**          Journal of Time Series Analysis,  21 (2000), 457-487
+**          (hereafter TY)
+**
+**      Yang, Lijian and Tschernig, Rolf (2002)
+**          Non- and Semiparametric Identification of
+**          Seasonal Nonlinear Autoregression Models,
+**          fortcoming in Econometric Theory
+**          (hereafter YT)
+**          
+**          
+**
+**      Yang, Lijian and Tschernig, Rolf (1999)
+**          Multivariate Bandwidth selection for local linear
+**          regression, Journal of the Royal Statistical Society,
+**          Series B, 61 (1999), 793-815
+**          (hereafter YT-JRSSB)
+**
+**      as an introduction for the nonseasonal model see:
+**      Haerdle, Wolfgang and Tschernig, Rolf (2000)
+**          Flexible Time Series Analysis,
+**          in: W. Haerdle, S. Klinke and Z. Hlavka (Hrsg.)
+**          XploRe Applications Guide, Springer-Verlag, 2000
+**
+**  Contact: Rolf Tschernig,
+**              Department of Quantitative Economics, Universiteit Maastricht
+**              email: r.tschernig@ke.unimaas.nl
+**              http://www.personeel.unimaas.nl/r.tschernig
+**
+**
+**  Disclaimer:
+**  This program is a beta version. Using this program is at your own risk.
+**  There is no warranty for using this program.
+**  Note that running this program on UNIX workstations and
+**  PC's can produce different results due to the different machine
+**  precisions.
+*/
+
+/***********  I. Parameters that always have to be set ******************* */
+
+/* ---------- select model and its parameters and estimation parameters -- */
+/*   mod_meth = "NAR";  this variable allows to choose
+**            default options of the program
+**            or to use advanced options:
+**            default options
+**            "NAR"   nonlinear autoregressive
+**                process with local linear
+**                estimation as in T/Y
+**            "SNAR"  seasonal nonlinear
+**                autoregressive process
+**                with four seasons
+**            "SNAR12"  seasonal nonlinear
+**                autoregressive process
+**                with 12 seasons
+**            "SDNAR" seasonal dummy nonlinear AR
+**                process with four seasons
+**            "SHNAR" seasonal shift nonlinear AR
+**                process with four seasons
+**            "SHNAR12" seasonal shift nonlinear AR
+**                process with 12 seasons
+**                all with local linear
+**                estimation as in Y/T,
+**            "NAR_RES"
+**                for analysing lags for conditional volatility
+**                in NAR model
+**            "SDNAR_RES"
+**                for analysing lags for conditional volatility
+**                in SDNAR model with four seasons
+*/
+
+
+
+/* ------------ set of lags to be considered ---------------------------- */
+/* lag_max = 5;                 scalar, largest lag to be considered,
+**                                            (parameter M in T/Y) */
+/* searchmethod    = "full";
+**                            "full" - full search over all possible input
+**                        variable combinations
+**                "directed" - directed search a la Tjostheim
+**                        and Auestad (1994)*/
+/* d_max = 2;                   max. number of input variables */
+
+/* ------------- parameters for selection procedure ----------------------- */
+/* selcrit = "lqcafpe";
+**              parameter to select lag selection critierion:
+**                arfpe       linear FPE criterion
+**                araic       linear AIC criterion
+**                arsc        linear Schwarz criterion
+**                arhq        linear Hannan-Quinn criterion
+**                lqafpe      AFPE, local linear estimation,
+**                        plug-in bandwidth based on partial
+**                        local quadratic estimator
+**                lqcafpe     CAFPE, local linear estimation,
+**                        plug-in bandwidth based on partial
+**                        local quadratic estimator
+**                        */
+
+
+/*printlog = 0;  to control output:
+                 0= only final output,
+                 1= intermediary, unformatted output during all stages
+                 2= more detailed intermed., unform. output
+                 3= all intermediary unformatted output 
+         
+startstrat = "same" or "different"       
+xdata_stand ="no" or "yes";
+outputfip = outputfile
+seas_sta the start season
+output:
+cr_pro = d_max x d_max matrix of choosen optimal lag vectors for 1-d_max variables
+
+*/
+
+
+proc(2)=cafpe_sel_nonparam(xraw,xresid,lag_max,d_max,outputfip,mod_meth,searchmethod, selcrit,startstrat,printlog,xdata_stand,seas_sta);
+
+local noutputf,xexog_com,xexog,estimator,print_in_file;
+local seas_cha,kernel,robden,per_A,per_B,meth_hB,partial_cub,hcd_fac;
+local hC_Silv_fac,__output,h_start,h_c_min,h_c_max,seas,method_dum;
+local meth_hB_d,seas_dum,volat,dexog,lag_no_r,lag_comb,d_c,lag_comb_tot,xx;
+local lagnames,vnames1,vnames2,vnames3,vnames4,vnames5,vnames6,x_2sls;
+local crmin,garb,cr_pro,z,cr_store,cr_store_add,h_store,h_store_test,n;
+
+
+n=rows(xraw);
+
+/*printlog = 0; /* to control output: (REMOVE COMMENT SIGN for MAINTAINANCE)
+                 0= only final output,
+                 1= intermediary, unformatted output during all stages
+                 2= more detailed intermed., unform. output
+                 3= all intermediary unformatted output */
+*/                 
+print_in_file  = 1;  /* 0 = no output is written to file, 1 = output is written
+                            to file */
+/* RRR */
+/*load xresid[] = "d:\\text\\cafpe_m\\cafpe_jm\\jmulti\\wn1000.dat";
+xresid  = xresid[1:600];*/
+                        /*
+print "xresid,xresid^2 after call cafp_sel_nonparam" xresid[1:minc(5|rows(xresid))]
+                        ~(xresid[1:minc(5|rows(xresid))]^2);
+                        */
+print rows(xresid);
+
+/* rrr */                
+/* here we set our model defaults from cafp_par.src */
+
+{xexog_com, xexog, xresid, seas_cha, kernel, robden, per_A, per_B, meth_hB, 
+    partial_cub, hcd_fac, hC_Silv_fac,__output,h_start, h_c_min, h_c_max, seas, 
+    method_dum, meth_hB_d,seas_dum, volat}
+    =getModelDefaults_nonparam(mod_meth,xresid);
+/* RRR */
+print "xresid after call getModDefaults" xresid[1:minc(5|rows(xresid))];                
+print rows(xresid);
+print "volat" volat;    
+
+"continue with residuals from cafp_est_nonparam";
+/* rrr */
+if not((selcrit $== "arfpe") or (selcrit $== "araic")
+        or (selcrit $=="arhq") or (selcrit $== "arsc")
+        or (selcrit $=="lqafpe") or (selcrit $== "lqcafpe"));
+    if _print_cafpejm;
+        "cafpejm: choose available selection criterion;";
+        print "       the current choice is selcrit: " selcrit;
+    endif;
+    end;
+endif;
+
+if not((searchmethod $== "full") or (searchmethod $== "directed"));
+    if _print_cafpejm;
+        "cafpejm: choose available search method for lags;";
+        print "       the current choice is searchmethod: " searchmethod;
+    endif;
+    end;
+endif;
+
+
+/* ----------set selection estimator ------------------------ */
+if strsect(selcrit,1,2) $== "ar";
+    estimator = "ar";       /*   linear (autoregressive) estimator */
+elseif strsect(selcrit,1,2) $== "ng";
+    estimator = "nw";       /*   Nadaraya-Watson estimator          */
+elseif strsect(selcrit,1,1) $== "l";
+    estimator = "loclin";   /*   local linear estimator             */
+endif;
+
+
+@ ------ create GAUSS output variable names and file if necessary ----- @
+
+if strsect(selcrit,1,2) $== "ar" or strsect(selcrit,1,2) $== "lq";
+   h_c_max = 1;
+endif;
+
+@ ------------- determine number of dexog/exog variables ?? ------------ @
+
+if xexog_com $== "none";
+    if rows(xexog_com) == seas-1;       /* Feb 21, 2000 */
+     xexog       = xexog_se_nonparam(n, seas,1,seas_sta);
+    else;
+         xexog       = 0;
+    endif;
+    /*xexog   = xexog_se_nonparam(n,4,1,seas_sta);      /* Aug 1 */*/
+    dexog   = 0;
+else;
+    dexog   = rows(xexog_com);
+endif;
+
+@ ---- determine number of lag combinations that will be considered ---- @
+
+if searchmethod $== "full";  /* all possible lag combinations are considered */
+
+    if seas_dum $== "always";           /*  seasonal dummies always included,
+                                            this reduces the total number of
+                                            lag combinations substantially
+                                            if lag_max is large */
+        lag_no_r= lag_max+dexog-seas+1;
+        if d_max > lag_no_r;
+            "d_max greater than set of regressors";
+            "for seas_dum = always ";
+            "set d_max = lag_max+dexog-seas+1";
+        endif;
+    else;
+        lag_no_r= lag_max+dexog;        /*  total number of variables to be
+                                            considered */
+    endif;
+    if lag_no_r < d_max;
+        if _print_cafpejm;
+            print "check d_max; its larger than the total";
+            print "number of input variables.            ";
+        endif;
+        end;
+    endif;
+
+
+    lag_comb    = zeros(d_max,1); /* vector that contains number of all
+                     possible combinations of lags for
+                     a given number of lags */
+    d_c     = 1;
+    do while d_c <= d_max;
+
+        lag_comb[d_c]   = binom_nonparam(lag_no_r,d_c); /* ?? */
+        d_c             = d_c + 1;
+
+    endo;
+
+    lag_comb_tot    = sumc(lag_comb);
+
+
+elseif searchmethod $== "directed";
+
+    lag_comb_tot = sumc(seqa(lag_max+dexog,-1,d_max));
+
+endif;
+
+if print_in_file;
+    xx = seqa(1,1,lag_comb_tot);    /* for cr_store */
+    lagnames    =  0 $+ "lags/crit" $+ ftocv(xx,3,0);
+    vnames1     =  stof("simcount")|stof("lags/hA")|lagnames;
+
+                                /* for h_store */
+    lagnames    =  0 $+ "lags/hA" $+ ftocv(xx,3,0);
+    vnames4     =  stof("simcount")|stof("hA")|lagnames;
+
+                                /* for h_store_test */
+    vnames5     =  stof("simcount")|stof("h")|lagnames;
+
+                                /* for cr_store_add */
+    lagnames    =  0 $+ "lags/critB" $+ ftocv(xx,3,0);
+    vnames6     =  stof("simcount")|stof("hA")|lagnames;
+
+    xx = seqa(1,1,d_max);           /* for cr_min */
+    lagnames    =  0 $+ "numb.oflags" $+ ftocv(xx,2,0);
+    vnames2     =  stof("simcount")|stof("seed")|stof("wnsig2_hat")|
+               lagnames|stof("lags/crit_min")|stof("lags/resvar")|
+               stof("lags/sig2wn_hat");
+
+                                /* for cr_pro */
+    if searchmethod $== "full";
+
+        xx = seqa(1,1,d_max);
+        lagnames    = 0 $+ "lag" $+ ftocv(xx,2,0);
+        vnames3     =  stof("simcount")|
+               lagnames|stof("hA")|stof("hB")|stof("hC")|stof("crit_min")|
+               stof("resvar")|stof("sig2wn_hat");
+    elseif searchmethod $== "directed";
+        vnames3     =  stof("simcount")|
+               stof("lag")|stof("hA")|stof("hB")|stof("hC")|stof("crit_min")|
+               stof("resvar")|stof("sig2wn_hat");
+
+    endif;
+
+/*    create f1 = ^outputfi1 with ^vnames1,0,4;
+    create f2   = ^outputfi2 with ^vnames2,0,8;
+    create f3   = ^outputfi3 with ^vnames3,0,8;
+    create f4   = ^outputfi4 with ^vnames4,0,4;
+    create f5   = ^outputfi5 with ^vnames5,0,4;
+    create f6   = ^outputfi6 with ^vnames6,0,4;*/
+
+    output file = ^outputfip reset;
+endif;
+
+
+@ ---------------- compute number of exogenous variables -------- @
+if ((rows(xexog_com) == seas-1 ) and (xexog_com[1] $== "SD")) or seas_cha $== "shift";
+    xexog       = xexog_se_nonparam(n, seas,1,seas_sta);
+    x_2SLS      = 0;          
+else;
+    xexog       = 0;
+    x_2SLS      = 0;
+endif;
+
+@ ------------ Print results ----------------------------------------- @
+
+if _print_cafpejm;
+        if estimator $== "ar";
+            "";"";"";
+            "***********************************************************************";
+            "RESULTS OF LINEAR LAG SELECTION";
+            "Note:";
+            "In this module the model selection criteria are computed";
+            "by counting all estimated parameters.";
+            "";
+            "Model and model selection parameters:";
+            "-------------------------------------";
+            "";
+            if mod_meth $== "NAR";
+                print "Selected model:                  AR";
+            elseif mod_meth $== "SNAR";
+                print "Selected model:                  PAR";                 
+            elseif mod_meth $== "SDNAR";
+                print "Selected model:                  SDAR";                                 
+            elseif mod_meth $== "SHNAR";
+                print "Selected model:                  SHAR";                                 
+            endif;                
+            print /lz "Largest lag considered:         " lag_max;
+            if printlog > 1;
+                print /lz "Model used:                      " seas_cha;
+            endif;                
+            if seas > 1;
+                print /lz "Number of seasonal periods:     " seas;
+                print /lz "Seasonal index of first obs.:   " seas_sta;
+            endif;                
+            if printlog > 1;
+                print /lz "Treatment of seasonal dum.:      " seas_dum;
+                print /lz "Comment on xexog usedfor ms:     " xexog_com;
+            endif;                
+            if volat $/= "no";                                                                    
+                print /lz "Dependent var. for vol. est.    " volat;
+            endif;
+        
+            print /lz "Number of maximal lags:         " d_max;
+            print /lz "Search method for lags:          " searchmethod;
+            print /lz "Startup values for search:       " startstrat;
+            if selcrit $== "lqcafpe";
+                print /lz "Selection criterion:             cafpe";
+            elseif selcrit $== "lqafpe";
+                print /lz "Selection criterion:             afpe";            
+            else;                
+                print /lz "Selection criterion:             " selcrit;      
+            endif;                
+            print /lz "Estimator:                       least squares"; 
+       
+        elseif (estimator $== "loclin") or (estimator $== "nw");
+            "RESULTS OF NONPARAMETRIC LAG SELECTION USING (C)AFPE";
+            if seas == 1;
+           "Reference: Tschernig & Yang (2000, Journal of Time Series Analysis, 21, 457-487)";
+            else;
+                "Reference: Yang & Tschernig (2002, Econometric Theory, 18, 1408-1448)";
+                "           Note that in contrast to the paper, seasons are numbered s=1,2,..S";
+            endif;                
+            "";
+            "Model and model selection parameters:";
+            "-------------------------------------";
+            "";
+            print /lz "Selected model:                  " mod_meth;
+            print /lz "Largest lag considered:         " lag_max;
+            if printlog > 1;
+                print /lz "Model used:                      " seas_cha;
+            endif;                
+            if seas > 1;
+                print /lz "Number of seasonal periods:     " seas;
+                print /lz "Seasonal index of first obs.:   " seas_sta;
+            endif;                
+            if printlog > 1;
+                print /lz "Treatment of seasonal dum.:      " seas_dum;
+                print /lz "Comment on xexog usedfor ms:     " xexog_com;
+            endif;                
+            if volat $/= "no";                                                                    
+                print /lz "Dependent var. for vol. est.    " volat;
+            endif;
+        
+            print /lz "Number of maximal lags:         " d_max;
+            print /lz "Search method for lags:          " searchmethod;
+            print /lz "Startup values for search:       " startstrat;
+            if selcrit $== "lqcafpe";
+                print /lz "Selection criterion:             cafpe";
+            elseif selcrit $== "lqafpe";
+                print /lz "Selection criterion:             afpe";            
+            endif;                
+            
+            /* --- Parameters for criterion estimation-- */
+            
+            print /lz "Robustification of density est.: " robden;
+            if printlog > 1;
+                print /lz "Kernel used:                     " kernel;
+                print /lz "Local estimator used:            " estimator;
+            endif;
+            if estimator $== "loclin";
+                print /lz "Estimator:                       local linear"; 
+            else;                
+                print /lz "Estimator:                       local constant"; 
+            endif;
+            if seas_cha $== "seasD";    /* SDNAR model */
+                if method_dum $== "dummies";
+                    "Estimator of seasonal dummies:   full dummy estimator";
+                elseif method_dum $== "f_0_f_s";
+                    "Estimator of seasonal dummies:   two estimators method";
+                else;
+                     print /lz "method_dum " method_dum;                    
+                endif;                    
+                if meth_hB_d $== "sd_rem";
+                    "                                 with bandwidth used for B";
+                elseif meth_hB_d $== "sd_rem_loo";
+                    "                                 with bandwidth used for B";
+                    "                                 and leave-one-out method";
+                endif;                
+            endif;
+            if printlog > 1;
+                print /lz "Starting bandwidth for grid search:   " h_start;
+                print /lz "Mininum number of steps:        " h_c_min;
+                print /lz "Maximum number of steps:        " h_c_max;
+            endif;                
+            "Fraction of obs. screened off";
+            print /lz "    for estimating A:           " per_A;
+            print /lz "    for estimating B and C:     " per_B;
+           
+            "Estimation of rule-of-thumb bandwidths:";            
+            if seas_cha $== "standard"; /* NAR model */                    
+                if meth_hB $== "Silv";
+                    format /mat /on /mb1 /ros 1,0;
+                    print /lz "    for B and C:                " hC_Silv_fac "times h_S,"; 
+                    print     "                                 see Section 5 in TY";
+                    format /mat /on /mb1 /ros 16,8;
+                elseif meth_hB $== "ROT";
+                    print /lz "    for B and C as described in YT-JRSSB";
+                    print /lz "    with partial fourth order Taylor expansion";
+                    print /lz "    for estimating C " partial_cub;
+                    print /lz "    and factor" hcd_fac;
+                    print /lz "    to be multiplied with h_{C_{mu,lambda}(f),opt}";
+                else;
+                    print /lz "meth_hB" meth_hB;
+                endif;                
+            elseif seas_cha $/= "standard"; /* all seasonal models */
+                if meth_hB $== "Silv";
+                    format /mat /on /mb1 /ros 1,0;
+                    print /lz "    for (seasonal) B and C:     " hC_Silv_fac 
+                                "times hat sigma_s in h_{C,s},";
+                              "                                 see Section 5 in YT";
+                    format /mat /on /mb1 /ros 16,8;
+                elseif meth_hB $== "ROT";
+                    print /lz "    for (seasonal) B and C:        as described in YT-JRSSB";
+                else;
+                    print /lz "meth_hB" meth_hB;
+                endif;                
+            endif;
+            if seas_cha $== "seasD";
+              if meth_hB_d $== "sd_rem_loo";
+                "    for density estimation:      Silverman's rule of thumb";
+                "                                 with the geometric mean of the variance";
+                "                                 for all lags.";
+                "                                 The same bandwidth is used for all seasons.";
+              endif;
+            elseif seas_cha $== "periodic"; /* SNAR model */
+              if method_dum $== "perio_one_h";
+                  "                                 The same bandwidth is used ";
+                  "                                 for estimating B and C in each season";
+              elseif method_dum $== "perio_dif_h";
+                  "                                 A different bandwidth is used ";
+                  "                                 for estimating (C)AFPE in each season";
+              else;
+                  if printlog > 1;
+                      print /lz "method_dum           " method_dum;                    
+                  endif;
+              endif;
+
+              if meth_hB_d $== "sd_rem_loo";
+               "   for density estimation:       Silverman's rule of thumb";
+               "                                 with the geometric mean of the variance";
+               "                                 for all lags.";
+               "                                 The same bandwidth is used for all seasons.";
+              endif;
+            endif;                
+    endif; 
+endif;
+
+/* XXX */
+if xdata_stand $== "yes";
+    xraw    = xraw ./ stdc(xraw);
+    if rows(xresid) > 1;
+        xresid  = xresid ./ stdc(xresid);
+    endif;
+endif;
+/* xxx */
+
+@ ------------------ do model selection -------------------- @
+
+{ crmin,cr_pro,cr_store,cr_store_add,h_store,h_store_test } =
+       fpe_nps_nonparam(xraw,xresid,xexog,x_2SLS,lag_max,xexog_com,seas,
+                seas_sta,seas_cha,seas_dum,volat,startstrat,robden,
+                estimator,kernel,method_dum,selcrit,per_A,per_B,
+                h_start,h_c_min,h_c_max,searchmethod,d_max,
+                meth_hB,meth_hB_d,partial_cub,hcd_fac,printlog,hC_Silv_fac);
+
+
+@ ------------------ write in GAUSS output file ---------------- @
+/*
+if print_in_file;
+    garb    = -1e20;
+
+    writ1   = writer(  f1, ( ones(d_max+h_c_max,1) )~
+                    ( seqa(1,1,d_max)|seqa(1,1,h_c_max) )~
+                    cr_store );
+    writ2   = writer(  f2, garb~garb~garb~crmin  );
+    writ3   = writer(  f3, ( ones(d_max+1,1) )~cr_pro ); 
+    writ4   = writer(  f4, ( ones(h_c_max,1) )~
+                    ( seqa(1,1,h_c_max) )~ h_store  );
+    writ5   = writer(  f5, ( ones(3,1) )~
+                    (seqa(1,1,3) )~ h_store_test );
+    writ6   = writer(  f6, ( ones(rows(cr_store_add),1) )~
+                    (seqa(1,1,h_c_max).*.ones(rows(cr_store_add)/h_c_max,1) )
+                        ~cr_store_add );
+
+    f1    = close(f1);
+    f2    = close(f2);
+    f3    = close(f3);
+    f4    = close(f4);
+    f5    = close(f5);
+s    f6    = close(f6);
+    if _print_cafpejm;
+        "result matrices were written in GAUSS output file;";
+    endif;
+endif;
+*/
+    /* check whether first minimum is smallest minimum */
+
+garb    = cols(cr_pro)-2;
+if cr_pro[firstmin_nonparam(cr_pro,garb),garb] /= crmin[1,cols(crmin)-2];
+    if _print_cafpejm;
+        "";
+        "cafpejm: there is a local minimum before the global minimum which is";
+        print cr_pro[firstmin_nonparam(cr_pro,garb),.];
+    endif;
+endif;
+
+if _print_cafpejm;
+    "CAPFE program terminated.";
+endif;
+if print_in_file;
+  output off;
+endif;
+retp(cr_pro[2:rows(cr_pro),1:d_max],crmin);
+endp;
+
+/* ============================ end of program ================ */

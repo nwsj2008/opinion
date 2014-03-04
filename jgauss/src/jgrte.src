@@ -1,0 +1,125 @@
+/*
+ This file is part of the econometric software package JMulTi.
+ Copyright (C) 2000-2005  Markus Kraetzig
+
+ This program is free software; you can redistribute it and/or
+ modify it under the terms of the GNU General Public License
+ as published by the Free Software Foundation; either version 2
+ of the License, or (at your option) any later version.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, write to the Free Software
+ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ */
+
+#ifos2win 
+/* to be used by library creation, windows only */
+#include extern.dec
+#endif
+
+/* Contains methods to be performed when the GRTE starts up 
+   
+   It is used to init the graphics environment, which is needed
+   to properly display graphics from within grte calls.
+   
+   All system libraries must be loaded on initialization, when
+   the GRTE is used. 
+   
+   There are also some methods contained to test the communication 
+   scheme.
+
+*/
+
+/**
+ * Windows only:
+ * - load all dlibraries needed by the procedures
+ * - path to graphics files created during run
+ * - Filename of graphics, to be specified by JAVA
+ * - relative sub directory to find viewer vwr.exe
+ * UNIX:
+ * - load all dlibraries needed by the procedures
+ */
+
+proc(0) = initJGRTE(graphicsPath, graphicsFileName, subDir);
+
+dlibrary  jgrte, cafpe, str;
+
+__jm_graphics_file = graphicsPath$+graphicsFileName;
+
+#ifos2win 
+
+_pscreen = 0;
+
+dllcall setGraphicsEnv(graphicsPath, graphicsFileName, subDir);
+
+
+#endif
+
+retp;
+endp;
+
+
+/** 
+ *
+ * Should be called before Gauss.shutdown to dump dlibraries 
+ *
+ */
+
+proc(0) = shutdownJGRTE();
+
+dlibrary -d;
+
+retp;
+endp;
+
+
+/** 
+ *
+ * Tests calls with various args and return parameters.
+ *
+ */
+
+proc(2) = test_NARRAY(a, b);
+
+retp(vec(a), vec(b));
+endp;
+
+proc(2) = test_NUMBER(a, b);
+
+retp(a + b, a + b);
+endp;
+
+proc(2) = test_STRNG(a1, a2);
+local b1, b2;
+b1 = "test"$+a1;
+b2 = "test"$+a2;
+retp(b1, b2);
+endp;
+
+proc(1) = test_SARRAY(a);
+local b;
+
+b = ""$+zeros(rows(a),cols(a));
+for i(1,rows(a),1);
+  for j(1,cols(a),1);
+    b[i,j]="test"$+a[i,j];
+  endfor;
+endfor;
+retp(b);
+endp;
+
+proc(5) = test_EMPTY();
+local b;
+
+b={};
+retp(b,b,b,b,b);
+endp;
+
+proc(1) = test_Through(a);
+retp(a);
+endp;

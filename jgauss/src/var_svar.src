@@ -1,0 +1,828 @@
+/*
+ This file is part of the econometric software package JMulTi.
+ Copyright (C) 2000-2005  Ralf Brueggemann, Markus Kraetzig
+
+ This program is free software; you can redistribute it and/or
+ modify it under the terms of the GNU General Public License
+ as published by the Free Software Foundation; either version 2
+ of the License, or (at your option) any later version.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, write to the Free Software
+ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ */
+#ifos2win 
+/* to be used by library creation, windows only */
+#include var.dec
+#include svar.dec
+#endif
+
+/**
+ * SVAR ESTIMATION, March 2003, Ralf Brueggemann, Humboldt-University Berlin,
+ * some adjustments for use with JMulTi by Markus Krätzig
+ */
+
+/**
+ * mSigmaU    - K x K matrix, reduced form covariance matrix
+ * T          - number of observations used in estimation
+ */ 
+
+/**
+ * Restriction on A and B can be specified here
+ *
+ *   use:
+ *    <= SVAR_UNRESTRICTED = unrestricted estimate 
+ *    0 		   = restricted to zero
+ *   other values  = restricted to specified values 
+ *
+ *  - C model is specified by letting A = I_K
+ *  - K model is specified by letting B = I_K
+ *  mA_Res = {   1   -1e12  0,
+ *              -1e12 1 -1e12,
+ *               0    0     1 };
+ *  
+ *  mB_Res =  { -1e12 0   0, 
+ *              0   -1e12 0,
+ *              0     0  -1e12 };      
+ *  
+ *
+ */  
+
+/**
+ *  eps1_tol = 1E-6;	   tolerance of relative change in parameters 
+ *  eps2_tol = 1E-10; 	   tolerance for relative change in logLik
+ *  maxIterations = 500;
+ *  iStartValueMethod = 2; 1: draw randomly, 
+ *                         2: fixed values set by "fixStart", 
+ *			   3: vector specicied by user "vStartUser"
+ *  fixStart = .1;         fixed starting value, only needed when  iStartValueMethod  = 2 
+ *  vStartUser = {.1,.2,.4,.6,.7}; vector of start values, only needed when iStartValueMethod = 3  
+ *                                 dimension changes, rows(vStartUser) = cols(mS)	
+ *
+ *  iCorr = 1;             decompose correlation matrix first to obtain SV	
+ *  imaxRetries	= 10;      max. retries of randomly drawing starting values 
+ */	
+
+
+proc(9)=svar_wrapper_var(mSigmaU,T,mA_Res,mB_Res,eps1_tol,eps2_tol, maxIterations,iStartValueMethod,fixStart,vStartUser,iCorr,imaxRetries,fname);
+local K,vg_corr,i_iRt,i_itercorr,i_coCorr,mA,mB,mSigmaAB,mSigmaUt,mA_std,mB_std,i;
+local LLnew,LR_stat,LR_prob,DegreeofOverIdent,noConvergence,mS,vs,model,nfreea,nfreeb,nfreeall;
+local vg,i_ident,minvAB,tmp,vg_bs;
+minvAB = {};
+mA={};
+mB={};
+mS={};
+vs={};
+
+K  = rows(mSigmaU);
+
+tmp=vec(mA_Res);
+for i (1,rows(tmp),1);
+    if tmp[i] < SVAR_UNRESTRICTED;
+    tmp[i]=SVAR_UNRESTRICTED;
+  endif;
+endfor;
+mA_Res = reshape(tmp,K,K)';
+tmp=vec(mB_Res);
+for i (1,rows(tmp),1);
+    if tmp[i] < SVAR_UNRESTRICTED;
+    tmp[i]=SVAR_UNRESTRICTED;
+  endif;
+endfor;
+mB_Res = reshape(tmp,K,K)';
+
+{mS,vs,model,nfreea,nfreeb,nfreeall} = GetResMatrices_svar_var(mA_Res, mB_Res);
+
+/* initialize some variables */
+vg_corr 	  = 0;	
+i_iRt		  = 0;
+i_itercorr	  = 0;
+i_coCorr	  = 0;
+mA		  = 0;
+mB		  = 0;
+mSigmaAB	  = 0;
+mSigmaUt	  = 0;
+mA_std		  = 0;
+mB_std		  = 0;
+i		  = 0;
+LLnew		  = 0;
+LR_stat		  = 0;
+LR_prob		  = 0;
+DegreeofOverIdent = 0;
+noConvergence	  = 0;
+vg_bs             = {};										
+
+vg  = StartingValues_svar_var(mS,iStartValueMethod,vStartUser,fixStart); 
+{i_ident, DegreeofOverIdent} = CheckIdentification_svar_var(vg,mS,vs,nfreeall);
+
+if i_ident == 1;     /* only proceed when model is identified, otherwise inform user*/    		
+  if iCorr == 1;	 /* decompose correlation matrix first to obtain SV 	*/
+    {vg_corr,i_iRT,i_itercorr, i_coCorr}  = DecompCorrelation_svar_var(mSigmaU,mS,vs,vg,T,eps1_tol,eps2_tol,DegreeofOverIdent,maxIterations,model, imaxRetries);	
+    vg = vg_corr; 
+    if i_iRT == 0 and i_coCorr == 0;	/* only estimate when 1st step was successful*/  
+      {mA,mB,minvAB,mSigmaAB,mSigmaUt,mA_std,mB_std,i,LLnew,LR_stat,LR_prob, noConvergence} 
+      = MLEstSVAR_svar_var(mSigmaU,mS,vs,vg,T,eps1_tol, eps2_tol, DegreeofOverIdent,maxIterations,model,0);
+
+    endif;	
+  else;
+    {mA,mB,minvAB,mSigmaAB,mSigmaUt,mA_std,mB_std,i,LLnew,LR_stat,LR_prob, noConvergence} 
+    = MLEstSVAR_svar_var(mSigmaU, mS,vs,vg,T,eps1_tol, eps2_tol, DegreeofOverIdent,maxIterations,model,0);
+  endif;	/* end iCorr	*/
+  /* may be used in the bootstrap as staring values */
+  vg_bs = GetStartforBootstrap_svar_var(mA,mB,vs);
+
+endif;	/* end i_ident*/
+
+OutputResults_svar_var(mA,mB,mSigmaAB,mSigmaUt,mA_std,mB_std,i,LLnew,LR_stat,LR_prob,DegreeofOverIdent, T, noConvergence, maxIterations,vg,model, i_ident,iCorr, i_iRT,i_itercorr, i_coCorr,vg_corr, fname);
+
+
+retp(minvAB,mA,mB,mS,vs,vg_bs,model,mA_std,mB_std);
+endp();
+
+/* computes commutation matrix */
+proc(1)=commutation_svar_var(n);		
+	local z,r,c,cc,zold;
+	z = zeros(n^2,n);
+
+	c=1;			/* first n columns */
+	r=1;
+	do while c<=n;
+	   z[r,c]=1;
+	   c=c+1;
+	   r=r+n; 
+   	endo;       	   	
+
+   	zold= z;
+   	cc = 1;		       /* rest of colums  */
+   	do while cc<n; 
+   	z = z~(zeros(cc,n)|zold[1:n^2-cc,.]);
+   	cc = cc +1;
+   	endo; 	
+retp(z);	
+endp;
+
+/*
+**	Purpose: Rescales parameter values from correlation decomposition
+**			 such that they correspond to covariance decomposition
+**
+*/
+proc(1) = GetNewStartValues_svar_var(mA,mB,mS,mD,model);
+local vg;
+	if model == 1;
+		mA = mD*mA*inv(mD);
+	else;	
+		mA  = mA*inv(mD);  /*for A-model*/
+	endif;
+	mB = mD*mB;
+	vg = pinv(mS)*(vec(mA)|vec(mB));
+retp(vg);
+endp;
+
+/* 
+** 	normalizes sign of A matrix in A-model
+**	
+**	needed only in A-model, possibly investigate reason for having this
+**	
+*/
+proc(1) = NormSignK_svar_var(mA,mSigmaU);
+local i1,i2,i3,K;
+K  = rows(mA);
+i1 = vec(inv(mA)*inv(mA)').<0;
+i2 = vec(mSigmaU).<0;
+i3 = -1*(i1 .ne i2) + (i1 .== i2);
+mA = reshape(vec(mA).*i3,K,K)';
+
+retp(mA);
+endp;
+
+/*
+**	Purpose: Estimates structural decomposition by ML
+**	
+**  Usage:	{mA,mB,minvAB,mSigmaAB,mSigmaUt,mA_std,mB_std,i,LLnew,LR_stat,LR_prob,noConvergence}
+**			  =	MLEstSVAR_svar_var(mSigmaU,mS,vs,vg,T,eps1_tol,eps2_tol,DegreeofOverIdent,maxIterations,model);
+**	
+**
+**	Input: 		
+**			mSigmaU		reduced form covariance matrix
+**
+**				mS			restriction matrix
+**
+**				vg			vector with starting values
+**
+**				T			observation used in estimation
+**
+**				eps1_tol	tolerance for relative parameter change
+**
+**				eps2_tol 	tolerance for relative change in log likelihood
+**
+**				DegreeofOverIdent		degreeofoveridentification
+**
+**				maxIterations	max. # of iterations
+**			
+**				model		model indicator: 1=AB, 2=K, 3=C
+**
+**                              bs              1 when used by bootstrap (computes less parameters), 
+**                                              0 otherwise
+**
+**	Output:		mA			estimated A matrix
+**				
+**				mB			estimated B matrix
+**
+**				minvAB      inv(A)*B, contemp. impact matrix
+**
+**
+**				mSigmaAB	covariance matrix of structural parameter vector 
+**
+**				mSigmaUt	ML estimate of covariance matrix
+**
+**				mA_std		matrix with standard errors of mA
+**
+**				mB_std		matrix with standard errors of mB
+**
+**				i 			# of iterations needed
+**
+**				LLnew		max LogLikelihood value
+**
+**				LR_stat		LR test statistic for overidentifying restrictions
+**				
+**				LR_prob		marginal significance level for LR_Stat
+**
+**			noConvergence	0 if alg. converged, else 1
+**
+*/
+proc(12)=MLEstSVAR_svar_var(mSigmaU,mS,vs,vg,T,eps1_tol,eps2_tol,DegreeofOverIdent,maxIterations,model,bs);
+local i, eps1,eps2, mK, mIAB, mIga, mHess_mK, v_scoreK, v_scoreAB;
+local v_scoregamma, lambda1, alpha, vgold, mSigmaUt;
+local LLnew, llold;
+local K, mA, mB, mCom; 
+local length;
+local lambda;
+local mSigmaAB, std_AB;
+local maxls,x;
+local LR_Stat, Lr_prob, mA_std, mB_std, noConvergence;
+local vecAB,tmp;
+
+maxls   = 1;
+K 	= rows(mSigmaU);
+vecAB   = mS*vg+vs;
+mA   	= reshape(vecAB[1:K^2],K,K)';
+mB   	= reshape(vecAB[K^2+1:2*K^2],K,K)';
+mCom 	= commutation_svar_var(K);
+noConvergence = 0;
+
+vgold   = vg;
+
+eps1 	= 100;
+eps2 	= 100;
+
+mSigmaUt = inv(mA)*mB*mB'*inv(mA');
+   	  mK = inv(mB)*mA;
+   llold = T/2*ln(det(mK)^2)-T/2*sumc(diag((mK'mK*mSigmaUt)));
+
+i = 0;
+do while ((eps1.>eps1_tol) or (eps2.>eps2_tol)) and i<maxIterations;
+		
+          mK = inv(mB)*mA;            
+        mIAB = T*(inv(mK).*.inv(mB')|-1*(eye(K).*.inv(mB')))*(eye(K^2)+ mCom)*(inv(mK').*.inv(mB)~-1*(eye(K).*.inv(mB)));        
+        mIga = mS'*mIAB*mS;     
+ v_scoreK 	 = T*(vec(inv(mK)')'-vec(mK)'*(mSigmaU.*.eye(K)));
+v_scoreAB 	 = v_scoreK * ((eye(K).*.inv(mB))~-1*mA'inv(mB').*.inv(mB));
+v_scoregamma = v_scoreAB*mS;  
+   		   
+   	   /* RB, MK changed this block on May 22, 2003 */
+   	   tmp ={};
+   	   trap 1;
+   	   tmp = inv(mIga);
+   	   trap 0;
+   	   if scalerr(tmp);
+   	   	retp(0,0,0,0,0,0,0,0,0,0,0,1);	/* return noConvergence = 1*/
+   	   endif;
+       length = maxc(abs(tmp*v_scoregamma'));
+       if length > maxls;
+         lambda = maxls/length;
+       else;
+       	 lambda =1;
+       endif;   
+       
+	  	 vg = vgold +lambda*tmp*v_scoregamma';
+	
+	   vecAB = mS*vg+vs;
+	   
+	   
+ 	    mA = reshape(vecAB[1:K^2],K,K)';
+	    mB = reshape(vecAB[K^2+1:2*K^2],K,K)';	 
+   
+	   mK = inv(mB)*mA;
+ mSigmaUt = inv(mA)*mB*mB'*inv(mA');
+   
+   LLnew  = T/2*ln(det(mK)^2)-T/2*sumc(diag((mK'mK*mSigmaUt)));	
+   	 
+     eps2 = abs((llnew-llold)/llold);
+	 eps1 = abs((vg-vgold)/vgold);
+    vgold = vg;	
+   llold  = llnew;
+   i = i +1;  
+   
+  endo;
+
+if (eps1.>eps1_tol) or (eps2>eps2_tol);
+  noConvergence = 1;
+endif;  
+	
+	
+	if model == 3;                                   	 /* for b-model          */
+		if sumc(diag(inv(mA)*mB).<0) ne 0;               /* normalize sign of mB */
+		  x = diag(inv(mA)*mB).<0; 					
+		mB[.,indexcat(x,1)] = -1*mB[.,indexcat(x,1)];
+		endif; 
+    elseif model == 2;									 /* for A-model			 */
+		if sumc(diag(inv(mA)*mB).<0) ne 0;               /* normalize sign of mA */
+				  x = diag(inv(mA)*mB).<0; 		
+				mA[.,indexcat(x,1)] = -1*mA[.,indexcat(x,1)];
+		endif; 
+		mA = NormSignK_svar_var(mA,mSigmaU);
+	elseif model == 1;							/* for AB-model         */
+	   if sumc(diag(mA).<0) ne 0;               /* normalize sign of mA */
+		  x = diag(mA).<0; 				
+		 mA[.,indexcat(x,1)] = -1*mA[.,indexcat(x,1)];
+	 	endif; 
+	
+		if sumc(diag(mB).<0) ne 0;               /* normalize sign of mB */
+			  x = diag(mB).<0; 				
+			 mB[.,indexcat(x,1)] = -1*mB[.,indexcat(x,1)];
+		endif;  
+	
+	      endif;
+	      
+	/* Quit here when in bootstrap */      
+	if bs;
+	  retp(mA,mB,inv(mA)*mB,0,0,0,0,i,0,0,0,0);
+	endif;
+	  
+	/* compute LR test for over-identifying restr. */				    
+      if DegreeofOverIdent > 0;       
+        LR_stat =  T*(ln(det(mSigmaUt))-ln(det(mSigmaU)));
+        LR_prob =  cdfchic(LR_stat,DegreeofOverIdent);
+      else;
+        LR_Stat = 0;
+        LR_Prob = 0;
+     endif;
+	
+	   /* compute standard errors */
+           mK = inv(mB)*mA;            
+   	 	 mIAB = T*(inv(mK).*.inv(mB')|-1*(eye(K).*.inv(mB')))*(eye(K^2)+ mCom)*(inv(mK').*.inv(mB)~-1*(eye(K).*.inv(mB)));        
+ 	     mIga = mS'*mIAB*mS; 
+	mSigmaAB  = (mS*inv(mIga)*mS');
+	std_AB    = sqrt(diag(mSigmaAB));
+	   mA_std = reshape(std_AB[1:K^2],K,K)';
+	   mB_std = reshape(std_AB[K^2+1:rows(std_AB)],K,K)';	 
+
+retp(mA,mB,inv(mA)*mB,mSigmaAB,mSigmaUt,mA_std,mB_std,i,LLnew,LR_stat,LR_prob,noConvergence);
+endp;
+
+
+
+/* 
+**	Purpose:	Checks identification numerically using the starting values
+**
+**	Usage:		{ident, DegreeofOverIdent} = CheckIdentification_svar_var(vg,mS,vs,nfreeall); 
+**
+**	Input:		vg: 		vector of starting values
+**				
+**				mS: 		Restriction matrix
+**				
+**				vs: 		vector of normalizing constants
+**	
+**				nfreeall:	scalar, number of free parameters
+**
+**	Output:		ident:		1: model identified, 0 model not identified
+**				
+**				DegreeofOverIdent:	gives the degree of overidentification
+*/
+proc(2) = CheckIdentification_svar_var(vg,mS,vs,nfreeall);
+local K,mA, mB, mCom, mV, i_nZeroEV, ident;
+local DegreeofOverIdent,nOfFreePar,vga,vgb,x;
+local vAB;       
+	 K = sqrt(rows(vs)/2);	
+	 vAB = mS*vg+vs;	
+	mA = reshape(vAB[1:K^2],K,K)';
+	mB = reshape(vAB[K^2+1:2*K^2],K,K)';	
+	   
+       mCom = commutation_svar_var(K);
+       mV   = (eye(K^2)+mCom)*((inv(mA)*mB)'.*.inv(mB)) ~ -1*(eye(K^2)+mCom)*(eye(K).*.inv(mB)); 
+
+  i_nZeroEV = sumc(eig((mV*mS)'(mV*mS)).<1E-10);
+  
+ 	  DegreeofOverIdent = K*(K+1)/2 - nfreeall ; 
+   
+ if i_nZeroEV == 0;    
+       ident = 1;
+  else;   
+       ident = 0;
+  endif;
+
+retp(ident, DegreeofOverIdent);
+endp;
+
+
+/*	
+**
+**
+**	Usage:
+**	
+**	{mS,vs,model,nfreea, nfreeb, nfree} = GetResMatrices_svar_var(mA_Res, mB_Res);
+**
+** 	Input:
+**
+**		mA_Res, mB_Res:
+**						K xK matrices with information on restrictions:
+** 			   			0   = parameter set to zero
+**  			   SVAR_UNRESTRICTED	= unrestricted parameter
+**			other values 	= parameters set specified value	
+**
+**
+**	Output:		 	
+**			
+**		mS:			Restriction matrix for AB-model
+**
+**		vs:			Vector of normalizing constants
+**
+**		model:      scalar, model indicator
+**					1 = AB-model
+**					2 = A-model
+**					3 = b-model
+**	
+**		nfreea:		scalar, # of free elements in A
+**
+**		nfreeb:		scalar, # of free elements in B
+**	
+**		nfree:		scalar, total number of free parameters in A and B
+**
+*/
+proc(6) = GetResMatrices_svar_var(mA_Res, mB_Res);
+local K,vecB,mRb,vsb,vSel,mSa,sa,model,mSb,sb,vecA,mRa,vsa,mS,vs ;
+local nfreea, nfreeb, nfree;
+
+    K  = rows(mA_Res);
+       
+    /* check wether this is a K or C model */
+	if mA_Res == eye(K);
+	   /* restrictions on B */
+	   vecB = vec(mB_Res);
+	   mRb  = eye(K^2);
+	   vSel = vecB.<= SVAR_UNRESTRICTED;
+	   mRb  = selif(mRb,vSel)';       
+       vsb  = vecB.*(1-vSel);       
+  	   vsa  = vec(eye(K));
+       mS   = zeros(K^2,cols(mRb)) | mRb;
+       vs   = vsa|vsb;
+       model = 3;
+       nfreea = 0;
+       nfreeb = cols(mRb);
+    elseif mB_Res == eye(K);
+       mRb = 0;
+       vsb  = vec(eye(K));
+       
+       /* restrictions on A*/	
+	   vecA = vec(mA_Res);
+	   mRa  = eye(K^2);
+	   vSel = vecA.<= SVAR_UNRESTRICTED;
+	   mRa  = selif(mRa,vSel)';       
+       vsa  = vecA.*(1-vSel);
+       
+       mS   = mRa | zeros(K^2,cols(mRa));
+       vs   = vsa|vsb;
+       model = 2;
+       nfreea = cols(mRa);
+       nfreeb = 0;
+    else; 
+       /* restrictions on A*/	
+	   vecA = vec(mA_Res);
+	   mRa  = eye(K^2);
+	   vSel = vecA.<= SVAR_UNRESTRICTED;
+	   if sumc(vSel) ne 0;
+	     mRa  = selif(mRa,vSel)';       
+	   else;
+	     mRa  = 0;        
+	   endif;
+	   
+	   vsa  = vecA.*(1-vSel);
+       /* restrictions on B */
+	   vecB = vec(mB_Res);
+	   mRb  = eye(K^2);
+	   vSel = vecB.<= SVAR_UNRESTRICTED;
+	   if sumc(vSel) ne 0;
+	   	mRb  = selif(mRb,vSel)';       
+           else;
+             mRb  = 0;
+           endif;
+       
+       vsb  = vecB.*(1-vSel); 
+       vs   = vsa|vsb;
+       
+       if mRa == 0;
+	 mS   = zeros(k^2,cols(mRb))|mRb;
+       else;
+	 mS   = mRa~zeros(rows(mRa),cols(mRb))|
+	 zeros(rows(mRb),cols(mRa))~mRb;
+       endif;
+       model = 1;
+       nfreea = cols(mRa);
+       nfreeb = cols(mRb);
+     endif;  
+     
+    nfree = nfreea+nfreeb;
+    
+retp(mS,vs,model,nfreea, nfreeb, nfree);
+endp;
+
+
+
+/*
+**	Purpose:	Write results to screen and ASCII-file
+**
+**
+*/
+proc(0) = OutputResults_svar_var(mA,mB,mSigmaAB,mSigmaUt,mA_std,mB_std,i,LLnew,LR_stat,LR_prob,DegreeofOverIdent,T,noConvergence,maxIterations,vg,model,i_ident,iCorr,i_iRT,i_itercorr,i_coCorr,vg_corr,fname);
+format /rd 8,4;
+output file = ^fname reset;
+screen off;
+if model == 1;
+"This is an AB-model";
+elseif model == 2;
+"This is a A-model";
+elseif model == 3;
+"This is a B-model";
+endif;
+
+if i_ident == 0;
+	"";
+  	"Model is not identified";
+  	"Use different restrictions and try again!";
+else;
+	if iCorr == 1 and i_iRT == 0 and i_coCorr == 0;
+			"";
+			"Step 1:";
+			"Obtaining starting values from decomposition of correlation matrix...";
+			"Iterations needed for correlation matrix decomposition: " i_itercorr;
+			"Vector of rescaled starting values: " vg_corr;
+			"";
+			"Step 2:";
+					if noConvergence == 0;
+					format /rd 8,4;
+					"Structural VAR Estimation Results";
+					"ML Estimation, Scoring Algorithm (see Amisano & Giannini (1992))";
+					
+						format /rd 0,0; 
+						"Convergence after " i "iterations";
+						format /rd 8,4;
+						"Log Likelihood: " LLnew;	
+						if DegreeofOverIdent == 0;
+						"Structural VAR is just identified";
+						else;
+						"Structural VAR is over-identified with " DegreeofOverIdent " degrees of freedom";
+						"LR Test: Chi^2(" DegreeofOverIdent "): " LR_Stat ", Prob: " LR_prob ;
+						endif;
+						"";		
+						"Estimated A matrix:"  mA;
+						"";
+						"Estimated standard errors for A matrix:"
+						mA_std;
+						"";
+						"Estimated B matrix:"  mB;
+						"";
+						"Estimated standard errors for B matrix"
+						mB_std;
+						"";
+						"A^-1*B" inv(mA)*mB;
+						"SigmaU~*100" mSigmaUt*100;
+						"end of ML estimation";
+						"";
+					else;
+						"";
+						"Warning!";
+						format /rd 0,0;
+						"No Convergence after "  maxIterations " iterations";
+						format /rd 8,4;
+						"Try again using different starting values...";
+						"";
+					endif;	
+		elseif iCorr == 1 and (i_iRT == 1 or i_coCorr == 1);
+		
+			"Decomposition of correlation matrix failed";
+			"Try again...";
+		elseif iCorr == 0 and noConvergence == 0;
+			format /rd 8,4;
+			"Structural VAR Estimation Results";
+			"ML Estimation, Scoring Algorithm (see Amisano & Giannini (1992))";
+
+				format /rd 0,0; 
+				"Convergence after " i "iterations";
+				format /rd 8,4;
+				"Log Likelihood: " LLnew;	
+				if DegreeofOverIdent == 0;
+				"Structural VAR is just identified";
+				else;
+				"Structural VAR is over-identified with " DegreeofOverIdent " degrees of freedom";
+				"LR Test: Chi^2(" DegreeofOverIdent "): " LR_Stat ", Prob: " LR_prob ;
+				endif;
+				"";		
+				"Estimated A matrix:"  mA;
+				"";
+				"Estimated standard errors for A matrix:"
+				mA_std;
+				"";
+				"Estimated B matrix:"  mB;
+				"";
+				"Estimated standard errors for B matrix"
+				mB_std;
+				"";
+				"A^-1*B" inv(mA)*mB;
+				"SigmaU~*100" mSigmaUt*100;
+				"end of ML estimation";
+				"";
+			elseif iCorr == 0 and noConvergence == 1;
+				"";
+				"Warning!";
+				format /rd 0,0;
+				"No Convergence after "  maxIterations " iterations";
+				format /rd 8,4;
+				"Try again using different starting values...";
+				"";
+			endif;
+endif;	/* endif i_ident*/
+screen on;		      
+output off;
+endp;
+
+/*
+**	Purpose: compute structural decomposition of correlation matrix to find optimal start values
+**	
+**	Usage: {vgn,i_irt,i} = DecompCorrelation(mSigmaU,mS,vs,vg,T,eps1_tol,eps2_tol,DegreeofOverIdent,maxIterations,model,imaxRetries); 
+**
+**
+**	Input: 			mSigmaU: 	reduced form resdidual covariance matrix
+**				
+**					mS:			restriction matrix
+**	
+**					vs: 		vector of normalizing constants
+**
+**					vg: 		vector of start values
+**
+**					T:			number of obs. used in estimation
+**
+**					eps1_tol: 	tolerance for relative change in parameters
+**
+**					eps2_tol:	tolerance for relative change in log likelihood
+**
+**					DegreeofOverIdent: degree of overidentification
+**
+**					maxIterations:	max. number of iteration in scoring
+**
+**					model:      	scalar, model indicator
+**									1 = AB-model
+**									2 = A-model
+**									3 = b-model
+**
+**					imaxRetries:	max. # of redrawing new starting values for correlation matrix decomposition
+**
+**
+**		Output:		vgn:		optimal start values 
+**
+**					i_irt		indicator: 1 # of max. retries exceeded
+**
+**					i:			# of iterations needed 	
+**				
+**					noConvergence: 0 if convergence, 1 else
+**
+*/
+proc(4) = DecompCorrelation_svar_var(mSigmaU,mS,vs,vg,T,eps1_tol,eps2_tol,DegreeofOverIdent,maxIterations,model,imaxRetries);
+local K, mD, mCor, noConvergence, vgn, mA, mB, tmp,i,j, i_irt;
+  	  K = rows(mSigmaU);  
+  	 mD	= diagrv(zeros(K,K),sqrt(diag(mSigmaU)));
+   mCor = inv(mD)*mSigmaU*inv(mD);   	 
+		j  = 1;
+		noConvergence =1;
+		do until noConvergence == 0 or j> imaxRetries;   
+
+		{mA,mB,tmp,tmp,tmp,tmp,tmp,i,tmp,tmp,tmp, noConvergence} 
+						= MLEstSVAR_svar_var(mCor,mS,vs,vg,T,eps1_tol, eps2_tol, DegreeofOverIdent,maxIterations,model,0);  	   					if noConvergence == 1;
+						vg = rndn(cols(mS),1);
+					endif;						
+					j = j +1;
+		endo;			
+
+vgn = GetNewStartValues_svar_var(mA,mB,mS,mD,model);	
+
+if noConvergence == 1 and j>imaxRetries;
+	i_irt = 1;
+else;
+	i_irt = 0;
+endif;	
+
+retp(vgn,i_irt,i, noConvergence);
+endp;
+
+
+/*
+**	Purpose: Returns vector of start values with approriate dimension
+**
+**	Usage:		vg = StartingValues(mS,iStartValueMethod,vStartUser,fixStart); 
+**
+**	Input:		mS:	 restriction matrix, cols provide # of start values needed
+**
+**				iStartValueMethod:	1 - draw start values randomly
+**									2 - use fix start value for all parameters, e.g. .1
+**										contained in fixStart
+**									3 - use user specified vector of startvalues contained in 
+**										vStartUser
+**
+**				vStartUser:	vector of start values specified by user
+**
+**				fixStart:	scalar value of fixed starting value
+**
+**	Output:		vg - vector of starting values
+**
+*/
+proc(1)=StartingValues_svar_var(mS,iStartValueMethod,vStartUser,fixStart); 
+local vg;
+	if iStartValueMethod == 1;
+		vg = rndn(cols(mS),1)*.1;
+	elseif iStartValueMethod == 2;
+		vg = ones(cols(mS),1)*fixStart;
+	elseif iStartValueMethod == 3;
+		vg = vStartUser;
+	endif;	
+retp(vg);
+endp;
+
+
+/*
+**	purpose: 	Computes structural decomposition
+**			
+**				- to be used in bootstrap routine
+**				- takes care of nonconverging cases
+**    mSigmau_BS - reduced form covar
+**    j          - index of bootstrap replication
+**    vg_bs      - point estimated from SVAR decomp (start value bootstrap struct decomp.)  
+**				returns contemporaneous impact matrix 
+*/
+proc(1) = GetStructDecomp_svar_var(mSigmau_BS, mS, vs, vg_BS, T, eps1_tol, eps2_tol, maxIterations,model,j);
+local noCon_BS, c_count, minvAB_BS, i;
+
+	noCon_BS = 1;     		          
+	c_count  = 1;
+	do while noCon_BS == 1;	
+		
+		{minvAB_BS,i,noCon_BS} = 
+		MLEstSVAR_BS_svar_var(mSigmaU_BS,mS,vs,vg_BS,T,eps1_tol, eps2_tol, maxIterations,model);
+		if noCon_BS  == 1;
+		   "no convergence in repl. " j " trying different start values...";
+		   vg_BS = rndn(rows(vg_BS),1);
+		endif;
+		
+		c_count = c_count + 1;
+		if c_count > 50;
+			minvAB_BS = missex(minvAB_BS,ones(rows(minvAB_BS),cols(minvAB_BS)));
+			errorlog("No convergence in structural decomposition after 50 retries!");
+			retp(-10);
+		endif;			
+	endo;	
+retp(minvAB_BS);
+endp;
+
+/*
+**   MLEstSVAR_BS_svar_var(mSigmaU_BS,mS,vs,vg_BS,T,eps1_tol, eps2_tol, maxIterations,model);
+** 	
+**	slightly more sparse SVAR estimation call that computes only the parameters 
+**      needed by bootstrap
+**	
+**	
+*/
+proc(3) = MLEstSVAR_BS_svar_var(mSigmaU_BS,mS,vs,vg_BS,T,eps1_tol,eps2_tol,maxIterations,model);
+local tmp, invMAMB, i, noConv;
+ 	  {tmp,tmp,invMAMB,tmp,tmp,tmp,tmp,i,tmp,tmp,tmp,noConv}=
+	  MLEstSVAR_svar_var(mSigmaU_BS,mS,vs,vg_BS,T,eps1_tol, eps2_tol,0, maxIterations,model,1);
+retp(invMAMB,i,noConv);
+endp;
+
+/*
+**  GetStartforBootstrap_svar_var(mA,mB,vs);
+** 	
+**	returns structural point estimates as a vector
+**	
+**	return can be used as starting values in bootstrap structural decomposition
+**	
+*/
+proc(1) = GetStartforBootstrap_svar_var(mA,mB,vs);
+local vg;
+vg = (vec(mA)|vec(mB).ne 0) .and vs.==0 ; 
+retp(selif((vec(mA)|vec(mB)),vg));
+endp;
+
+

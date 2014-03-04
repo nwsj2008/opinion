@@ -1,0 +1,91 @@
+/*
+ This file is part of the econometric software package JMulTi.
+ Copyright (C) 2000-2005  Markus Kraetzig
+
+ This program is free software; you can redistribute it and/or
+ modify it under the terms of the GNU General Public License
+ as published by the Free Software Foundation; either version 2
+ of the License, or (at your option) any later version.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, write to the Free Software
+ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ */
+
+ 
+/*
+
+Computes Wald test as proposed by Luetkepohl to test restrictions 
+on the coint space
+
+input:  
+
+vecm - a vec buffer to be used with the johanson estimation method
+R   - the matrix of restrictions
+
+output:
+
+XiSquare|p-value|df
+
+*/
+
+
+proc(1)=waldtest_cointspace_vec(vecm,Res,r);
+
+local tmp,beta,beta_d,beta_kr,alpha,cointRank,omega,py,index;
+local  y,y_1,d,d_ec,Xi_stat,pval,J,covar,mx_cd2cr,z_2,d_vec,T,Z_dy,M,tmp1;
+
+vecm = var_EstimateModel(vecm);
+vecm = var_ComputeModelStatistics(vecm);
+
+{tmp,tmp,alpha,beta,beta_d,tmp,tmp,tmp,tmp,tmp,tmp,tmp} = vec_GetCoefficients(vecm);
+
+y         = vml_vread(vecm, "y");
+py        = vml_vread(vecm, "py");
+d         = vml_vread(vecm, "d");
+mx_cd2cr  = vml_vread(vecm, "mx_cd2cr");
+T         = rows(y) - py;
+
+tmp={};
+{d_vec,d_ec} = var__splitDeterministics( d, mx_cd2cr);
+cointRank = vml_vread(vecm, "r_est");
+covar     = vml_vread(vecm, "cvRes");
+if cols(d_ec);
+  d_ec  = d_ec[py:rows(d_ec)-1,.]; 
+endif;
+if cols(d_vec);
+  d_vec = d_vec[py+1:py+T,.];
+endif;
+  
+y_1 = y[py:rows(y)-1,cointRank+1:cols(y)]~d_ec;
+
+Z_dy = vml__lagObservations( y[2:py+T,.]-y[1:py+T-1,.], py-1, 1, py-1);
+Z_2  = Z_dy~d_vec;
+
+M=diagrv(zeros(T,T),ones(T,1)); /* because of 3.2 bug */
+if cols(z_2);
+  tmp= inv(Z_2'*Z_2);
+  tmp = Z_2*tmp*Z_2';
+  M = M-tmp;
+endif;
+
+
+omega = inv(y_1'*M*y_1).*.inv(alpha'invpd(covar)*alpha);
+
+index = cointRank*cointRank+1;
+
+beta_kr=vec(beta~beta_d);
+beta_kr=beta_kr[index:rows(beta_kr)]; 
+
+Xi_stat=(Res*beta_kr-r)'inv(Res*omega*Res')*(Res*beta_kr-r);
+
+J = rows(Res);
+pval = cdfchic(Xi_stat,J);
+
+retp(Xi_stat|pval|J);
+endp;

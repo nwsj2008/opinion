@@ -1,0 +1,995 @@
+/*
+ This file is part of the econometric software package JMulTi.
+ Copyright (C) 2000-2005  Helmut Herwartz, Christian Kascha, Markus Kraetzig
+
+ This program is free software; you can redistribute it and/or
+ modify it under the terms of the GNU General Public License
+ as published by the Free Software Foundation; either version 2
+ of the License, or (at your option) any later version.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, write to the Free Software
+ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ */
+/**
+ * Procedures Estimation of Multivariate GARCH.
+ */
+
+/**
+ * AUTHOR
+ * PD Dr. Helmut Herwartz     helmut@wiwi.hu-berlin.de
+ *
+ * Chair of Econometrics
+ * Humboldt University Berlin
+ * Spandauer Str. 1
+ * 10178 Berlin
+ * ise.wiwi.hu-berlin.de/oekonometrie/engl/indexeng.html		
+ * Berlin, February 2003
+ */
+
+/**
+ * input:
+ * et = is T x N matrix of condtionally heteroskedastic times series 
+ * estimate_T = is 0 or 1, defines whether exact t-ratios should be computed,
+ *              in case 0, normal dist is assumed
+ * output:
+ * estimators
+ * tratios with normal dist assumption
+ * tratios calculated exactly
+ * log likelihood
+ * variance processes
+ * residuals
+ * eigenvalues
+ */
+
+proc(7) = mgarch_wrapper_arch(et,estimate_T);
+
+local n,m,c0,a,g,i,trat1,trat2,th0,sig,xit,eli,c0t1,at1,gt1,c0t2,at2,gt2,liks;
+local ret_tratios2,tmp,c;
+
+n = cols(et);
+
+/* determining initial values to arch and garch parameter matrices */
+/* deterministic variance components are also defined*/
+
+th0 = find_startvalues_arch(et);
+
+/* Estimating the multivariate garch process */
+
+{th0,liks} = bhhh_mg_arch(th0,et); 
+
+trat1 = th0[.,2];
+th0 = th0[.,1];
+
+/* QML tratios on demand */
+trat2={};
+if estimate_T;
+  trat2 = QML_t_arch(th0,et);
+endif;
+
+/* process of second order moments  and innovations xit*/
+/* sig is T x N(n+1)/2  and xit is T x N matrix of estimates */
+
+/* parameter matrices   */ 
+{c0,a,g} = param_mg_arch(th0,N);
+/* reordering trat1          */ 
+{c0t1,at1,gt1} = param_mg_arch(trat1,N);
+/* reordering trat2          */ 
+ret_tratios2 = {};
+if estimate_T;
+  {c0t2,at2,gt2} = param_mg_arch(trat2,N);
+  ret_tratios2 = c0t2|at2|gt2;
+endif;
+
+{sig,xit} = sigma_mg_arch(et,a,g,c0);
+
+eli = eli_m_arch(n);
+sig = sig';
+sig = eli*sig;
+sig = sig';
+
+/* checking covariance stationarity */
+
+m = (a .*.a)+(g.*.g);
+m = abs(eig(m));
+
+retp(c0|a|g,c0t1|at1|gt1,ret_tratios2,liks,sig,xit,m);
+endp;
+
+/* gets the correct index in the sig mat given to indices and the dimension of the process */
+proc(1) = getVarIndex_arch(i,j,k);
+local index,toAdd,varIndex,tmp,m,l;
+
+if i > k or i < 1 or j > k or j < 1;
+  errorlog("Invalid indices.");
+  retp(-10);
+endif;
+/* mat is symmetric */
+if i > j;
+  tmp = i;
+  i = j;
+  j = tmp;
+endif;
+
+varIndex = 0;
+
+m=1;
+l=1;
+do while m <= i;
+  l = m;
+  if m < i;
+    do while l <= k;
+      varIndex = varIndex + 1;
+      l = l + 1;
+    endo;
+  else;
+    do while l <= j;
+      varIndex = varIndex + 1;
+      l = l + 1;
+    endo;
+  endif;
+  m = m + 1;
+endo;
+
+retp(varIndex);
+endp;
+
+/**
+ * Procedure plots multivariate GARCH std devs together
+ * with univariate estimates on the diagonal.
+ * input:
+ * sig : cov process
+ * et :  original data to estimated univariate processes
+ * with_univarGARCH: in case 1, estimate garch(1,1) and plot
+ *                   std. dev together with diagonal elements of
+ *                   sqrt(sig)
+ */
+
+proc(0) = plot_istddev_arch(sig,et,with_univarGARCH, t0, p);
+
+  	local ascl,ax,i,s,titel,univar,n,names,tmp,tmp1;
+	local ivaruni,wcounter,variances;
+	n = cols(et);
+	if n < 2 or n > 4;
+	  errorlog("Dimension must be 2,3 or 4.");
+	  retp;
+	endif;
+	
+	univar = {};
+	if with_univarGARCH;
+	  for i(1,n,1);
+	    {tmp,tmp,tmp,tmp,ivaruni} = garch_wrapper_arch(et[.,i],1,1);
+	    univar=univar~ivaruni;
+	  endfor;
+	endif;
+	
+	/* Reset graphics globals to default values. */
+	PlotGraphset_plot;
+
+	_plegstr = "multivariate GARCH" $+ "\000" $+ "univariate GARCH"; 
+	
+	/********************one diagram each graph******************/
+	names=seqa(1,1,cols(sig));	  
+	_ptitle = "Std. Deviation, Covariance and Correlation";
+	setGlobalPlot_plot();
+	begwind;
+	s=smwintit_plot( n, n, _ptitle, 0 );
+	{ax, ascl} =  asclTS_plot(t0, p, rows(sig));
+	wcounter=s;
+	for i(1,n,1);
+	  for j(1,n,1);
+	    _plegctl=0; 
+	    _pdate = "";
+	    wcounter=wcounter+1;
+	    setwind(wcounter);
+	    _ptitlht=0.25;
+	    if j == i;
+	      /* computer correct index of variances */
+	      _pcolor= {10, 11};
+	      _plegctl=1; 
+	      setGlobalPlot_plot();
+	      _pdate = "";
+	      tmp = i;
+	      title("Std. Deviation u"$+ftocv(tmp,1,0));
+	      if  __jm_show_plot_title == 0;
+		_ptitle = "";
+	      endif;
+	      _ptitlht = __jm_height_plot_title;
+	      tmp = j;
+	      tmp = sqrt(sig[.,getVarIndex_arch(tmp,tmp,n)]);
+	      if rows(univar);
+		tmp = tmp ~sqrt(univar[.,j]);
+	      endif;
+	      XY(seqa(1,1,rows(sig)),tmp); 
+	      _plegctl=0; 
+	    elseif j < i;
+	      tmp = i;
+	      tmp1 = j;
+	      _ptitle="Correlation u" $+ftocv(tmp1,1,0) $+"u" $+ftocv(tmp,1,0);
+	      if  __jm_show_plot_title == 0;
+		_ptitle = "";
+	      endif;
+	      _ptitlht = __jm_height_plot_title; 
+	      _pcolor= 10;
+	      XY(seqa(1,1,rows(sig)),sig[.,getVarIndex_arch(tmp1,tmp,n)]./sqrt(sig[.,getVarIndex_arch(tmp,tmp,n)].*sig[.,getVarIndex_arch(tmp1,tmp1,n)]));
+	    elseif i < j;
+	      tmp = i;
+	      tmp1 = j;
+	      _ptitle="Covariance u" $+ftocv(tmp,1,0) $+"u" $+ftocv(tmp1,1,0);
+	      if  __jm_show_plot_title == 0;
+		_ptitle = "";
+	      endif;
+	      _ptitlht = __jm_height_plot_title; 	      
+	      _pcolor= 10;
+	      XY(seqa(1,1,rows(sig)),sig[.,getVarIndex_arch(tmp,tmp1,n)]);
+	    endif;
+	  endfor;
+	endfor;
+	endwind;
+	graphset;
+	dllcall showLastGraphic;
+
+endp;
+
+
+/**
+ * Procedure performs gridsearch over possible elements of a and g.
+ */
+proc(1) = find_startvalues_arch(et);
+local a,g,c,tmp,th0,n,lik,m,em,mm,c0,cij;
+local start,endrange,nrofsteps,theta,step,likmax;
+
+mm = et'et/rows(et);
+n=cols(et);
+/* determining initial values for arch and garch parameter matrices */
+
+a = zeros(n,n);
+g = zeros(n,n);
+c = zeros(n,n);
+
+for i (1,n,1);
+  a[i,i] = sqrt(0.05);
+  g[i,i] = sqrt(0.9);
+  c[i,i] = 0.05*mm[i,i];
+endfor;
+
+
+for i (1,n,1);
+  for j ((i+1),n,1);    
+    cij = mm[i,j]/sqrt(mm[i,i]*mm[j,j]);
+    c[i,j] = cij*sqrt(c[i,i]*c[j,j]);
+    c[j,i] = c[i,j];    
+  endfor;
+endfor;
+
+
+c = chol(c);
+c = c';
+c0 = c[.,1];
+
+for i(2,n-1,1);
+  c0 = c0|c[i:n,i];
+endfor;
+
+c0 = c0|c[n,n];
+
+/* deterministic variance components */
+
+th0 = c0|vec(a)|vec(g);
+
+/*change elements of a and g and compute likelihood in each step*/
+
+likmax = -9999999;
+
+/* print th0'; */
+{th0,likmax} = recursive_search_arch(et,c0,vec(a),vec(g),1,th0,likmax);
+/* print th0'; */
+
+/* print lik_mg_arch(th0,et); */
+
+retp(th0);
+endp;
+
+/* Recursive helper procedure to search startvalues with arbitrary dimension n. */
+
+proc(2) = recursive_search_arch(et,c0,avec,gvec,index,_thetaopt,_likmax);
+
+local start,endr,step,tmp,result,m,em,theta,lik,n,a,g,indextest,val;
+
+n=cols(et);
+start= -3;
+endr = 3;
+step = 6;
+if index == n^2;
+  index = index + 2;
+else;
+  if index < n^2;
+    indextest = (index-1)/(n+1);
+  else;
+    indextest = (index-n^2-1)/(n+1);
+  endif;
+  /* we have a diagonal element */
+  if indextest - floor(indextest) == 0;
+    index = index + 1;
+  endif;
+endif;
+
+for i (start,endr,step);
+  val = i/100;
+  /* set a and g respectively according to index, exclude diagonal elements ;*/
+  if index <= n^2; 
+    avec[index,1] = val;
+  else;
+    gvec[index-n^2,1] = val;
+  endif;
+  /* last element is excluded*/
+  if index < 2*n^2-1;
+    /* recursive step */
+    {_thetaopt,_likmax} = recursive_search_arch(et,c0,avec,gvec,index+1,_thetaopt,_likmax);
+  else;
+    /* final step */
+    theta = c0|avec|gvec;	  
+    /*likelihood*/
+    lik = lik_mg_arch(theta,et);
+    if lik > _likmax;
+      _thetaopt = theta;
+      _likmax = lik;
+    endif;	
+  endif;	
+endfor;
+retp(_thetaopt,_likmax);
+endp;
+
+
+
+/* BHHH algorithm */
+/* theta is initial parameter vector, max number of iterations 
+is 50. At each iteration alternative step sizes towards the 
+optimum are tried. */
+
+proc(2) = bhhh_mg_arch(theta,et);
+
+local th,step,steps, mindex,end1,end2,iter,der,der2,de1,de11,liks,j,temp,s1,theta1;
+
+th = theta;
+steps = 5~2~1~0.5~0.25~0.1~0.01~0.005~0;
+step = 0.01;
+mindex = 0;
+end2 = 0;
+
+iter = 1;
+do until (end2 == 1) or (iter > 50);
+  theta = th;
+  theta1 = zeros(rows(theta),9);
+  
+  der = der_1stmg_arch(theta,et);
+  der2 = der'der;
+  der = sumc(der);
+  liks = lik_mg_arch(theta,et);
+
+  for j (1,9,1);
+    temp = th + step*steps[.,j]*invv_arch(der2)*der;
+    theta1[.,j]  = temp;
+  endfor;
+  
+  de11 = zeros(9,1);
+  de11[9,1] = liks;
+  end1 = 0;
+  j = 8;
+  do until (j < 1) or (end1 == 1);    
+    liks = lik_mg_arch(theta1[.,j],et);
+    de11[j,1] = liks;
+    if de11[j+1,1] gt de11[j,1];
+      end1 = 1;
+    endif;
+    j = j-1;
+  endo;
+  
+  mindex = maxindc(de11[(j+1):rows(de11),.])+j;
+/*   de11'; */
+  de1 = de11[mindex,1];    
+  if ((de1-de11[9,1])^2/abs(de11[9,1])) lt 0.000005;
+    end2 = 1;
+  endif;
+  th = theta1[.,mindex];    
+  iter = iter+1;
+  
+endo;
+
+liks = lik_mg_arch(th,et);
+s1 = der_1stmg_arch(th,et);
+s1 = s1's1;
+
+s1 = inv(s1);
+s1 = sqrt(diag(s1));
+
+th = th~(th./s1);
+
+retp(th,liks);
+endp;
+
+
+/* Computation of first order derivatives of the Gaussian log-likelihood        */
+/* der_1st delivers a T times K matrix, where K is the number of parameters
+   in the BEKK model                                                                                        */
+
+proc(1) = der_1stmg_arch(theta,et);
+
+local  n,n2,dup, dupplu, elli,abls,c0,a,g,c,delh_a,h,delh_g,delh_c,delh_th,
+       sigi,xi,k,i,dh,mat;
+
+
+N = cols(et);
+N2 = n^2;
+
+elli = eli_m_arch(N);
+dup = dup_m_arch(N);
+dupplu = inv(dup'dup)*dup';
+
+abls = zeros(rows(et),rows(theta));
+
+{c0,a,g} = param_mg_arch(theta,N);
+c = c0'c0;
+
+h = et'et/rows(et);
+
+delH_A = 2*dup*dupplu*(eye(n).*.(A'h));
+delH_g = 2*dup*dupplu*(eye(n).*.(G'h));
+delH_C = 2*dup*dupplu*(C0'.*.eye(n))*elli';
+
+delH_th =  delh_c~delh_a~delh_g;
+delH_th =  delH_th';
+
+sigi = inv(matroot_arch(h));
+xi = sigi*et[1,.]';
+
+for k (1,rows(theta),1);
+
+dh = delh_th[k,.];
+dh = dh';
+dh = reshape(dh,n,n);
+
+mat = sigi*dh*sigi*(eye(n)-xi*xi');
+
+abls[1,k] = -0.5*sumc(diag(mat));
+
+endfor;
+
+for i (2,rows(et),1);
+
+delH_a = 2*dup*dupplu*(eye(n).*.(A'et[(i-1),.]'et[(i-1),.]))+(G.*.G)'delH_a;
+delH_g = 2*dup*dupplu*(eye(n).*.(g'H))+(G.*.G)'delH_g;
+delH_C = 2*dup*dupplu*(C0'.*.eye(n))*elli'+(G.*.G)'delH_c;
+
+delH_th =  delh_c~delh_a~delh_g;
+delH_th =  delH_th';
+
+H = c + a'et[(i-1),.]'et[(i-1),.]*a + g'H*g;
+
+sigi = inv(matroot_arch(h));
+xi = sigi*et[i,.]';
+
+for k (1,rows(theta),1);
+
+dh = delh_th[k,.];
+dh = dh';
+dh = reshape(dh,n,n);
+
+mat = sigi*dh*sigi*(eye(n)-xi*xi');
+abls[i,k] = -0.5*sumc(diag(mat));
+
+endfor;
+
+endfor;
+
+retp(abls);
+endp;
+
+
+/* Computation of second order derivatives of the Gaussian log-likelihood function */
+/* Not needed for estimation, but for inference under non Gaussian error terms      */
+
+proc(1) = der_2ndmg_arch(theta,et);
+
+local  n,n2,n2_1,c0,a,g,c,gg,m1,m2,m3,m4,h,c1mat,c2mat,c3mat,pp,
+          kommu,elli,dup,dupplu,ki,kj,tmp1,tmp2,
+          abls2,delhhh,delhh,matt,dhi,dhj,temp,etet,ddhi,ddi,ddj,
+          delh_a,delh_g,delh_c,delhh_a,delhh_g,delhh_c,delh_th,
+          delh_cct,delh_cat,delh_cgt,delh_act,delh_aat,delh_agt,delh_gct,delh_gat,delh_ggt,
+          sigi,xi,k,i,ih,ddh,mat;
+
+N = cols(et);
+n2 = n^2;
+n2_1 = N*(n+1)/2;
+
+kommu = kom_m_arch(N);
+elli = eli_m_arch(N);
+dup = dup_m_arch(N);
+dupplu = inv(dup'dup)*dup';
+
+c2mat = 2*(eye(n2).*.(dup*dupplu));
+c1mat = eye(n).*.kommu.*.eye(n);
+c3mat = c2mat*c1mat;
+
+abls2 = zeros(rows(theta),rows(theta));
+
+{c0,a,g} = param_mg_arch(theta,N);
+c = c0'c0;
+
+gg = g.*.g;
+m1 = eye(n2).*.(gg');
+m2  = (kommu.*.vec(G'))+(vec(G').*.kommu);
+m3 = 2*dup*dupplu;
+m4 = eye(n).*.g';
+
+h = et'et/rows(et);
+
+delH_AAt = c3mat*(vec(eye(n)).*.(h.*.eye(n)))*kommu;
+delH_AGt = zeros(n2^2,n2);
+delH_ACt = zeros(n2^2,n2_1);
+
+delH_ggt =  c3mat*(vec(eye(n)).*.((h.*.eye(n)))*kommu);
+delh_gat = zeros(n2^2,n2);
+delH_gct = zeros(n2^2,n2_1);
+
+delh_cct = zeros(n2_1*n2,n2_1);
+delh_cgt = zeros(n2_1*n2,n2);
+delh_cat = zeros(n2_1*n2,n2);
+
+delH_A = m3*(eye(n).*.(A'h));
+delH_g = m3*(eye(n).*.(G'h));
+delH_C = m3*(C0'.*.eye(n))*elli';
+
+delH_th =  delh_c~delh_a~delh_g;
+delH_th =  delH_th';
+
+sigi = inv(matroot_arch(h));
+xi = sigi*et[1,.]';
+ih = inv(h);
+
+delHH_C = delH_CCt~delH_CAt~delH_CGt;
+delHH_A = delH_ACt~delH_AAt~delH_AGt;
+delHH_G = delH_GCt~delH_GAt~delH_GGt;
+
+delhhh = delhh_c|delhh_a|delhh_g;
+
+/* reorder delhhh */
+
+matt = zeros(rows(theta),n2);
+matt[1,1] = 1;
+
+for pp (2,rows(theta),1);
+mat = zeros(rows(theta),n2);
+mat[pp,1] = 1;
+matt = matt~mat;
+endfor;
+
+delhh = matt*delhhh;
+
+for pp (2,n2,1);
+matt = zeros(rows(mat),1)~matt[.,1:(cols(matt)-1)];
+delhh = delhh|(matt*delhhh);
+endfor;
+
+for ki (1,rows(theta),1);
+
+for kj (1,rows(theta),1);
+
+dhi = delh_th[ki,.];
+dhi = dhi';
+dhi = reshape(dhi,n,n);
+
+dhj = delh_th[kj,.];
+dhj = dhj';
+dhj = reshape(dhj,n,n);
+
+
+temp = delhh[ki,kj];
+
+for k (2,n2,1);
+temp = temp|delhh[(k-1)*rows(theta)+ki,kj];
+endfor;
+
+temp = reshape(temp,n,n);
+ddh = temp';
+
+mat = ddh*ih-dhi*ih*dhj*ih+et[1,.]'et[1,.]*ih*dhj*ih*dhi*ih-
+et[1,.]'et[1,.]*ih*ddh*ih+et[1,.]'et[1,.]*ih*dhi*ih*dhj*ih;
+
+abls2[ki,kj] = -0.5*sumc(diag(mat));
+
+endfor;
+
+endfor;
+
+for i(2,rows(et),1);
+
+etet = et[i-1,.]'et[i-1,.];
+
+tmp1 = (etet.*.eye(n))*kommu;
+
+delH_AAt = c3mat*(vec(eye(n)).*.tmp1)+m1*delH_AAt;
+delH_AGt = (delH_a'.*.eye(n2))*c1mat*m2+m1*delH_AGt;
+
+delH_ggt =  c3mat*(vec(eye(n)).*.((h.*.eye(n))*kommu+m4*delH_g))
+                 +(delH_g'.*.eye(n2))*c1mat*m2+m1*delH_GGt;
+
+tmp1 = vec(eye(n)).*.m4*delH_a;
+tmp2 = m1*delH_gat;
+delH_gat = c3mat*tmp1+tmp2;
+
+tmp1 = vec(eye(n)).*.m4*delH_c;
+tmp2 = m1*delH_gct;
+delH_gct = c3mat*tmp1+tmp2;
+
+delh_CCt = (elli.*.m3)*c1mat*(eye(n2).*.vec(eye(n)))*elli'
++(eye(n2_1).*.(gg)')*delh_cct;
+
+delH_CGt = (delH_C'.*.eye(n2))*c1mat*m2 +(eye(n2_1).*.(gg)')*delh_cgt;
+
+delH_a = m3*(eye(n).*.(A'et[(i-1),.]'et[(i-1),.]))+(GG)'delH_a;
+delH_g = m3*(eye(n).*.(g'H))+(GG)'delH_g;
+delH_C = m3*(C0'.*.eye(n))*elli'+(GG)'delH_c;
+
+delH_th =  delh_c~delh_a~delh_g;
+delH_th =  delH_th';
+
+H = c + a'etet*a + g'H*g;
+
+ih = inv(h);
+
+delHH_C = delH_CCt~delH_CAt~delH_CGt;
+delHH_A = delH_ACt~delH_AAt~delH_AGt;
+delHH_G = delH_GCt~delH_GAt~delH_GGt;
+
+delhhh = delhh_c|delhh_a|delhh_g;
+
+/* reorder delhhh */
+
+matt = zeros(rows(theta),n2);
+matt[1,1] = 1;
+
+for pp (2,rows(theta),1);
+mat = zeros(rows(theta),n2);
+mat[pp,1] = 1;
+matt = matt~mat;
+endfor;
+
+delhh = matt*delhhh;
+
+for pp (2,n2,1);
+matt = zeros(rows(mat),1)~matt[.,1:(cols(matt)-1)];
+delhh = delhh|(matt*delhhh);
+endfor;
+
+for ki (1,rows(theta),1);
+
+for kj (1,rows(theta),1);
+
+dhi = delh_th[ki,.];
+dhi = dhi';
+dhi = reshape(dhi,n,n);
+
+dhj = delh_th[kj,.];
+dhj = dhj';
+dhj = reshape(dhj,n,n);
+
+temp = delhh[ki,kj];
+
+for k (2,n2,1);
+temp = temp|delhh[(k-1)*rows(theta)+ki,kj];
+endfor;
+
+temp = reshape(temp,n,n);
+ddh = temp';
+
+
+etet = et[i,.]'et[i,.];
+ddhi = ddh*ih;
+ddi = dhi*ih;
+ddj = dhj*ih;
+
+mat = ddhi-ddi*ddj+etet*ih*ddj*ddi-etet*ih*ddhi+etet*ih*ddi*ddj;
+
+abls2[ki,kj] = abls2[ki,kj]-0.5*sumc(diag(mat));
+
+endfor;
+
+endfor;
+
+endfor;
+
+abls2 = abls2*(-1);
+
+retp(abls2);
+endp;
+
+
+/* Evaluation of the log likelihood function */
+
+proc(1) = lik_mg_arch(theta,et);
+
+local n,lik,h,i,a1,g1,c0,tmp;
+
+N = cols(et);
+
+{c0,a1,g1} = param_mg_arch(theta,N);
+
+lik = zeros(rows(et),1);
+
+H = et'et/rows(et);
+
+lik[1,.] = (-n/2)*ln(2*pi)-0.5*ln(det(h))-0.5*et[1,.]*invv_arch(h)*(et[1,.]');
+
+for i (2,rows(et),1);
+
+  H = c0'c0 + a1'et[(i-1),.]'et[(i-1),.]*a1 + g1'H*g1;
+
+  lik[i,.] = (-n/2)*ln(2*pi)-0.5*ln(det(h))-0.5*et[i,.]*invv_arch(h)*(et[i,.]');
+
+endfor;
+
+/* tmp = sortc(lik,1); */
+/* tmp[1:10,.]; */
+/* tmp[rows(tmp)-10:rows(tmp),.]; */
+
+lik = sumc(lik);
+
+if imag(lik) ne 0;
+  lik = -99999999;
+endif;
+
+retp(lik);
+endp;
+
+/* QML t-ratios obtained after evaluating first and 
+    second order derivatives                                    
+    If N > 2 this procedure will be time consuming  */
+
+proc(1) = QML_t_arch(th,et);
+
+local s1,s2,trat;
+
+s1 = der_1stmg_arch(th,et);
+s1 = s1's1;
+
+s2 = der_2ndmg_arch(th,et);
+s2 = inv(s2)*s1*inv(s2);
+
+s2 = sqrt(diag(s2));
+
+trat = (th./s2);
+
+retp(trat);
+endp;
+
+
+
+
+/* Computation of second order moment time paths  and GARCH innovations */
+
+proc(2) = sigma_mg_arch(et,a1,g1,c0);
+
+local i,sig,h,add,gar,n2,n,xit,xi;
+
+n = cols(et);
+n2 = n^2;
+sig = zeros(rows(et),n2);
+xit = zeros(rows(et),n);
+h = et'et/rows(et);
+sig[1,.] = vec(h)';
+xi = invv_arch(matroot_arch(h))*et[1,.]';
+xit[1,.] = xi';
+
+
+for i (2,rows(et),1);
+H = c0'c0 + a1'et[(i-1),.]'et[(i-1),.]*a1 + g1'H*g1;
+sig[i,.] = vec(h)';
+xi = invv_arch(matroot_arch(h))*et[i,.]';
+xit[i,.] = xi';
+
+endfor;
+
+retp(sig,xit);
+endp;
+
+/* Rearranging the BEKK parameter vector into
+    particular (N x N) matrices                               */
+
+proc(3) = param_mg_arch(th,N);
+
+local i,c0,a,g,c0_0,a_0,g_0;
+
+c0_0 = th[1:(n*(N+1)/2),.];
+a_0 = th[(n*(n+1)/2+1):(3*n^2+n)/2,.];
+g_0 = th[(3*n^2+n)/2+1:rows(th),.];
+
+a = reshape(a_0,n,n);a = a';
+g = reshape(g_0,n,n);g = g';
+
+c0 = zeros(n,n);
+i =1;
+do until i > n-1;
+c0[i:n,i] = c0_0[1:(n-i+1),.];
+c0_0 = c0_0[n-i+2:rows(c0_0),.];
+i =i+1;
+endo;
+c0[n,n] = c0_0[1,.];c0 = c0';
+
+retp(c0,a,g);
+endp;
+
+
+ /* for given ARCH and GARCH parameters */
+ /* c0star delivers deterministic variance */
+ /* components matching the unconditional */
+ /* variance of the GARCH process         */
+
+proc(1) = c0star_mg_arch(et,a1,g1);
+
+local n,mom,mult,vecome,c0star,i,c0,cm;
+
+n = cols(a1);
+mom = et'et/rows(et);
+
+det(mom);
+
+mom = vec(mom);
+
+mult = eye(n^2) - (a1 .*. a1)' - (g1.*.g1)';
+
+vecome = mult*mom;
+c0star = reshape(vecome,n,n);
+
+c0star;
+
+trap 1;
+cm = scalerr(invpd(c0star));
+if not cm == 0;
+  retp(-1);
+endif;
+trap 0;
+
+c0star = chol(c0star);
+
+c0star = c0star';
+
+c0 = c0star[.,1];
+
+i = 2;
+do until i > n-1;
+  c0 = c0|c0star[i:n,i];
+  i = i+1;
+endo;
+c0 = c0|c0star[n,n];
+
+retp(c0);
+endp;
+
+
+
+/* Inversion after checking for positive definiteness */
+
+proc(1) = invv_arch(mat);
+
+local cm,erg;
+
+trap 1;
+cm = scalerr(invpd(mat));
+if cm == 0;
+  erg = invpd(mat);
+else;
+  erg = invswp(mat);
+endif;
+retp(erg);
+endp;
+
+
+/* Computes the square root of a symmetric matrix */
+/* Eigenvalue decomposition */
+
+proc(1) = matroot_arch(mat);
+
+local n,k1,k2,lambda,ro_ot,i;
+n = cols(mat);
+{k1,k2} = eigrs2(mat);
+lambda = zeros(n,n);
+i = 1;
+do until i > n;
+  lambda[i,i] = sqrt(k1[i,.]);
+  i = i+1;
+endo;
+ro_ot = k2*lambda*k2';
+
+retp(ro_ot);
+endp;
+
+
+/* Generating a duplication matrix */
+
+proc(1) = dup_m_arch(N);
+
+local n2,el,co,m,dup;
+
+n2 = n^2;
+el = eli_m_arch(n);
+co = kom_m_arch(n);
+m = eye(n2)+co;
+
+dup = m*el'inv(el*m*el');
+
+retp(dup);
+endp;
+
+/* Generating a (square) commutation matrix */
+
+proc(1) = kom_m_arch(N);
+
+local kom,n2,hkl,l,k;
+
+n2 = n^2;
+
+kom = zeros(n2,n2);
+
+k = 1;
+do until k > n;
+
+l = 1;
+do until l > n;
+
+HKl = zeros(n,n);
+hkl[k,l] = 1;
+
+kom = kom + hkl.*.hkl';
+
+l = l+1;
+endo;
+
+k = k+1;
+endo;
+
+retp(kom);
+endp;
+
+/* Generating an elimination matrix */
+
+proc(1) = eli_m_arch(N);
+
+local eli,n1,n2,block,ini,oes;
+
+n1 = n*(n+1)/2;
+n2 = n^2;
+
+ini = eye(n1);
+oes = 1; 
+
+eli = ini[.,1];
+
+block = n;
+do until cols(eli) > n2;
+
+if cols(eli) == 1;
+eli = ini[.,1:block];
+else;
+eli = eli~ini[.,1:block];
+endif;
+
+if cols(ini) > 1;
+ini = ini[.,(block+1):cols(ini)];
+endif;
+
+eli = eli~(zeros(rows(eli),oes));
+oes = oes +1;
+
+block = block-1;
+endo;
+
+eli = eli[.,1:(cols(eli)-n)];
+
+retp(eli);
+endp;

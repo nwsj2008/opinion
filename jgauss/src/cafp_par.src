@@ -1,0 +1,434 @@
+/*
+ This file is part of the econometric software package JMulTi.
+ Copyright (C) 2000-2005  Rolf Tschernig, Markus Kraetzig
+
+ This program is free software; you can redistribute it and/or
+ modify it under the terms of the GNU General Public License
+ as published by the Free Software Foundation; either version 2
+ of the License, or (at your option) any later version.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, write to the Free Software
+ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ */
+
+/*
+**  --------------------------------------------------------------------------
+**                            CAFP_PAR.SRC 
+**  --------------------------------------------------------------------------
+*/
+
+
+/*   CAFP_PAR.SRC  this contains description and setting
+     of the default parameters of the selected methods.
+*/
+
+
+/********* Description of DEFAULT parameters **************************/
+/*this is now just a description of the used parameters, therefore commented out*/
+
+/* --------- for including exogenous variables / residuals  --------- */
+/* xexog_com   = "none";     none  - no exogenous variables or
+**					  seasonal dummies are included
+**				  SD    - seasonal dummy
+**				  exog  - exogenous variable
+**				  endog - endogenous variables of a system
+**					  (uses 2SLS estimation) 
+** xresid      = 0;
+**
+** volat       = "no";          "no", "resid" ("yes" uses squared y but is not fully checked)
+**                only available for NAR, SDNAR model */
+
+/* --------------- for selection of model class ---------------------- */
+
+/* seas_cha = "standard";       parameter to select model class
+**				  standard    nonseasonal (nonlinear,
+**					      autoregressive) (NAR) model,
+**					      see TY
+**				  periodic    seasonal/periodic
+**					      nonlinear autoregressive model
+**					      (SNAR), see YT
+**				  seasD       seasonal dummy nonlinear
+**					      autoregressive model (SDNAR),
+**					      see YT
+**				  shift       seasonal shift nonlinear
+**					      autoregressive model (SHNAR),
+**					      see YT              */
+
+/* - for using nonparametric estimation and estimating unknowns in (C)AFPE --- */
+
+/* kernel      = "gaussian";     parameter to choose kernel
+**				  currently only Gaussian kernel available */
+/*robden      = "no";            parameter for switching on/off robustification
+**				  of density estimation a la Tjostheim/Auestad,
+**				  see also TY, Section 5
+**				  the density estimate is used in the estimation
+**				  of B in the (C)AFPE estimation
+**				  (only available for NAR model)
+**				  yes         on
+**				  no          off                 */
+/*per_A       = 0;              parameter used in weighting function for
+**				  estimating A (TY, eq. (3.1)) with
+**				  weighting function mentioned in TY, Section 5
+**				  (screening of of 0 <= per_A <= 1 percent of
+**				  the data with lowest density        */
+/*per_B       = 0.05;           same as per_A but for screening of observations
+**				  per_B lowest density for estimating B     */
+/*startval    = "different";    parameter to control treatment of starting
+**				  values
+**				  different   for each lag vector as few starting
+**					      values are used as necessary
+**				  same        for each lag vector the same
+**					      starting value is used which
+**					      is determined by the largest
+**					      lag used in the lag selection
+**					      procedure (lag_max)         */
+/* --------- parameter for bandwidth estimation --------------------------- */
+
+/*meth_hB     = "Silv";         parameter that controls estimation
+**				  of bandwidth for estimating terms in
+**				  hat B (eq. 3.2 in TY, hat B(h_B) in
+**				  YT, Section 3.2
+**				  Options:
+**				  Silv    for NAR model
+**					  uses for B h_S(d+2) and for
+**					  h_C = hC_Silv_fac*h_S(d+4), see
+**					  TY, Section 5
+**					  for SNAR,SDNAR, SHNAR model
+**					  see YT, Section 5
+**				  ROT     uses scalar h_C as suggested
+**					  in YT, JRSSB, Appendix A
+**					  As discussed in YT-JRSSB, Section 5,
+**					  one can use partial global
+**					  Taylor expansion by setting the
+**					  parameter
+**					      partial_cub = "yes"
+**					  (This option is only available
+**					  if no seasonal dummies are in
+**					  the model).
+**					  Otherwise set
+**					      partial_cub = "no"      */
+
+/*partial_cub = "no";           parameter that controls ROT bandwidth
+**				  estimation for estimating C
+**				  yes     partial fourth order Taylor
+**					  expansions are used and
+**					  a blocking scheme in one direction,
+**					   see YT-JRSSB, Section 5
+**					  this option is not available
+**					  for the SDNAR model
+**				  no      full fourth order Taylor expansion
+**					  is used                     */
+
+/*hcd_fac     = 2;             only used with ROT bandwidth
+**				  for estimating C:
+**				  factor to multiply with
+**				  h_{C_{mu,lambda}(f),opt},
+**                                in YT-JRSSB, Section 5 a factor 2
+**				  is recommended                      */
+/*hC_Silv_fac = 2;              only used with Silv bandwidth for estimating C
+**				  factor to multiply h_S(m+4), see TY, section 5 */
+/*__output    = 0;              global parameter of GAUSS optmum library
+**				  which is called if a diagonal ROT bandwidth is
+**				  used
+**				  0 = no output of each iteration,
+**				  1 = output of each iteration   */
+/*h_start     = 0.05;          parameters for grid search when estimating */
+/*h_c_min     = 24;            the bandwidth by grid search,  */
+/*h_c_max     = 40;            see also parameter selcrit for information */
+
+/* ------------ parameters for using seasonal models ------------- */
+
+/*seas        = 1;             scalar, number of seasons       */
+/*seas_sta    = 1;             season of first observation     */
+
+/*method_dum  = "dummies";      parameter that has two functions:
+**				  1)  selects estimator for seasonal
+**				      dummies in seasonal dummy
+**				      nonlinear autoregressvie (SDNAR)
+**				      model
+**				  2)  influences bandwidth choice
+**				      in seasonal/periodic nonlinear
+**				      autoregressive (SNAR) model
+**
+**				  w.r.t 1)
+**				  dummies     full dummy estimator as
+**					      described in YT, Section 4.1.1
+**				  f_0_f_s     two estimators method as
+**					      described in YT, Section 4.1.2
+**
+**				  w.r.t 2)
+**				  perio_one_h     for estimating each of the
+**						  S elements in B and C
+**						  the same bandwidth is used
+**
+**				  perio_dif_h     uses different bandwidth
+**						  for each season in computing
+**						  AFPE, CAFPE               */
+
+/*meth_hB_d   = "sd_rem_loo";   parameter used for
+**				  controlling density estimation
+**				  in SNAR and SDNAR models
+**				  and seasonal dummy estimation in
+**				  SDNAR model:
+**				  sd_rem  seasonal dummies in
+**					  SDNAR model are estimated
+**					  with bandwidth used for B and
+**					  removed
+**				  sd_rem_loo
+**					  density estimation in
+**					  SNAR and SDNAR model is done
+**					  with a single bandwidth for all
+**					  seasons which is computed with
+**					  Silverman's rule of thumb with
+**					  the geometric mean of the variance
+**					  for all lags -
+**					  seasonal dummies in
+**					  SDNAR model are estimated
+**					  with bandwidth used for B and
+**					  with leave-one-out method
+**					  and then removed,
+**					  see YT, Section 5.2 */
+
+/*seas_dum    = "always";   all (only needed for directed search),
+**			      always, no    AAA ?? */
+
+/******* Default settings for pre-specified mod_meth settings *************/
+
+
+proc(21)=getModelDefaults_nonparam(mod_meth,xresid);
+local xexog_com, xexog, seas_cha, kernel, robden, per_A, per_B;
+local meth_hB, partial_cub, hcd_fac, hC_Silv_fac,__output;
+local h_start, h_c_min, h_c_max, seas, method_dum, meth_hB_d;
+local seas_dum, volat;
+
+
+if mod_meth $== "NAR";      /* nonseasonal model, setting used in TY */
+
+    xexog_com   = "none";
+    xexog   = 0;
+    xresid      = 0;
+    seas_cha    = "standard";
+    kernel      = "gaussian";
+    robden      = "yes";
+    per_A       = 0;
+    per_B       = 0.05;
+    meth_hB     = "Silv";
+    partial_cub = "no";
+    hcd_fac     = 2;
+    hC_Silv_fac = 2;
+    __output    = 0;
+    h_start     = 0.05;
+    h_c_min     = 24;
+    h_c_max     = 40;
+    seas        = 1;
+    method_dum  = "";
+    meth_hB_d   = "";
+    seas_dum    = "";
+    volat       = "no";
+
+elseif mod_meth $== "SNAR"; /* nonlinear seasonal/periodic model, see YT, Section 3 */
+
+    xexog_com   = "none";
+    xexog   = 0;
+    xresid      = 0;
+    seas_cha    = "periodic";
+    kernel      = "gaussian";
+    robden      = "no";
+    per_A       = 0;
+    per_B       = 0.05;
+    meth_hB     = "Silv";
+    partial_cub = "no";
+    hcd_fac     = 2;
+    hC_Silv_fac = 3;
+    __output    = 0;
+    h_start     = 0.05;
+    h_c_min     = 24;
+    h_c_max     = 40;
+    seas        = 4;
+    method_dum  = "";
+    meth_hB_d   = "";
+    seas_dum    = "";
+    volat       = "no";
+
+elseif mod_meth $== "SNAR_d"; /* nonlinear seasonal/periodic model, see YT, Section 3 */
+
+    xexog_com   = "none";
+    xexog   = 0;
+    xresid      = 0;
+    seas_cha    = "periodic";
+    kernel      = "gaussian";
+    robden      = "no";
+    per_A       = 0;
+    per_B       = 0.05;
+    meth_hB     = "Silv";
+    partial_cub = "no";
+    hcd_fac     = 2;
+    hC_Silv_fac = 3;
+    __output    = 0;
+    h_start     = 0.05;
+    h_c_min     = 24;
+    h_c_max     = 40;
+    seas        = 4;
+    method_dum  = "perio_dif_h";
+    meth_hB_d   = "";
+    seas_dum    = "";
+    volat       = "no";
+
+elseif mod_meth $== "SNAR12"; /* nonlinear seasonal/periodic model, see YT, Section 3 */
+
+    xexog_com   = "none";
+    xexog   = 0;
+    xresid      = 0;
+    seas_cha    = "periodic";
+    kernel      = "gaussian";
+    robden      = "no";
+    per_A       = 0;
+    per_B       = 0.05;
+    meth_hB     = "Silv";
+    partial_cub = "no";
+    hcd_fac     = 2;
+    hC_Silv_fac = 3;
+    __output    = 0;
+    h_start     = 0.05;
+    h_c_min     = 24;
+    h_c_max     = 40;
+    seas        = 12;
+    method_dum  = "";
+    meth_hB_d   = "";
+    seas_dum    = "";
+    volat       = "no";
+
+
+
+elseif mod_meth $== "SDNAR";/* nonlinear seasonal dummy model, see YT, Section 4 */
+
+    xexog_com   = "SD"|"SD"|"SD";
+    xexog       = 0;
+    xresid      = 0;
+    seas_cha    = "seasD";
+    kernel      = "gaussian";
+    robden      = "no";
+    per_A       = 0;
+    per_B       = 0.05;
+    meth_hB     = "Silv";
+    partial_cub = "no";
+    hcd_fac     = 2;
+    hC_Silv_fac = 3;
+    __output    = 0;
+    h_start     = 0.05;
+    h_c_min     = 24;
+    h_c_max     = 40;
+    seas        = 4;
+    method_dum  = "dummies";
+    meth_hB_d   = "sd_rem_loo";
+    seas_dum    = "always";
+    volat       = "no";
+
+
+
+elseif mod_meth $== "SHNAR";/* nonlinear seasonal shift model, see YT, Section 4 */
+
+    xexog_com   = "none";
+    xexog   = 0;
+    xresid      = 0;
+    seas_cha    = "shift";
+    kernel      = "gaussian";
+    robden      = "no";
+    per_A       = 0;
+    per_B       = 0.05;
+    meth_hB     = "Silv";
+    partial_cub = "no";
+    hcd_fac     = 2;
+    hC_Silv_fac = 3;
+    __output    = 0;
+    h_start     = 0.05;
+    h_c_min     = 24;
+    h_c_max     = 40;
+    seas        = 4;
+    method_dum  = "";
+    meth_hB_d   = "";
+    seas_dum    = "";
+    volat       = "no";
+
+elseif mod_meth $== "SHNAR12";/* nonlinear seasonal shift model, see YT, Section 4 */
+
+    xexog_com   = "none";
+    xexog   = 0;
+    xresid      = 0;
+    seas_cha    = "shift";
+    kernel      = "gaussian";
+    robden      = "no";
+    per_A       = 0;
+    per_B       = 0.05;
+    meth_hB     = "Silv";
+    partial_cub = "no";
+    hcd_fac     = 2;
+    hC_Silv_fac = 3;
+    __output    = 0;
+    h_start     = 0.05;
+    h_c_min     = 24;
+    h_c_max     = 40;
+    seas        = 12;
+    method_dum  = "";
+    meth_hB_d   = "";
+    seas_dum    = "";
+    volat       = "no";
+
+
+elseif mod_meth $== "NAR_RES";   /* nonseasonal model,
+                                    doing lag selection on resiudals */
+
+    xexog_com   = "none";
+    xexog   = 0;
+    xresid      = xresid^2;
+    seas_cha    = "standard";
+    kernel      = "gaussian";
+    robden      = "yes";
+    per_A       = 0;
+    per_B       = 0.05;
+    meth_hB     = "Silv";
+    partial_cub = "no";
+    hcd_fac     = 2;
+    hC_Silv_fac = 2;
+    __output    = 0;
+    h_start     = 0.05;
+    h_c_min     = 24;
+    h_c_max     = 40;
+    seas        = 1;
+    method_dum  = "";
+    meth_hB_d   = "";
+    seas_dum    = "";
+    volat       = "resid";
+
+elseif mod_meth $== "SDNAR_RES";
+
+    xexog_com   = "SD"|"SD"|"SD";
+    xexog   = 0;
+    xresid      = xresid^2;
+    seas_cha    = "seasD";
+    kernel      = "gaussian";
+    robden      = "no";
+    per_A       = 0;
+    per_B       = 0.05;
+    meth_hB     = "Silv";
+    partial_cub = "no";
+    hcd_fac     = 2;
+    hC_Silv_fac = 3;
+    __output    = 0;
+    h_start     = 0.05;
+    h_c_min     = 24;
+    h_c_max     = 40;
+    seas        = 4;
+    method_dum  = "dummies";
+    meth_hB_d   = "sd_rem_loo";
+    seas_dum    = "always";
+    volat       = "resid";
+ endif;
+retp(xexog_com, xexog, xresid, seas_cha, kernel, robden, per_A, per_B, meth_hB, partial_cub, hcd_fac, hC_Silv_fac,__output,h_start, h_c_min, h_c_max, seas, method_dum, meth_hB_d,seas_dum, volat);
+endp;

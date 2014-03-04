@@ -1,0 +1,210 @@
+/*
+ This file is part of the econometric software package JMulTi.
+ Copyright (C) 2000-2005  Alexander Benkwitz
+
+ This program is free software; you can redistribute it and/or
+ modify it under the terms of the GNU General Public License
+ as published by the Free Software Foundation; either version 2
+ of the License, or (at your option) any later version.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, write to the Free Software
+ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ */
+#ifos2win 
+/* to be used by library creation, windows only */
+#include var.dec
+#endif
+
+/*
+** SYNTAX
+** var = vml_InitVAR(y,py,Ny, x,px,Nx, d,Nd);
+**
+** PURPOSE
+** Defines a VAR model.
+**
+** INPUT
+** y   / (py+T,K) / matrix / endogenous observations
+** py  / (1,1)    /        / number of lagged endogenous variables ($:=p$)
+** Ny  / (K,1)    / string array / names of endogenous variables
+**     / (0,0)    /              / {\tt Ny=\{\}}
+** x   / (px+T,L) / matrix / exogenous observations
+**     / (0,0)    /        / x=\{\} if no exogenous observations
+** px  / (1,1)    / matrix / number of lagged exogenous variables (ignored if x=\{\}) ($:=q$)
+** Nx  / (L,1)    / string array / names of exogenous variables
+**     / (0,0)    /              / {\tt Nx=\{\}}
+** d   / (py+T,M) / matrix / deterministic variables
+**     / (0,0)    /        / d={} if no deterministic variables
+** Nd  / (M,1)    / string array / names of deterministic variables
+**     / (0,0)    /              / {\tt Nd=\{\}}
+**
+** OUTPUT
+** var / (N,1) / data buffer / VAR model.
+**
+** REMARK
+** This procedure collects all observations necessary to estimate the following
+** VAR model
+** \begin{eqnarray*}
+**  y_t & = & A_1 y_{t-1} + \dots + A_p y_{t-p}\\
+**      &   & + B_0 x_t + B_1 x_{t-1} + \dots + B_q x_{t-q}\\
+**      &   & + C d_t + u_t \qquad\qquad t = 1, \dots , T
+** \end{eqnarray*}
+**
+** It is not necessary to provide the variable names. If they are not given
+** names are set automatically if necessary.
+** 
+** This procedure generates the following fields [optional fields] 
+** in the returned data buffer:\\
+** {\tt y, py [,Ny, x, px, Nx, d, Nd]}
+**
+*/
+proc(1)= vml_InitVAR(y,py,Ny,x,px,Nx,d,Nd);
+	local model, T, id;
+	@ endogenous variables @
+	if (rows(y)<cols(y));
+	errorlog("Argument for endogenous observations misspecified.");
+	retp(-10);
+	endif;
+   	T=rows(y)-py;
+  	if T<1;
+	  	errorlog("Number of observations must be greater 0!");
+	retp(-10);
+	endif;
+   	if py<0;
+	   	errorlog("Negative number of presample values for endogenous variables!");
+	retp(-10);
+	endif;
+
+   	model	=	vput(0		,y 	,"y");
+	model	=	vput(model	,py ,"py");
+   	if rows(Ny)>0;
+		if rows(Ny)/=cols(y);
+		   	errorlog("Endogenous variables:");
+			errorlog(" Not the same number of variable names and variables!");
+			retp(-10);
+		endif;
+		model = vml_vput(model, Ny, "Ny");
+	endif;
+
+	@ exogenous variables @
+	if rows(x)>0;
+		if (rows(x)<cols(x));
+			errorlog("Argument for exogenous observations misspecified.");
+			  retp(-10);
+		endif;
+		if px<0;
+			errorlog("Negative number of presample values for exogenous variables!");
+			  retp(-10);
+		endif;
+		if rows(x)/=T+px;
+			errorlog("Wrong number of rows for exognous variables, must be exactly T+px."); 
+			  retp(-10);
+		endif;
+
+   		model = vput(model ,x  ,"x");
+	   	model = vput(model ,px ,"px");
+	   	if rows(Nx)>0;
+			if rows(Nx)/=cols(x);
+			   	errorlog("Exogenous variables:");
+				errorlog(" Not the same number of variable names and variables!");
+				retp(-10);
+			endif;
+			model = vml_vput(model, Nx, "Nx");
+		endif;
+	
+	endif;
+
+
+	@ deterministic variables @
+	if rows(d)>0;
+	        if rows(d)==T+maxc(px|py) and px > py;
+		  d=d[1+px-py:rows(d),.];
+		endif;
+		if rows(d)/=T+py;
+			errorlog("Argument for deterministic variables misspecified, must be T+py:");
+			errorlog("  Wrong number of rows."); 
+			retp(-10);
+		endif;
+   
+		model=vput(model,d,"d");
+	   	if rows(Nd)>0;
+			if rows(Nd)/=cols(d);
+			   	errorlog("Deterministic variables:");
+				errorlog(" Not the same number of variable names and variables!");
+				retp(-10);
+			endif;
+			model = vml_vput(model, Nd, "Nd");
+		endif;
+
+	endif;
+
+	@ id - field @
+	id = "VAR";
+	model = vput(model,id,"id");
+
+	retp(model);
+endp;
+
+/**
+** SYNTAX
+** var = var_InitCIR(y,py,Ny, x,px,Nx, d,Nd, idx_equa, idx_norm);
+**
+** PURPOSE
+** Defines a ...
+**
+** INPUT
+** y   / (py+T,K) / matrix / endogenous observations
+** py  / (1,1)    /        / number of lagged endogenous variables ($:=p$)
+** Ny  / (K,1)    / string array / names of endogenous variables
+**     / (0,0)    /              / {\tt Ny=\{\}}
+** x   / (px+T,L) / matrix / exogenous observations
+**     / (0,0)    /        / x=\{\} if no exogenous observations
+** px  / (1,1)    / matrix / number of lagged exogenous variables (ignored if x=\{\}) ($:=q$)
+** Nx  / (L,1)    / string array / names of exogenous variables
+**     / (0,0)    /              / {\tt Nx=\{\}}
+** d   / (py+T,M) / matrix / deterministic variables
+**     / (0,0)    /        / d={} if no deterministic variables
+** Nd  / (M,1)    / string array / names of deterministic variables
+**     / (0,0)    /              / {\tt Nd=\{\}}
+**
+** OUTPUT
+** var / (N,1) / data buffer / VAR model.
+**
+*/
+proc(1)=var_initCIR(y,py,Ny, x,px,Nx, d,Nd, idx_equa, idx_norm);
+	local cir, tmp, K;
+	cir = vml_initVAR(y,py,Ny, x,px,Nx, d,Nd);
+	tmp = "EC";
+	cir = vput( cir, tmp,      "id"      );
+	K   = cols(y);
+	if rows(idx_equa);
+		idx_equa = minc(K|maxc(1|idx_equa));
+	else;
+		idx_equa = 1;
+	endif;
+	if rows(idx_norm);
+		idx_norm = minc(K|maxc(1|idx_norm));
+	else;
+		idx_norm = 1;
+	endif;
+	cir = vput( cir, idx_equa, "idx_equa");
+	cir = vput( cir, idx_norm, "idx_norm");
+	retp(cir);
+endp;
+
+
+
+
+
+
+
+
+
+
+
+

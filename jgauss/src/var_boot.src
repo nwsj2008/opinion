@@ -1,0 +1,456 @@
+/*
+ This file is part of the econometric software package JMulTi.
+ Copyright (C) 2000-2005  Alexander Benkwitz
+
+ This program is free software; you can redistribute it and/or
+ modify it under the terms of the GNU General Public License
+ as published by the Free Software Foundation; either version 2
+ of the License, or (at your option) any later version.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, write to the Free Software
+ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ */
+
+#ifos2win 
+/* to be used by library creation, windows only */
+#include var.dec
+#endif
+
+/*
+** PURPOSE
+** Generates $K$-dimensional time series for a VAR model.
+**
+** SYNTAX
+** {y,s1} = vml_ComputeBootstrapDraw(varHat, seed);
+**
+** INPUT
+** varHat / (N,1) / data buffer / Estimated VAR model
+** seed   / (1,1) / matrix      / Seeding value
+**
+** OUTPUT
+** y      / (py+T,K) / matrix / Bootstrap time series
+** s1     / (1,1)    / matrix / Updated seed
+**
+** SEE
+** vml_residualBootstrap
+**
+*/
+proc(2)=vml_ComputeBootstrapDraw(varHat, seed);
+	local A0,A,B,C_VAR,F_VAR, mx_c_var,mx_tf, y0,u,x,d,z,y_star;
+
+   	{A0,A,B,C_VAR,F_VAR, mx_c_var,mx_tf, y0,u,x,d,z} = 
+	   	    vml_residualBootstrap_prepare(varHat);
+
+   	{y_star,seed} = 
+   		     vml_residualBootstrap(A0,A,B,C_VAR,F_VAR, mx_c_var,mx_tf, y0,u,x,d,z, seed);
+
+   	retp(y_star,seed);
+endp;
+
+/*
+** PURPOSE
+** Generates $K$-dimensional time series for a VAR model.
+**
+** SYNTAX
+** {y,s1} = vml_residualBootstrap(A0,A,B,C,F,mx_c,mx_tf, y0,u,x,d,z, seed);
+**
+**
+**
+*/
+proc(2)=vml_residualBootstrap(A0,A,B,C,F,mx_c,mx_tf, y0,u,x,d,z, seed);
+	local T, y_star, idx,tmpSeed;
+
+	T = rows(u);
+
+	u=u-meanc(u)';
+	tmpSeed = seed;
+	@ select randomly drawn indices, depending on 'seed' argument @
+		if ((0<seed) and (seed<((2^31)-1)));
+			redoWithSeed: idx=ceil(rndus(T,1,tmpSeed)*T);
+			if minc(idx)==0;
+				goto redoWithSeed;
+			endif;
+		else;
+			redoNoSeed: idx=ceil(rndu(T,1)*T);
+			if minc(idx)==0;
+				goto redoNoSeed;
+			endif;
+		endif;
+
+	@ compute bootstrap time series @
+		y_star = vml__recserVAR(A0,A,B,C,F,mx_c,mx_tf, y0,u[idx,.],x,d,z);
+
+   	retp(real(y_star),tmpSeed);
+endp;
+
+
+/*
+** PURPOSE
+** Helper method to prepare the input arguments of {\tt vml\_residualBootstrap()}.
+**
+**
+*/
+proc(12)=vml_residualBootstrap_prepare(varHat);
+	local A0,A,B,C_VAR,F_VAR, mx_c_var,mx_tf, y0,u,x,d,z,
+	      keyList, variableNames, idx, emptyMatrix, y, py,
+	      mx_cd2cr, id;
+
+	if rows(vml_vread(varHat,"cvRes"))<1;
+		varHat = var_EstimateModel(varHat);
+	endif; 
+
+   	let keyList={"id",
+	             "A0","A","y","py",
+   	             "B","x",
+   	             "C_VAR","mx_cd2cr","d",
+	             "F_VAR","mx_c_var","mx_tf",
+	             "u"
+   	              };
+	variableNames = vnamecv(varHat)$+"        ";
+		idx = indcv(keyList$+"        ",variableNames);
+		emptyMatrix = {};
+   		for i(1,rows(idx),1);
+			if scalmiss(idx[i]);
+				call varputl( emptyMatrix             , keyList[i]);
+			else;
+   				call varputl( vread(varHat,keyList[i]), keyList[i]);
+			endif;
+   		endfor;
+
+   	if py>0;
+		y0=y[1:py,.];
+   	else;
+		y0={};
+   	endif;
+	  
+	if strsect(id,1,3)$=="VEC";
+   		local d_vec, d_ec, beta, beta_d;
+		{d_vec, d_ec} = var__splitDeterministics(d, mx_cd2cr);
+   		d = d_vec~d_ec;
+		beta   = vml_vread( varHat, "beta"  )|vml_vread( varHat, "beta_x"  );
+   		beta_d = vml_vread( varHat, "beta_d")|vml_vread( varHat, "beta_d_x");
+		Z = vml__computeTVRegressor(mx_c_var,mx_tf, y,x,d_ec, beta,beta_d);
+   	else;
+		Z = vml__computeTVRegressor(mx_c_var,mx_tf,y,x,emptyMatrix,emptyMatrix,emptyMatrix);
+   	endif;
+
+
+	retp(A0,A,B,C_VAR,F_VAR, mx_c_var,mx_tf, y0,u,x,d,z);
+endp;
+
+
+
+/*
+** PURPOSE
+** Generates $K$-dimensional time series from VAR model.
+**
+** SYNTAX
+** y = vml__recserVAR(A0,A,B,C,F,mx_c,mx_tf, y0, u,x,d,z);
+**
+** INPUT
+** A0     / (K,K)        / matrix /
+** A      / (K,K*py)     / matrix /
+** B      / (K,M*(1+px)) / matrix /
+** C      / (K,N)        / matrix /
+** F      / (K,O)        / matrix /
+** mx_c   / (O,4)        / matrix /
+** mx_tf  / (T,P)        / matrix /
+** y0     / (py,K)       / matrix /
+** u      / (T,K)        / matrix /
+** x      / (px+T,M)     / matrix /
+** d      / (T,N)        / matrix /
+** z      / (T,O)        / matrix /
+**
+** OUTPUT
+** y / (py+T,K) / matrix /
+**
+** REMARK
+** This procedure considers variables that were constructed from endogenous
+** and deterministic variables (time varying parameters).
+**
+**
+*/
+proc(1)=vml__recserVAR(A0,A,B,C,F,mx_c,mx_tf, y0,u,x,d,z);
+	local defStrucForm, defExoVar, defDetVar, px, pd, py, T, K, pm_exog, ob_exog,
+	       y, idx, A0i,tmp, temp, AA, Z_ex,F_ex,F_A,tf_A,idx_A,F_A0,idx_A0,tf_A0,AA0,AA0i;
+
+	defStrucForm = rows(A0)>0;
+	defExoVar = cols(B)>0;
+	defDetVar = cols(C)>0;
+	px = 0;
+	pd = 0;
+	py = rows(y0);
+	T = rows(u);
+	K = cols(u);
+
+	Z_ex = {}; F_ex  = {};
+	F_A  = {}; tf_A  = {}; idx_A={};
+	F_A0 = {}; tf_A0 = {}; idx_A0={};
+
+   	if cols(F)>0;
+		mx_c[.,1] = lower(mx_c[.,1]);
+
+		@ filter out exogenous and deterministic time varying paraneters / variables @
+			idx = selif(seqa(1,1,rows(mx_c)),(mx_c[.,1].==0$+"ex").OR(mx_c[.,1].==0$+"de"));
+			if not(scalmiss(idx));
+				Z_ex = Z[.,idx];
+				F_ex = F[.,idx];
+			endif;
+
+		@ filter out lagged endogenous variables (level) @
+			idx = selif(seqa(1,1,rows(mx_c)),(mx_c[.,1].==0$+"enl").AND(mx_c[.,3].>0));
+			if not(scalmiss(idx));
+				F_A  = F[.,idx];
+				temp = mx_c[idx,.];
+				tf_A = ones(T,rows(idx));
+				for i(1,rows(idx),1);
+					tmp = temp[i,4];
+					if tmp>0;
+						tf_A[.,i]=mx_tf[.,tmp];
+					endif;
+				endfor;
+				idx_A = (temp[.,3]-1)*K+temp[.,2];
+			endif;
+
+		@ filter out current endogenous variables (level) @
+			idx = selif(seqa(1,1,rows(mx_c)),(mx_c[.,1].==0$+"enl").AND(mx_c[.,3].==0));
+			if not(scalmiss(idx));
+				F_A0  = -1*F[.,idx];
+				temp  = mx_c[idx,.];
+				tf_A0 = ones(T,rows(idx));
+				for i(1,rows(idx),1);
+					tmp = temp[i,4];
+					if tmp>0;
+						tf_A0[.,i]=mx_tf[.,tmp];
+					endif;
+				endfor;
+				idx_A0 = temp[.,2];
+			endif;
+
+		@ check whether we have resolved all variables @
+			if (cols(F_ex)+cols(F_A)+cols(F_A0))/=cols(F);
+				"";
+				errorlog("Could not resolve all mixed variables!");
+				retp(-10);
+			endif;
+	endif;
+
+	@ building parameter and observation matrix for exogenous variables @
+		pm_exog = {};
+		ob_exog = {};
+		if defExoVar;
+			pm_exog=B;
+			px = rows(x) - T;
+			ob_exog  = vml__lagObservations(x,px,0,px)';
+		endif;
+		if defDetVar;
+			pm_exog=pm_exog~C;
+			pd = rows(d) - T;
+			ob_exog  = ob_exog|vml__lagObservations(d,pd,0,0)';
+		endif;
+		if cols(F_ex);
+			pm_exog = pm_exog~F_ex;
+			ob_exog = ob_exog|Z_ex';
+		endif;
+
+    @ compute time series recursively @
+	   	y=zeros(py+T,K);
+		if py>0;
+			idx=seqa(py,-1,py);
+			y[1:py,.]=y0;
+		endif;
+
+		if defStrucForm;
+			A0i=inv(A0);
+		endif;
+
+		@ start of loop @
+   		for i(1,T,1);
+			@ lagged endogenous variables @
+				if py>0;
+					AA = A;
+					if cols(tf_A);
+						AA  = vml__timeVaryingParameter(AA,F_A,tf_A,idx_A,i);
+					endif;
+					y[py+i,.] = (AA * vecr(y[idx,.]))';
+					idx=idx+1;
+				endif;
+
+			@ exogenous and predetermined variables @
+		   		if defExoVar OR defDetVar;
+					y[py+i,.] = y[py+i,.] + (pm_exog * ob_exog[.,i])';
+				endif;
+
+			@ innovation @
+				y[py+i,.] = y[py+i,.] + u[i,.];
+
+			@ handle structural form @
+	   			if defStrucForm;
+					if cols(tf_A0);
+						AA0  = vml__timeVaryingParameter(A0,F_A0,tf_A0,idx_A0,i);
+						AA0i = inv(AA0);
+					else;
+						AA0i = A0i;
+					endif;
+			   		y[py+i,.] = y[py+i,.] * AA0i';
+				endif;
+
+			@ end of loop @
+		endfor;
+   	retp(y);
+endp;
+
+/*
+**
+**
+** INPUT
+** A   / (M,N)  / matrix /
+** Atf / (M,L)  / matrix /
+** tf  / (T,L)  / matrix /
+** c   / (1,L)  / matrix / indices between 1 and N
+** idx / (1,1)  / matrix / runs from 1 to T
+**
+** OUTPUT 
+** AA  / (M,N)  / matrix /
+**
+*/
+proc(1)=vml__timeVaryingParameter(A,Atf,tf,c,idx);
+	if cols(tf);
+		if not(tf[idx,.]==0);
+			for j(1,cols(tf),1);
+				if tf[idx,j];
+	   				A[.,c[j]] = A[.,c[j]] + tf[idx,j]*Atf[.,j];
+		   		endif;
+			endfor;
+		endif;
+	endif;
+	retp(A);
+endp;
+
+
+/**
+** PURPOSE
+** Row vector to matrix representation
+**
+** SYNTAX 
+** y = vml_regroup(x,n);
+**
+** INPUT : x / (1xm) / matrix /
+**         N / (1x1) / matrix /
+** OUTPUT: y / (N,k) / matrix /
+*/
+proc(1)=vml_regroup(x,n);
+	retp(reshape(x,round(cols(x)/n),n)');
+endp;
+
+/*
+** PURPOSE
+** 
+**
+** SYNTAX
+** {t1,t2}=vml__quantiles(L,c);
+**
+** INPUT : L / B x M / matrix / empirical distribution of M rv
+**         c / 1 x 1 / matrix / coverage
+** OUTPUT: t1/ 1 x M / matrix / lower confidence bound
+**         t2/ 1 x M / matrix / upper confidence bound
+*/
+proc(2)=vml__quantiles(L,c);
+	c=1-c;
+	L=quantile( L, (c/2)|(1-c/2));
+	retp( L[1,.], L[2,.]);
+endp;
+
+/**
+** PURPOSE
+** Sets new data for endogenous variables. 
+** 
+** SYNTAX
+** var1 =  vml_SetEndogenousVariables(var0,y1);
+**
+** INPUT 
+**   var0 / (1xm) /  data buffer / The defined VAR or VECM.
+**   y1 / (p+TxK) / matrix / The new observations.
+**
+** OUTPUT 
+** var1 / (Z,1) / data buffer / The updated VAR.
+**
+** REMARK 
+** All data buffer elements depending on the endogenous variables
+** are recomputed, estimation results deleted.
+** 
+*/
+proc(1)=vml_SetEndogenousVariables(var,y_star);
+	local lookForKeys, temp, variableNames, mx_c,mx_tf,Z,Z_en,idx, 
+	      lag_i,idx_i,py,T,beta,ec; 
+
+	let lookForKeys={"mx_c","mx_tf","Z","beta","py"};
+	mx_c={};mx_tf={};Z={};beta={};py=0;
+	variableNames = vnamecv(var);
+	temp          = packr(indcv(variableNames,lookForKeys$+"        "));
+	if not(scalmiss(temp));
+		for i(1,rows(temp),1);
+   			call varputl(vread(var,lookForKeys[temp[i]]),lookForKeys[temp[i]]);
+		endfor;
+	endif;
+	T = rows(y_star)-py;
+
+	@ replace level endogenous variables for time varying part  @
+		if rows(mx_c)>0;
+			@ filter out endogenous variables (level) @
+				idx = selif(seqa(1,1,rows(mx_c)),mx_c[.,1].==0$+"enl");
+				if not(scalmiss(idx));
+					Z_en = zeros(T,rows(idx));
+					for i(1,rows(idx),1);
+						lag_i = mx_c[idx[i],3];
+						idx_i = mx_c[idx[i],2];
+						Z_en[.,i]=y_star[py+1-lag_i:py+T-lag_i,idx_i];
+						if mx_c[idx[i],4]>0;
+							Z_en[.,i] = Z_en[.,i].*mx_tf[.,mx_c[idx[i],4]];
+						endif;
+					endfor;
+					Z[.,idx] = Z_en;
+				endif;
+			@ check for 'ec' or 'end' elements @
+				idx = selif(seqa(1,1,rows(mx_c)),
+				            (mx_c[.,1].==0$+"end").OR(mx_c[.,1].==0$+"ec"));
+				if not(scalmiss(idx));
+					"";
+					errorlog("Solve mixed parts for ec and / or differenced endogenous");
+					errorlog("variables first.");
+					retp(var);
+				endif;
+			@ put new Z in data buffer @
+				var = vput(var,Z,"Z");
+		endif;
+
+	@ recompute the error correction term @
+		if rows(beta)>0;
+			ec=y_star*beta';
+			var = vput(var,ec,"ec");
+		endif;
+
+	@ overwrite the endogenous variable in the data buffer @
+		var = vput(var,y_star,"y");
+
+	retp(var);
+endp;
+
+
+
+
+
+
+
+
+
+
+
+
+

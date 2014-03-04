@@ -1,0 +1,156 @@
+/*
+ This file is part of the econometric software package JMulTi.
+ Copyright (C) 2000-2005  Alexander Benkwitz
+
+ This program is free software; you can redistribute it and/or
+ modify it under the terms of the GNU General Public License
+ as published by the Free Software Foundation; either version 2
+ of the License, or (at your option) any later version.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, write to the Free Software
+ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ */
+
+/**
+**
+** 
+*/
+proc(2)=vec_VEC2VAR(alpha,beta,G, G0);
+	local A0, A, beta_d, F_VEC, mx_c_vec, C_EC, F_VAR, mx_c_var;
+   	beta_d   = {};
+	F_VEC    = {};
+   	mx_c_vec = {};
+	{A0, A, C_EC, F_VAR, mx_c_var} =
+			vml__VEC2VAR(G0,G,alpha,beta,beta_d, F_VEC,mx_c_vec);
+
+	retp(A0,A);
+endp;
+/**
+**
+** 
+*/
+proc(1)=vec_computeVAR_process(A0, A, u, y0);
+	local  y, seed, tmp;
+	seed = 0;
+	tmp  = {};
+
+   	{y,seed} = 
+   		     vml_residualBootstrap(A0,A,tmp,tmp,tmp,tmp,tmp, y0,u,tmp,tmp,tmp, seed);
+
+	retp(y);
+endp;
+	
+
+/**
+**
+** SYNTAX   var_ir_plot(ir,ciA1,ciA2,ciB1,ciB2,ciC1,ciC2,ciD1,ciD2,
+** 			        ir_n,selImp,selRes,names,mainTitle,ciNames,
+** 	                lineColor,lineType,lineWidth,dateString);
+**
+** PURPOSE Plots impulse responses with up to 4 confidence intervals (A-D).
+** All series to plot should have the length ir_n, but when they are shorter, they
+** are filled with missing values to ensure that the plot is working.
+**
+** INPUT    ir                / (ir_max+1,K*K) / some impulse responses
+**          ir_n              / (1,1)          / {\tt irn<=ir\_max}! 
+**          selImp            / (K,1)          / matrix of ones and zeros (1=select!)
+**          selRes            / (K,1)          / matrix of ones and zeros (1=select!)
+**          names             / (K,1)          / string array / names of endogenous variables
+**          title             / (1,1)          / string / main title
+**          ci[A-D]1          / (M,1)          / matrix / lower bound of respective confidence interval
+**          ci[A-D]2          / (M,1)          / matrix / upper bound of respective confidence interval
+** 
+** OUTPUT   plot window.
+**
+** REMARK Used by JMulTi. 
+*/
+proc(0)=vec_ir_plot(ir,ciA1,ciA2,ciB1,ciB2,ciC1,ciC2,ciD1,ciD2,
+	                ir_n,selectedImpulses,selectedResponses,responseAccumIndex,names,mainTitle);
+	local row_sel, col_sel, x0, missingfill,selRespPointAccum;
+
+local impulseNames,responseNames;
+
+impulseNames=names;
+responseNames=names;
+
+	@ @
+	x0 = {};
+	/* just appends missings to every initialized series to make sure it is long enough */
+	missingfill = miss(ones(ir_n,cols(ir)),ones(ir_n,cols(ir)));
+
+	@ if desired, do not plot up to maximum lead @
+	ir_n=ir_n+1;
+	if rows(ir)>0;
+	  ir = ir|missingfill;
+	  ir = ir[1:ir_n,.];
+	endif;
+	if rows(ciA1)>0;
+	  ciA1 = ciA1|missingfill;
+	  ciA1 = ciA1[1:ir_n,.];
+	endif;
+	if rows(ciA2)>0;
+	  ciA2 = ciA2|missingfill;
+	  ciA2 = ciA2[1:ir_n,.];
+	endif;
+	if rows(ciB1)>0;
+	  ciB1 = ciB1|missingfill;
+	  ciB1 = ciB1[1:ir_n,.];
+	endif;
+	if rows(ciB2)>0;
+	  ciB2 = ciB2|missingfill;
+	  ciB2 = ciB2[1:ir_n,.];
+	endif;
+	if rows(ciC1)>0;
+	  ciC1 = ciC1|missingfill;
+	  ciC1 = ciC1[1:ir_n,.];
+	endif;
+	if rows(ciC2)>0;
+	   ciC2 = ciC2|missingfill;
+	  ciC2 = ciC2[1:ir_n,.];
+	endif;
+	if rows(ciD1)>0;
+	  ciD1 = ciD1|missingfill;
+	  ciD1 = ciD1[1:ir_n,.];
+	endif;
+	if rows(ciD2)>0;
+	  ciD2 = ciD2|missingfill;
+	  ciD2 = ciD2[1:ir_n,.];
+	endif;
+
+	
+	@ assemble the indices of the responses according to the selection and to the accumulated selection @
+	responseAccumIndex = responseAccumIndex .* selectedResponses;
+	selRespPointAccum = selectedResponses - responseAccumIndex;
+	selRespPointAccum = selRespPointAccum | selectedResponses .* responseAccumIndex;
+
+	@ compute indices of selected variables @
+	
+	row_sel = selif(seqa(1,1,rows(selRespPointAccum)),selRespPointAccum);
+	col_sel = selif(seqa(1,1,rows(selectedImpulses)),selectedImpulses);
+	if scalmiss(row_sel) or scalmiss(col_sel);
+		errorlog("Bad selection of impulse or response variables.");
+		retp();
+	endif;
+
+	@ call plot routine @
+	var_plotIR4CI4(ir,x0,x0,x0, ciA1,ciA2, ciB1,ciB2, ciC1,ciC2, ciD1,ciD2,
+	                   mainTitle,impulseNames,responseNames,row_sel,col_sel);
+                   
+endp;
+
+
+
+
+
+
+
+
+
+
+

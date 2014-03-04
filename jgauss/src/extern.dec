@@ -1,0 +1,127 @@
+/*
+ This file is part of the econometric software package JMulTi.
+ Copyright (C) 2000-2005  Markus Kraetzig
+
+ This program is free software; you can redistribute it and/or
+ modify it under the terms of the GNU General Public License
+ as published by the Free Software Foundation; either version 2
+ of the License, or (at your option) any later version.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, write to the Free Software
+ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ */
+
+/* 
+
+sets referenced global constants from pgraph.dec as 
+external for lib creation 
+
+*/
+
+external matrix    _pqg_ver               ,
+		   _pagedim               ,
+		   _pappend               ,
+		   _parrow                ,
+		   _parrow3               ,
+	    	   _pascx                 ,
+	    	   _pascy                 ,
+	    	   _paxes                 ,
+	    	   _paxht                 ,
+	    	   _paxmarx               ,
+	    	   _pbox                  ,
+	    	   _pcrop                 ,
+	    	   _pcolor                ,
+	    	   _pcross                ,
+	    	   _pcwin                 ,
+	    	   _pncwin                ,
+	    	   _pcsel                 ,
+	    	   _perrbar               ,
+	    	   _pfonts                ,
+	    	   _pframe                ,
+	    	   _pgrid                 ,
+	    	   _plctrl                ,
+	    	   _pline                 ,
+	    	   _plotsiz               ,
+	    	   _plotshf               ,
+	    	   _pageshf               ,
+	    	   _pagesiz               ,
+	    	   _plegctl               ,
+	    	   _plsel                 ,
+	    	   _pltype                ,
+	    	   _plwidth               ,
+	    	   _pmargin               ,
+	    	   _pmcolor               ,
+	    	   _pmsgctl               ,
+	    	   _pnotify               ,
+	    	   _pnum                  ,
+	    	   _pnumht                ,
+	    	   _protate               ,
+	    	   _pqgplay               ,
+	    	   _pqgtype               ,
+	    	   _pscreen               ,
+	    	   _pinbegwind            ,
+	    	   _psilent               ,
+	    	   _pssel                 ,
+	    	   _pstype                ,
+	    	   _psym                  ,
+	    	   _psymsiz               ,
+	    	   _ptitlht               ,
+	    	   _pworld                ,
+	    	   _pxpmax                ,
+	    	   _pxscale               ,
+	    	   _pypmax                ,
+	    	   _pyscale               ,
+	    	   _pwindmx               ,
+	    	   _pwindno               ,
+	    	   _pfirstw               ,
+	    	   _pxmem                 ,
+	    	   _pxsci                 ,
+	    	   _pysci                 ,
+	    	   _pzsci                 ,
+	    	   _pzclr                 ,
+	    	   _pzoom                 ,
+		   _pqgedit ,
+		   _pmnr    ,
+                   _pmjr    ,
+                   _poptic  ,
+                   _pmtic   ,
+		   _pbarwid ,
+		   _pbartyp ,
+		   _pboxctl ,
+		   _pboxlim ,
+		   _pbox3d  ,
+		   _psym3d  ,
+		   _pline3d ,
+		   _psurf   ,
+		   _pview   ,
+		   _pvolume ,
+		   _pticout ,
+		   _pzpmax  ,
+		   _pzscale ,
+                   _plev    ; 
+		
+
+external string       _pvwr              ,
+		      _pvwrflags         ,
+		      _pvwrmode          ,
+		      _pcmdlin           ,
+		      _pcvfile           ,
+		      _pdate             ,
+		      _phard             ,
+		      _plegstr           ,
+		      _pmsgstr           ,
+		      _prtfile           ,
+		      _ptek              ,
+		      _ptitle            ,
+		      _pxfmt             ,
+		      _pxlabel           ,
+		      _pyfmt             ,
+		      _pylabel           ,
+		      _pzlabel           ,
+		      _pzfmt             ;

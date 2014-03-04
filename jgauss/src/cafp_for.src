@@ -1,0 +1,1740 @@
+/*
+ This file is part of the econometric software package JMulTi.
+ Copyright (C) 2000-2005  Lijian Yang, Rolf Tschernig, Markus Kraetzig
+
+ This program is free software; you can redistribute it and/or
+ modify it under the terms of the GNU General Public License
+ as published by the Free Software Foundation; either version 2
+ of the License, or (at your option) any later version.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, write to the Free Software
+ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ */
+/*  RT and LY, May 2000, June 2001, June 2002, Feb 2003, June 2003
+**
+**  --------------------------------------------------------------------------
+**                            CAFP_FORC_NONPARAM
+**                            depends on:
+**                            CAFP.DEC
+**                            CAFP_PRC.SRC
+**                            CAFP_PAR.SRC
+**                            library pgraph
+**  the C++ library: cafpe is needed
+**  --------------------------------------------------------------------------
+**
+**  GAUSS program to local linearly estimate a selected model
+**  and compute one-step ahead prediction for seasonal and nonseasonal models**
+**  The program prepares the call of the subroutine FPE_NPSL.G
+**  Prot:   May 31, 2002    lags_grid_ro added
+**          June 5, 2003    Variance of y in prediction horizon added in output of
+**                          rolling over forecasts, since comparison with variance 
+**                          of time series misleading since the latter contains
+**                          out-of-sample information.
+**          June 13, 2003   b_barpred now also correct for shift model
+**          June 15, 2003   - linear dummy and linear shift model computed differently
+**                          the latter is a two-step estimator: 
+**                          1) subtracting seasonal means
+**                          2) estimating AR model                          
+**                          - addressing of season in print statements corrected
+*/
+/*this is only for rolling over predictions*/
+/*do_lags  = 0;          1=do lag selection for each prediction, 0=don't */
+/*do_firstlag = 0;       1=do lag selection on n_rollcount=0, 0= take given lags */
+/*pred_roll_over   = 0;  1= do rolling over predictions, 0= predict at y_{n+1} */
+/*n_rollend    = 1;      n_rollend has to be smaller than or equal to the number of
+                         observations available */
+/*
+bw_factor (0,+inf) to multiply optimal bandwidh with
+*/
+
+
+
+
+proc(0)= CAFPE_FORC_NONPARAM(xraw,lag_max,d_max,outputfip,mod_meth,searchmethod,selcrit,
+            startstrat,printlog,xdata_stand,seas_sta,lags_grid,ci_level,mod_lag,n_rollend,
+            pred_roll_over,bw_factor);
+            
+/* 040322a */
+print "pred_roll_over" pred_roll_over;
+print "bw_factor" bw_factor;
+print "n_rollend" n_rollend;
+/* 040322e */            
+
+print "seas_sta" seas_sta; /* XAA */
+local noutputf,tmp,estimator,print_in_file;
+local xexog,dexog,xexog_com,x_2SLS,E_Exog,KSQ_INT,STD_XDATA,SIG2_HAT,n;
+local CRIT_O,RESVAR,SIG2WN_HAT,h_user,HB,HC,CRIT_GRID, H_GRID,X_S_J_ADJ,Y_ADJ,X_T_J_ADJ;
+local BB,RESID,MEANSEAS ;
+local seas_cha,kernel, robden, per_A, per_B, meth_hB, partial_cub, hcd_fac;
+local hC_Silv_fac,__output,h_start, h_c_min, h_c_max, seas, method_dum;
+local meth_hB_d,seas_dum, volat;
+local grid_var_ind,xgridmax,xgridmin,xgridstep,LAGS_GRID_H ,xgrid,xgrid2,xconst,plotaxis;
+local ll,kk,ii,G_HAT,DENA,garb,w_gr,G_HATPLOT,xgridplot,G_HATPLOTMIN,misval,G_HATPLOT2;
+local seas_c,yorig_seas,cond_var,g_hatplot_datrange,crmin,CR_PRO,CR_STORE;
+local G_HATPRED,h_used,X_T_JPRED_SEAS,b_barpred,LAGS_GRID_HERE;
+local LAGS_SIGMA_GRID_HERE,LAGS_SIGMA_GRID ;
+local B_BARPRED_HERE,G_HATPRED_HERE,DENA_HERE,h_used_here,h_user_here,X_T_JPRED_SEAS_HERE;
+local CI_Y_HAT_HERE;
+local CR_STORE_ADD,H_STORE,H_STORE_TEST,VAR_CI_HAT_HERE,SIGMA2_X_HAT_HERE,CI_Y_HAT;
+local SIGMA2_X_HAT,VAR_CI_HAT;
+local B_MEAN,B_VAR,h_used_mean,h_used_var,G_HATPRED_MSEP ;
+local lags_grid_ro;  /* added may 31,2002 */
+
+local xresid;
+xresid      = 0;
+
+local N_ROLLCOUNT,bonf,comp_ci,do_firstlag,do_lags,npred,eps_hat;
+eps_hat     = 1;
+npred       = 1; /*1-step ahead prediction*/
+bonf        = 0; /* no Bonferroni's confidence intervals */
+
+
+
+output file = ^outputfip reset;           /* open output file */
+
+if mod_lag  == 0;
+  do_firstlag=0;
+  do_lags=0;
+elseif mod_lag  == 1;
+  do_firstlag=1;
+  do_lags=1;
+elseif mod_lag  == 2;
+  do_firstlag=0;
+  do_lags=1;
+endif;
+
+lags_grid = delif(lags_grid,lags_grid.==0);
+
+
+n=rows(xraw);
+/*
+printlog = 3; /* to control output: (REMOVE COMMENT SIGN for MAINTAINANCE)
+                 0= only final output,
+                 1= intermediary, unformatted output during all stages
+                 2= more detailed intermed., unform. output
+                 3= all intermediary unformatted output */
+*/                 
+print_in_file  = 1;  /* 0 = no output is written to file, 1 = output is written
+                            to file */
+
+if printlog > 3;
+    print "XX mod_lag" mod_lag;
+    print "XX n_rollend" n_rollend;
+    print "XX lags_grid" lags_grid;    
+endif;
+std_xdata = stdc(xraw);
+if xdata_stand $== "yes";
+    xraw    = xraw ./ stdc(xraw);
+    if rows(xresid) > 1;
+        xresid  = xresid ./ stdc(xresid);
+    endif;
+endif;
+
+/* here we set our model defaults from cafp_par.src */
+{xexog_com, xexog, xresid, seas_cha, kernel, robden, per_A, per_B, meth_hB, partial_cub, 
+    hcd_fac, hC_Silv_fac,__output,h_start, h_c_min, h_c_max, seas, method_dum, meth_hB_d,
+    seas_dum, volat}=getModelDefaults_nonparam(mod_meth,xresid);
+
+if not((selcrit $== "arfpe") or (selcrit $== "araic")
+        or (selcrit $=="arhq") or (selcrit $== "arsc")
+        or (selcrit $=="lqafpe") or (selcrit $== "lqcafpe"));
+    "cafp_for_nonparam: choose available selection criterion;";
+    print "       the current choice is selcrit: " selcrit;
+    end;
+endif;
+
+if not((searchmethod $== "full") or (searchmethod $== "directed"));
+    "cafp_for_nonparam: choose available search method for lags;";
+    print "       the current choice is searchmethod: " searchmethod;
+    end;
+endif;
+
+
+if maxc(lags_grid) > lag_max;
+    print "cafp_for_nonparam: Select lags which are not larger than lag_max. lag_max is ";
+    print lag_max;
+    end;
+endif;
+
+/* ----------set selection estimator ------------------------ */
+if strsect(selcrit,1,2) $== "ar";
+    estimator = "ar";       /*   linear (autoregressive) estimator */
+elseif strsect(selcrit,1,2) $== "ng";
+    estimator = "nw";       /*   Nadaraya-Watson estimator          */
+elseif strsect(selcrit,1,1) $== "l";
+    estimator = "loclin";   /*   local linear estimator             */
+endif;
+
+
+
+
+
+if n_rollend > n;
+    print "cafp_for_nonparam: n_rollend has to be smaller than or equal to the number of"; 
+    print "observations  n=" n;
+          "          Program terminated";
+    end;
+endif;
+
+@ ------------ Print results ----------------------------------------- @
+
+if _print_cafpejm;
+    if estimator $== "ar";
+        "1-STEP PREDICTION OF LINEAR MODEL";
+
+        "-------------------------------------";
+        "";
+        if mod_meth $== "NAR";
+            print "Selected model:                  AR";
+        elseif mod_meth $== "SNAR";
+            print "Selected model:                  PAR";
+        elseif mod_meth $== "SDNAR";
+            print "Selected model:                  SDAR";
+        elseif mod_meth $== "SHNAR";
+            print "Selected model:                  SHAR";
+        endif;
+
+        print /lz "Selection criterion:             " selcrit;
+
+    elseif (estimator $== "loclin") or (estimator $== "nw");
+        "NONPARAMETRIC 1-STEP PREDICTION OF CONDITIONAL MEAN FUNCTION";
+        "    USING A SCALAR PLUG-IN BANDWIDTH";
+        if seas == 1;
+          "Reference: Tschernig & Yang (2000, Journal of Time Series Analysis, 21, 457-487)";
+        else;
+          "Reference: Yang & Tschernig (2002, Econometric Theory, 18, 1408-1448)";
+          "           Note that in contrast to the paper, seasons are numbered s=1,2,..S";
+        endif;
+        "";
+        "Model and model estimation parameters:";
+        "-------------------------------------";
+        "";
+        print /lz "Selected model:                  " mod_meth;
+        print /lz "Selection criterion:             " selcrit;
+
+        "";
+        "For details on model and model estimation parameters";
+        "please see the output of the estimation panel.";
+    endif;
+
+    print /lz "Number of observations in time series:" n;
+    if ((n_rollend /= n) and (pred_roll_over==1));
+        print /lz "Rolling over predictions:";
+        print /lz "starting at                           " n_rollend+1;
+        print /lz "ending at                             " n;
+    else;
+        print /lz "Prediction of y_t, t =                " n+1;
+    endif;
+endif;
+
+/* 030615, now linear dummy and shift model computed differently 
+if (seas_cha $== "shift") and (estimator $== "ar");
+    seas_cha = "seasD";
+    xexog_com = ones(seas-1,1).*. "SD";
+    seas_dum = "always";
+
+    if _print_cafpejm;
+        if printlog;
+            "cafp_for_nonparam:";
+        endif;
+        "";
+        "ATTENTION:";
+        "Since SDAR and SHAR result in the same forecast";
+        "prediction variance includes for the former ";
+        "the (co)variance of the seasonal parameters,";
+        "the SDAR model is used now.";
+    endif;
+endif;
+*/
+
+
+
+@ ------------- determine number of dexog/exog variables ?? ------------ @
+
+if xexog_com $== "none";
+    if rows(xexog_com) == seas-1;       /* Feb 21, 2000 */
+     xexog       = xexog_se_nonparam(n, seas,1,seas_sta);
+    else;
+         xexog       = 0;
+    endif;
+    dexog   = 0;
+else;
+    dexog   = rows(xexog_com);
+endif;
+
+@ ------------- determine number of dexog/exog variables ?? ------------ @
+
+if ((rows(xexog_com) == seas-1 ) and (xexog_com[1] $== "SD")) or seas_cha $== "shift";
+    xexog       = xexog_se_nonparam(n, seas,1,seas_sta);
+    x_2SLS      = 0;
+else;
+    xexog       = 0;
+    x_2SLS      = 0;
+endif;
+
+@ -------------- compute kernel constant ----------------------- @
+
+if kernel $== "gaussian";
+    Ksq_int = 1 / (2*sqrt(pi));
+endif;
+
+
+
+std_xdata   = stdc(xraw);
+if printlog > 1;
+    print "standard deviation of xdata" std_xdata;
+    print "variance of xdata          " (std_xdata^2);
+endif;
+
+sig2_hat = stdc(xraw)^2;
+
+
+@ ---------- Begin of computation --------------------------------- @
+
+if ((n_rollend < n) and (pred_roll_over==1));   /* (pred_roll_over==1) added, 040322 */
+    if (seas_cha $== "seasD") or (seas_cha $== "shift");
+        b_barpred   = zeros(n-n_rollend,seas-1);
+    else;
+        b_barpred   = zeros(n-n_rollend,1);
+    endif;
+    g_hatpred   = zeros(n-n_rollend,1);
+    denA        = zeros(n-n_rollend,1);
+    h_used      = zeros(n-n_rollend,1);
+    h_user      = zeros(n-n_rollend,1);
+    x_t_jpred_seas  = zeros(n-n_rollend,1);
+    lags_grid_ro= zeros(n-n_rollend,d_max);
+    n_rollcount = 0;
+    do while n_rollend+n_rollcount < n;
+        if _print_cafpejm;
+            "";".........";
+            format /mat /on /mb1 /ros 7,0;
+            print /ld "Time index of variable to predict: " (n_rollend+n_rollcount+1);
+            format /mat /on /mb1 /ros 16,8;                 
+        endif;
+
+        if do_lags and not(do_firstlag);
+
+            { crmin,cr_pro,cr_store,cr_store_add,h_store,h_store_test } =
+                fpe_nps_nonparam(xraw[1:n_rollend+n_rollcount],xresid,
+                        xexog,x_2SLS,lag_max,xexog_com,seas,
+                        seas_sta,seas_cha,seas_dum,volat,startstrat,robden,
+                        estimator,kernel,method_dum,selcrit,per_A,per_B,
+                        h_start,h_c_min,h_c_max,searchmethod,d_max,
+                        meth_hB,meth_hB_d,partial_cub,hcd_fac,printlog,hC_Silv_fac);
+
+            lags_grid_here      = crmin[1:d_max]';  
+                            /* d_max instead of lag_max, June 3, 2002 */
+            if printlog > 3;
+                "crmin" crmin;
+                "cr_pro" cr_pro;
+                "lags_grid_here" lags_grid_here;
+            endif;                
+            lags_grid_ro[n_rollcount+1,.]  = lags_grid_here';
+            lags_grid_here      = delif(lags_grid_here,lags_grid_here .== 0);
+            if seas_cha $== "seasD";    /* add seasonal dummy variables for SDNAR model */
+                lags_grid_here = lags_grid_here|seqa(lag_max+1,1,seas-1);
+            endif;
+            if printlog > 3;
+                "lags_grid_here" lags_grid_here;
+            endif;                
+
+        elseif do_firstlag and n_rollcount==0;
+            screen off;
+            { crmin,cr_pro,cr_store,cr_store_add,h_store,h_store_test } =
+                fpe_nps_nonparam(xraw[1:n_rollend+n_rollcount],xresid,
+                        xexog,x_2SLS,lag_max,xexog_com,seas,
+                        seas_sta,seas_cha,seas_dum,volat,startstrat,robden,
+                        estimator,kernel,method_dum,selcrit,per_A,per_B,
+                        h_start,h_c_min,h_c_max,searchmethod,d_max,
+                        meth_hB,meth_hB_d,partial_cub,hcd_fac,printlog,hC_Silv_fac);
+            screen on;
+            if printlog > 3;
+                print "lag_max" lag_max;            
+                "crmin" crmin;
+            endif;                
+            
+            lags_grid_here  = crmin[1:d_max]';  
+                                    /* d_max instead of lag_max, June 3, 2002 */
+            lags_grid_ro       =  ones(n-n_rollend,1) .*. lags_grid_here';
+            lags_grid_here  = delif(lags_grid_here,lags_grid_here .== 0);
+            if seas_cha $== "seasD";/*  add seasonal dummy variables for SDNAR model */
+                lags_grid_here = lags_grid_here|seqa(lag_max+1,1,seas-1);
+            endif;
+            if _print_cafpejm;
+                if printlog;
+                    print /lz "Lags chosen:        " lags_grid_here';
+                endif;
+            endif;
+        elseif not(do_firstlag) and not(do_lags);
+            lags_grid_here  = lags_grid; /* added, May 31, 2002 */
+            lags_grid_ro    =  ones(n-n_rollend,1) .*. lags_grid_here';
+
+            if seas_cha $== "seasD"; /*  add seasonal dummy variables for SDNAR model */
+                lags_grid_here = lags_grid_here|seqa(lag_max+1,1,seas-1);
+            endif;
+
+        endif;
+        lags_sigma_grid_here = lags_grid_here;
+        
+        comp_ci = 0;        /* moved here from routine beginning, 040322 */
+                /* use same values for volatility function as for mean function */
+        {b_barpred_here,g_hatpred_here,denA_here,h_used_here,h_user_here,
+            x_t_jpred_seas_here,ci_y_hat_here,var_ci_hat_here,sigma2_x_hat_here } =
+                prediction_nonparam(xraw[1:n_rollend+n_rollcount],lags_grid_here,
+                    lags_sigma_grid_here,estimator,kernel,seas,seas_cha,method_dum,
+                    printlog,xexog,lag_max,xexog_com,seas_sta,volat,startstrat,
+                    robden,selcrit,per_B,meth_hB,meth_hb_d,partial_cub,hCd_fac,
+                    hC_Silv_fac,npred,mod_meth,outputfip,eps_hat,ci_level,bonf,comp_ci,
+                    bw_factor);
+        
+        b_barpred[n_rollcount+1,.]      = b_barpred_here';
+        g_hatpred[n_rollcount+1]        = g_hatpred_here;
+        h_used[n_rollcount+1,.]         = h_used_here;
+        h_user[n_rollcount+1,.]         = h_user_here;
+        x_t_jpred_seas[n_rollcount+1,.] = x_t_jpred_seas_here;
+        denA[n_rollcount+1,.]           = denA_here;
+        n_rollcount                     = n_rollcount + 1;
+    endo;
+
+elseif (pred_roll_over==0); /* old condition n_rollend == n replaced, 040322 */
+    n_rollend=n;
+
+    if seas_cha $== "seasD";    /*  add seasonal dummy variables for SDNAR model */
+        lags_grid = lags_grid|seqa(lag_max+1,1,seas-1);
+    endif;
+
+    if _print_cafpejm;
+        "";".........";
+        format /mat /on /mb1 /ros 7,0;
+        print /ld "Time index of variable to predict: " n_rollend+1;
+        format /mat /on /mb1 /ros 16,8;   
+    endif;
+
+    lags_sigma_grid = lags_grid;
+            /* use same values for volatility function as for mean function */
+    bonf    = 0; /* no Bonferroni's confidence intervals */
+    comp_ci = 1; /* moved here, 040322 */
+    {b_barpred_here,g_hatpred_here,denA_here,h_used_here,h_user_here,x_t_jpred_seas_here,
+        ci_y_hat_here,var_ci_hat_here,sigma2_x_hat_here } =
+        prediction_nonparam(xraw,lags_grid,lags_sigma_grid,
+                    estimator,kernel,seas,seas_cha,method_dum,printlog,
+                    xexog,lag_max,xexog_com,seas_sta,volat,startstrat,robden,selcrit,
+                    per_B,meth_hB,meth_hb_d,partial_cub,hCd_fac,hC_Silv_fac,npred,
+                    mod_meth,outputfip,eps_hat,ci_level,bonf,comp_ci,
+                    bw_factor);
+
+    b_barpred   = b_barpred_here';
+    g_hatpred   = g_hatpred_here;
+    h_used      = h_used_here;
+    h_user      = h_user_here;
+    ci_y_hat    = ci_y_hat_here;
+    sigma2_x_hat= sigma2_x_hat_here;
+    var_ci_hat  = var_ci_hat_here;
+    denA        = denA_here;
+
+endif;
+
+@ --------- evaluate out-of-sample forecasts -------------------------------- @
+
+
+
+
+"";
+"---- Results of out-of-sample forecast --------";"";
+
+
+if ((n_rollend < n) and (pred_roll_over == 1)); /* 040322 */
+
+    b_mean  = meanc(b_barpred);
+    b_var   = stdc(b_barpred)^2;
+    h_used_mean = meanc(h_used);
+    h_used_var  = stdc(h_used)^2;
+
+    g_hatpred_MSEP = meanc( (xraw[n_rollend+1:n] - g_hatpred)^2 );
+
+    print "Details of rolling over predictions:";
+    "";
+
+    print "t     Season  Selected lags";
+    print "t     of y_t ";
+    garb = printfm( (seqa(n_rollend+1,1,(n-n_rollend)))~x_t_jpred_seas
+                    ~(ones(n-n_rollend,1) * ("  "))~lags_grid_ro,
+                    1~1~0~ones(1,cols(lags_grid_ro)),
+                    ( (("*.*lf")~5~0)|(("*.*lf")~5~0)|(("- *.*s")~2~2)
+                    |(ones(cols(lags_grid_ro),1) * (("*.*lf")~3~0))));
+
+    format /mat /on /mb1 /ros 16,8;
+    "";
+    if (estimator $== "loclin") or (estimator $== "nw");
+        print "The plug-in bandwidths were modified by";
+        print "the user by multiplying them with" bw_factor; 
+        print "Mean of used bandwidths:         " h_used_mean;
+        print "Variance of used bandwidths:     " h_used_var;
+        print "t     Season    Used bandwidth  User-specified bandwidth";
+        print "      of y_t  ";
+        garb = printfm( (seqa(n_rollend+1,1,(n-n_rollend)))~x_t_jpred_seas~h_used~h_user
+                    ,(1~1~1~1),((("*.*lf")~5~0)|(("*.*lf")~5~0)|(("*.*lf")~16~8))
+                    |(("*.*lf")~16~8));
+
+
+    endif;
+    if (seas_cha $== "seasD") or (seas_cha $== "shift");
+        print "Mean of seasonal dummies:       " b_mean;
+        print "Variance of seasonal dummies    " b_var;
+    endif;
+    print "t     Season    y_t             hat y_t         (y_t - hat y_t)";
+    print "      of y_t";
+    garb = printfm( (seqa(n_rollend+1,1,(n-n_rollend)))~(x_t_jpred_seas~xraw[n_rollend+1:n]
+                    ~g_hatpred~(xraw[n_rollend+1:n] - g_hatpred))
+                    ,(1~1~1~1~1),((("*.*lf")~5~0)|(("*.*lf")~5~0)|(("*.*lf")~16~8))
+                    |(("*.*lf")~16~8)|(("*.*lf")~16~8));
+
+    "";
+    print "Main results of rolling over prediction:";
+    "";
+    print /lz "Variance of complete time series:          "  sig2_hat;
+    print /lz "Mean squared prediction error:    "  g_hatpred_MSEP;
+    /*print /lz "(MSEP-Var(y)) / Var(y):           " ((g_hatpred_MSEP-sig2_hat) / sig2_hat);*/
+    ""; /* added, June 5, 2003 */
+    print /lz "Variance of y over prediction horizon:      "  stdc(xraw[n_rollend+1:n])^2;
+    print /lz "(MSEP-Var y pred. hor.) / Var y pred. hor.: " 
+                                            ((g_hatpred_MSEP-stdc(xraw[n_rollend+1:n])^2) 
+                                                    / stdc(xraw[n_rollend+1:n])^2);
+
+else;
+
+    @ ------------ print some information ---------------------------   @
+    if _print_cafpejm;
+        "";
+        seas_c  = indexcat(sigma2_x_hat',0|1e100);
+        if seas > 1;
+            print /lz "Season of y_{T+1}:                  " x_t_jpred_seas_here;
+                                /* changed from seas_c, 030614 */
+        endif;
+        if (estimator $== "loclin") or (estimator $== "nw");
+            print /lz "Bandwidth used for prediction:   " h_used;
+            if h_used /= h_user;
+                print /lz "It differs from the user-specified bandwidth " h_user;
+                print /lz "since for the latter the prediction";
+                print /lz "failed";
+            endif;
+            print /lz "Estimated density at x_T         " denA;
+        endif;
+        if (seas_cha $== "seasD");
+            print /lz "Estimated seasonal dummies:       " b_barpred;
+        elseif (seas_cha $== "shift");
+            print /lz "Estimated seasonal shift:         " b_barpred;
+        endif;
+
+        if comp_ci and (not( (seas_cha $== "seasD") and (estimator $/="ar")));                 
+            if rows(g_hatpred)==1; /* added 040205 */
+                print /lz "Predicted value for y_{T+1}:     " g_hatpred;                
+            else;
+                print /lz "Predicted value for y_{T+1}:     " g_hatpred[seas_c];
+            endif;
+            print /lz "Estimated conditional error variance:  " sigma2_x_hat[seas_c];
+            print /lz "Estimated prediction error variance:   " var_ci_hat[seas_c];
+            garb = printfm( (("Predicti")~("on Inter")~("val:   ")
+                        ~(ones(cols(g_hatpred),1).*.("   ["))~ci_y_hat[2*seas_c-1]'
+                        ~(ones(cols(g_hatpred),1).*.(","))~ci_y_hat[2*seas_c]'
+                        ~(ones(cols(g_hatpred),1).*.("]")))
+                        ,(0~0~0~0~1~0~1~0),((("- *.*s")~8~8)|(("- *.*s")~8~8)
+                        |(("- *.*s")~8~8)|(("- *.*s")~5~5)|(("*.*lf")~10~5)
+                        |(("- *.*s")~2~2)|(("*.*lf")~10~5)|(("- *.*s")~2~2)));
+        
+        
+
+        else;
+            print /lz "Predicted value for y_T:         " g_hatpred;
+            if seas_cha $== "seasD";
+                "For the SDNAR model no prediction intervals are computed.";
+            endif;
+        endif;
+
+    endif;
+
+
+endif;
+
+
+output off;
+
+
+endp();
+
+/* ======================= end of program ======================= */
+
+/*  RT, June 2001, adjusted for JMULTI April 2002
+**
+**  --------------------------------------------------------------------
+**                          PREDICTION_NONPARAM.G
+**  --------------------------------------------------------------------
+**
+**  Subroutine to compute 1-step predictions for NAR,SNAR,SDNAR,SHNAR
+**  and AR, PAR Modelle
+**
+**  Internal:   prediction_nonparam.g   derived from iv_pr2.g
+**              f_seas_prep.g           derived from fseasp2.g
+**              f_seas.g                derived from fseas3.g
+**              f_lin_seas.g            derived from flinsea2.g
+**              f_nolags.g              derived from nolags.g
+
+*/
+
+
+proc (9) = prediction_nonparam(xraw,lags,lags_sigma,estimator,kernel,
+                        seas,seas_cha,method_dum,printlog,
+                        xexog,lag_max,xexog_com,seas_sta,volat,startval,robden,selcrit,
+                        per_B,meth_hB,meth_hb_d,partial_cub,hCd_fac,hC_Silv_fac,npred,
+                        mod_meth,outputfip,eps_hat,ci_level,bonf,comp_ci,bw_factor);
+
+local g_ise,f_ise,b_ise,g_hatmise,f_hatmise,denA,seas_c,ind_seas_xsj,
+    x_s_j,x_s_j_seas,yorig,yorig_seas,x_t_j,meanseas,ddummies,garb,
+    yorigmise,yorigmise_seas,meanseas_mise,ddummies_mise,seas_mise,seas_cha_mise,err,i,
+    gorig,gorig_seas,x_t_jpred,x_t_jpred_seas,g_hatpred,f_hatpred,b_barpred,xraw_seas,
+    hb_bar,y_adj,
+    B_hat,B_hat_r,hB,C_hat,hC,hA,n_total,sig_y2,Ksq_int,seas_cha_orig,x_t_j_adj,x_s_j_adj,
+    seas_orig,h_used,h_user,resid,volat_here;
+    
+
+local lags_pred,lags_sigma_pred,lags_the_same,x_t_j_sigmapred,x_t_j_sigmapred_seas,
+    predinterval,sigma2_x_hat,ci_y_hat,bias_ci_hat,var_ci_hat;
+    
+local ci_y_hat_homosk,var_ci_hat_homosk,hA_fpepres_sig2; /* Feb2003, not active */    
+
+    /* Determine name of output files  */
+
+    output file = ^outputfip on;           /* open output file */
+
+
+
+    /* get season of dependent variable to predict */
+    /*
+    print "rows(xraw) " rows(xraw); /* XAA */
+    print "seas_sta" seas_sta; /* XAA */
+    print "seas" seas; /* XAA */
+    */
+    if seas > 1;
+        garb            = ones(trunc(rows(xraw)/seas)+3,1) .*.seqa(1,1,seas); 
+                                /* 030515, +1,1 changed to +3,1 */
+        xraw_seas       = garb[seas_sta:rows(xraw)+seas_sta-1];
+    else;
+        xraw_seas       = ones(rows(xraw),1);
+    endif;        
+    lags            = delif(lags,lags.== 0);                /* lags for f(x) */
+    lags_sigma      = delif(lags_sigma,lags_sigma .== 0);   /* lags for sigma(x) */
+    seas_cha_orig   = seas_cha;
+    seas_orig       = seas;
+    h_user          = 0;
+    n_total         = rows(xraw);
+
+    lags_pred       = selif(lags,lags .<= lag_max);
+    lags_sigma_pred = selif(lags_sigma,lags_sigma .<= lag_max);
+
+            /* check if lags for cond. mean and volatility are identical */
+    if rows(lags_pred) == rows(lags_sigma_pred);
+        if lags_pred == lags_sigma_pred;
+            lags_the_same = 1;
+        else;
+            lags_the_same = 0;
+            if _print_cafpejm;
+                if printlog;
+                    "prediction_nonparam:";
+                endif;
+                "use the same lags for f(x) and sigma(x)";
+            endif;
+            end;
+        endif;
+    else;
+        lags_the_same = 0;
+        if _print_cafpejm;
+            "use the same lags for f(x) and sigma(x)";
+        endif;
+        end;
+    endif;
+
+    if _print_cafpejm;
+        "";
+        format /mat /on /mb1 /ros 2,0;
+        if lags_the_same;
+            print /ld "Lag vector considered:          " lags_pred';
+        else;
+            print /ld "Lag vector considered:";
+            print /ld "    for conditional mean:       " lags_pred';
+            print /ld "    for conditional volatility: " lags_sigma_pred';
+        endif;
+        format /mat /on /mb1 /ros 16,8;
+    endif;
+
+    if npred == 1;
+
+        x_t_jpred_seas  = (xraw_seas[rows(xraw)])%seas+1;
+                                /* corr +1, June 29, 2001 */
+                                /* season of y-value to predict */
+
+        if _print_cafpejm;
+            if printlog;
+                print "prediction_nonparam:";
+            endif;
+            if seas > 1;
+                print /ld "Season of dependent variable to predict" x_t_jpred_seas;
+            endif;
+        endif;
+
+        if sumc(lags_pred)  > 0;
+            x_t_jpred       = xraw[rows(xraw)-lags_pred+1]';
+            /*          print "seqa(1,1,rows(xraw_seas))~xraw_seas~xraw "
+                        seqa(1,1,rows(xraw_seas))~xraw_seas~xraw; */
+            if _print_cafpejm;
+                if printlog > 1;
+                    "x_t_jpred" x_t_jpred;
+                    "lags_pred" lags_pred;
+                endif;
+                if lags_the_same;
+                    print /lz "Values of conditioning lags: ";
+                    garb = printfm( ((ones(rows(x_t_jpred'),1).*.("    "))
+                                ~(ones(rows(x_t_jpred'),1).*.("Lag"))~lags_pred~x_t_jpred')
+                                ,(0~0~1~1),((("- *.*s")~4~4)|(("- *.*s")~8~8)
+                                |(("- *.*lf")~22~ 0)|(("*.*lf")~16~8)));"";
+                else;
+                    x_t_j_sigmapred       = xraw[rows(xraw)-lags_sigma_pred+1]';
+                    print /lz "Values of conditioning lags for f(x): ";
+                    garb = printfm( ((ones(rows(x_t_jpred'),1).*.("    "))
+                    ~(ones(rows(x_t_jpred'),1).*.("Lag"))~lags_pred~x_t_jpred')
+                    ,(0~0~1~1),((("- *.*s")~4~4)|(("- *.*s")~8~8)|(("- *.*lf")~22~ 0)
+                    |(("*.*lf")~16~8)));"";
+                    print /lz "Values of conditioning lags for sigma(x): ";
+                    garb = printfm( ((ones(rows(x_t_j_sigmapred'),1).*.("    "))
+                    ~(ones(rows(x_t_j_sigmapred'),1).*.("Lag"))
+                    ~lags_sigma_pred~x_t_j_sigmapred')
+                    ,(0~0~1~1),((("- *.*s")~4~4)|(("- *.*s")~8~8)|(("- *.*lf")~22~ 0)
+                    |(("*.*lf")~16~8)));"";
+                endif;
+            endif;
+
+        else;
+            x_t_jpred        = 0;
+            if sumc(lags_sigma_pred) > 0;
+                x_t_j_sigmapred       = xraw[rows(xraw)-lags_sigma_pred+1]';
+                if _print_cafpejm;
+                    print /lz "No conditioning lags for f(x)";
+                    print /lz "Values of conditioning lags for sigma(x): ";
+                    garb = printfm( ((ones(rows(x_t_j_sigmapred),1).*.("    "))
+                                ~(ones(rows(x_t_j_sigmapred),1).*.("Lag"))~lags_sigma_pred
+                                ~x_t_j_sigmapred)
+                                ,(0~0~1~1),((("- *.*s")~4~4)|(("- *.*s")~8~8)
+                                |(("- *.*lf")~22~ 0)|(("*.*lf")~16~8)));"";
+                endif;
+            endif;
+            /*            x_t_jpred_seas   = 0; */
+        endif;
+
+    else;
+        if _print_cafpejm;
+            "prediction_nonparam: h-step predictions not yet possible.";
+            "                     This requires more complicated bandwidth choice.";
+            "                     Program terminated.";
+        endif;
+        end;
+    endif;
+
+
+    if sumc(lags_pred) > 0;
+
+        {x_s_j,x_s_j_seas,yorig,yorig_seas,x_t_j,meanseas,ddummies,seas,seas_cha,
+        garb,garb,garb,garb,garb,garb,garb,garb,garb,garb,garb }
+            = f_seas_prep_nonparam(xraw,0,xexog,lags,lag_max,xexog_com,
+                    seas,seas_sta,seas_cha_orig,volat,startval,robden,selcrit,
+                    printlog,method_dum,xraw,estimator);  
+                                /* xraw here for gtrue since gtrue not needed */
+        if printlog > 1;
+            print "prediction_nonparam:";
+                  "    for conditional mean:       ";
+            print /lz "Seasonal model used:            " seas_cha_orig;
+            print /lz "Number of seasonal dummies:     " ddummies;
+            if seas_cha_orig $== "shift";
+                print /lz "Estimated seas. shift parameters: " meanseas;
+            elseif seas_cha_orig $== "seasD";
+                print /lz "Estimated seas. dummies:          " meanseas;
+            endif;
+        endif;
+
+        if npred == 1 and seas_cha_orig $== "shift";
+
+            if printlog > 1;
+                print "prediction_nonparam: seas_orig: " seas_orig; 
+                                                        /* corr June 29, 2001 */
+                print "        yorig_seas " yorig_seas[rows(yorig)-5:rows(yorig)];
+                print "        meanc(x_s_j)" meanc(x_s_j);
+            endif;
+            x_t_jpred           = yorig[rows(yorig)-lags_pred+1]';
+            x_t_jpred_seas      = (yorig_seas[rows(yorig)])%seas_orig+1; 
+                                                        /* corr June 29, 2001*/
+            x_t_jpred       = yorig[rows(yorig)-selif(lags,lags .<= lag_max)+1]';
+
+            if _print_cafpejm;
+                if lags_the_same;
+                    print /lz 
+                    "Values of conditioning lags after subtracting seasonal shifts: ";
+                    garb = printfm( ((ones(rows(x_t_jpred'),1).*.("    "))
+                                ~(ones(rows(x_t_jpred'),1).*.("Lag"))
+                                ~lags_pred~x_t_jpred')
+                                ,(0~0~1~1),((("- *.*s")~4~4)|(("- *.*s")~8~8)
+                                |(("- *.*lf")~22~ 0)|(("*.*lf")~16~8)));"";
+                endif;
+            endif;
+
+            if printlog > 1;
+                print "prediction_nonparam: x_t_jpred_seas (corrected for shift)       "
+                         x_t_jpred_seas;
+            endif;
+        endif;
+
+        if ddummies > 0;
+            garb = zeros(1,seas-1);
+            if x_t_jpred_seas > 1;
+                garb[x_t_jpred_seas-1] = 1;
+            endif;
+            x_t_jpred   = x_t_jpred~garb;
+            if printlog > 1;
+                print "prediction_nonparam: x_t_jpred" x_t_jpred;
+            endif;
+        endif;
+
+        hB  = 0;
+        hC  = 0;
+        n_total = rows(xraw);
+        sig_y2  =  (stdc(xraw))^2;
+        if kernel $== "gaussian";
+            Ksq_int = 1 / (2*sqrt(pi));     /* kernel constant ||K||_2^2  in TY*/
+        endif;
+
+        if estimator $== "loclin";
+
+            { B_hat,B_hat_r,hB,C_hat,garb,hC,hA,y_adj,b_barpred,X_t_j_adj,X_s_j_adj,
+                seas_cha,ddummies }
+                = fpe_pres_nonparam(x_s_j,yorig,hB,hC,x_t_j,estimator,kernel,
+                    seas,seas_cha,yorig_seas,ddummies,method_dum,
+                    n_total,sig_y2,per_B,Ksq_int,meth_hB,meth_hB_d,partial_cub,hCd_fac,
+                    lag_max,robden,printlog,hC_Silv_fac);
+            if printlog > 1;
+                print "prediction_nonparam: hA of fpe_pres: " hA;
+                print "                 b_barpred' " b_barpred';
+            endif;
+            h_user      = hA * bw_factor; /* bw_factor added, 040322 */            
+            h_used      = h_user;
+
+
+
+
+            /* --------- compute values for one-period prediction ------- */
+
+            if seas_cha_orig $== "shift";
+
+                b_barpred = meanseas;
+
+            endif;
+            if _print_cafpejm;
+                if printlog;
+                    print "prediction_nonparam:";
+                endif;
+            endif;
+            err   = 1;
+            i       = 1;
+            do while err == 1;      /* all hA replaced by h_used, 040322 */
+                if printlog > 1;
+                    print "x_t_jpred[.,1:cols(x_s_j)]" x_t_jpred;
+                    print "rows(x_s_j_adj)"  rows(x_s_j_adj);
+                    print "rows(y_adj)"  rows(y_adj);
+                    print "rows(x_t_jpred)"  rows(x_t_jpred);
+                    print "rows(x_t_jpred_seas)"  rows(x_t_jpred_seas);
+                endif;
+                { g_hatpred,f_hatpred,garb,denA,garb,err }
+                   = f_seas_nonparam(x_s_j_adj[.,1:cols(x_s_j_adj)],y_adj,
+                                    h_used,x_t_jpred[.,1:cols(x_s_j_adj)],x_t_jpred_seas,
+                                    kernel,seas,seas_cha,yorig_seas,ddummies,
+                                    estimator,method_dum,printlog,seas_cha_orig,b_barpred);
+                if _print_cafpejm;
+                    if printlog;
+                        print "Nonparametric estimation flawed: " err;
+                        print "Current predicted value:         " g_hatpred ;
+                        print "Current bandwidth:               " h_used;
+                    endif;
+                endif;
+                if err == 1 and i > 30;
+                    if _print_cafpejm;
+                        print "prediction_nonparam: ";
+                        print " iteration limit of 30 exceeded for computing";
+                        print "                 g_hatpred,f_hatpred,b_barpred,denA";
+                        print "                 returns 1e20";
+                    endif;
+                    end;
+                elseif err == 1 and i <= 30;
+                    h_used = h_used * 1.05;
+                endif;
+
+                i    = i + 1;
+            endo;
+
+            predinterval = 1;
+
+            if comp_ci;
+            /* get plug-in bandwidth for cond. volatility estimate, Feb2003, 040322 */
+            
+                if seas_cha_orig $== "standard";
+
+                    resid   = 0;   /* compute residuals first, 040322 */
+                    { garb,garb,garb,garb,garb,garb,resid } =
+                        ci_f_hat_nonparam(x_s_j_adj[.,1:cols(x_s_j_adj)],y_adj,
+                                h_used,-1,x_t_jpred[1,1:cols(x_s_j_adj)],kernel,kernel,
+                                seas,seas_cha_orig,yorig_seas,estimator,
+                                method_dum,meth_hB,printlog,zeros(1,seas)/*g_hat*/,
+                                ci_level,bonf,resid,n_total,0,0);
+                    volat_here  = "resid";
+                    print "Information given for estimating conditional variance";
+                    
+                    {garb/*crit_o_sig2*/,
+                    garb/*resvar_sig2*/,
+                    garb/*sig2wn_hat_sig2*/,
+                    hA_fpepres_sig2,
+                    garb/*hB_sig2*/,
+                    garb/*hC_sig2*/,
+                    garb/*crit_grid_sig2*/,
+                    garb/*h_grid_sig2*/,
+                    garb/*X_s_j_adj_sig2*/,
+                    garb/*y_adj_sig2*/,
+                    garb/*X_t_j_adj_sig2*/,
+                    garb/*resid_sig2*/,
+                    garb/*meanseas_sig2*/ } 
+                        = fpe_npsl_nonparam(Xraw,resid,xexog,0/*x_2SLS*/,lags,lag_max,xexog_com,
+                            0/*dexog*/,seas,seas_sta,seas_cha,volat_here,startval,robden,
+                            estimator,kernel,method_dum,selcrit,0/*per_A*/,per_B,Ksq_int,
+                            0/*h_c_min*/,0/*h_c_max*/,meth_hB,meth_hB_d,partial_cub,hCd_fac,
+                            printlog,hC_Silv_fac,1);
+                    print "End of Information for estimating conditional variance";                            
+                else;
+                    /*  040602 plug-in bandwidth does not work for dummy and perodic models */
+
+                    hA_fpepres_sig2 = -1; /* 040602 */                
+
+                endif;
+              
+/*
+                hA_fpepres_sig2 = h_user;  
+                                /* replace by correct plug-in bandwidth, Feb2003*/
+
+*/                       
+
+                if seas_cha_orig $/= "seasD";
+                    { ci_y_hat,ci_y_hat_homosk,bias_ci_hat,var_ci_hat,var_ci_hat_homosk,
+                        sigma2_x_hat,garb } 
+                        = ci_f_hat_nonparam(x_s_j_adj[.,1:cols(x_s_j_adj)],y_adj,
+                                h_used,hA_fpepres_sig2,
+                                X_t_jpred[.,1:cols(x_s_j)],kernel,kernel,
+                                seas,seas_cha_orig,yorig_seas,estimator,method_dum,
+                                meth_hB,printlog,g_hatpred,ci_level,bonf,eps_hat,
+                                n_total,predinterval,0);   
+
+                                    /* Feb2003, homoskedastic variance not available */
+                    if not(seas_cha_orig $== "shift");  /* if statement added, 030614 */                                            
+                        sigma2_x_hat    = sigma2_x_hat .* (ones(1,seas) 
+                                * x_t_jpred_seas .== seqa(1,1,seas)');
+                                    /* save only sigma2_x_hat for season 
+                                        for which to predict */
+                    endif;
+                else;
+                    ci_y_hat        = 0|0;
+                    ci_y_hat_homosk = 0|0;
+                    bias_ci_hat     = 0;
+                    var_ci_hat      = 0;
+                    var_ci_hat_homosk = 0;
+                    sigma2_x_hat    = 0;
+                endif;
+            else;
+                ci_y_hat    = 0;    /* only computed if comp_ci=1 , 040322 */
+                var_ci_hat  = 0;
+                sigma2_x_hat = 0;
+            endif;
+            
+        elseif estimator $== "ar";
+
+            denA    = -1;
+
+            if seas_cha_orig $== "shift";
+                seas_cha = seas_cha_orig;
+                seas    = seas_orig;
+            endif;
+
+
+            if seas_cha $== "shift";
+                if printlog > 1;
+                    print "prediction_nonparam: meanseas in prediction" meanseas;
+                endif;
+                b_barpred = meanseas;
+            endif;
+
+            h_used  = 0;
+            h_user  = 0;
+            if printlog > 1;
+                print "prediction_nonparam: yorig_seas"; 
+                print yorig_seas[rows(yorig_seas)-5:rows(yorig_seas)];
+            endif;
+            if printlog > 1;
+                print "rows(x_s_j)"  rows(x_s_j);
+                print "rows(yorig)"  rows(yorig);
+                print "rows(x_t_jpred)"  rows(x_t_jpred);
+                print "rows(x_t_jpred_seas)"  rows(x_t_jpred_seas);
+            endif;
+            { g_hatpred,f_hatpred,b_barpred,ci_y_hat,var_ci_hat,sigma2_x_hat }
+                   = f_lin_seas_nonparam(x_s_j,yorig,x_t_jpred,x_t_jpred_seas,
+                                seas,seas_cha,yorig_seas,ddummies,estimator,method_dum,
+                                meanseas,printlog,ci_level,comp_ci);
+
+            if printlog > 1;
+                print "prediction_nonparam: g_hatpred" g_hatpred;
+                print "prediction_nonparam: x_t_jpred" x_t_jpred;
+                print "prediction_nonparam: x_t_jpred_ise" x_t_jpred_seas;
+                print "prediction_nonparam: yorig_seas " yorig_seas[rows(yorig_seas)];
+                print "prediction_nonparam: var_ci_hat " var_ci_hat;
+                print "prediction_nonparam: sigma2_x_hat" sigma2_x_hat;
+                print "prediction_nonparam: ci_y_hat " ci_y_hat;
+            endif;
+        endif;
+    else;
+
+/*        x_s_j       = 0; */
+        yorig_seas  = xraw_seas;
+        yorig       = xraw;
+
+        if seas_cha $==  "seasD";
+            ddummies= seas-1;
+        else;
+            ddummies = 0;
+        endif;
+        { g_hatpred,f_hatpred,b_barpred,ci_y_hat,var_ci_hat,sigma2_x_hat }
+                   = f_nolags_nonparam(yorig,x_t_jpred,x_t_jpred_seas,
+                            seas,seas_cha,yorig_seas,ddummies,printlog,ci_level,comp_ci);
+
+        if printlog > 1;
+            print "prediction_nonparam: g_hatpred" g_hatpred;
+            print "prediction_nonparam: x_t_jpred" x_t_jpred;
+            print "prediction_nonparam: x_t_jpred_ise" x_t_jpred_seas;
+            print "prediction_nonparam: sigma2_x_hat" sigma2_x_hat;
+            print "prediction_nonparam: ci_y_hat " ci_y_hat;
+        endif;
+        
+        denA    = -1;
+        h_used  = 0;
+        h_user  = 0;
+            
+    endif;
+
+    if printlog > 1;
+        print "prediction_nonparam: b_barpred" b_barpred;
+        print "prediction_nonparam: last time x_t_jpred_seas " x_t_jpred_seas;
+    endif;
+
+retp(b_barpred,g_hatpred,denA,h_used,h_user,x_t_jpred_seas,ci_y_hat,var_ci_hat,sigma2_x_hat);
+endp;
+
+/* ===================================================================== */
+
+
+
+proc (6) = f_lin_seas_nonparam(x_s_j,yorig,x_t_j,x_t_j_seas,
+                     seas,seas_cha,yorig_seas,ddummies,
+                     estimator,method_dum,meanseas,printlog,ci_level,comp_ci);
+local f_hat,seas_c,ind_seas,ind_seas_xtj,yorig_pe,x_t_j_pe,
+      x_s_j_pe,vnam,m,b,stb,vc,stderr,sigma,cx,rsq,garb,
+      g_hat,b_bar;
+local g_hatpred,f_hatpred,crit_val_phi,sigma2_x_hat,ci_y_hat,var_ci_hat;
+
+    crit_val_phi    = -cdfni((1-ci_level)/2);
+                        /* get critical value at size = a_size for normal dist.
+                           factor 2, June 3, 2002 */
+
+    x_s_j   = ones(rows(x_s_j),1)~x_s_j;  /* CORR. June 29, 2001 */
+    x_t_j   = ones(rows(x_t_j),1)~x_t_j;
+    if seas_cha $== "periodic";
+        f_hat       = zeros(rows(yorig),1);
+        f_hatpred   = zeros(rows(x_t_j),1);
+        g_hatpred   = zeros(rows(x_t_j),1);
+        sigma2_x_hat= zeros(1,seas);
+        var_ci_hat  = zeros(1,seas);
+        ci_y_hat    = zeros(rows(x_t_j),2*seas);
+        seas_c      = 1;
+        do while seas_c <= seas;
+            ind_seas    = indexcat(yorig_seas,seas_c);
+            ind_seas_xtj= indexcat(x_t_j_seas,seas_c);
+            if printlog > 3;
+                print "ind_seas" ind_seas;
+            endif;                
+            yorig_pe    = yorig[ind_seas,.];
+            X_s_j_pe    = X_s_j[ind_seas,.];
+            __con   = 0;
+            _olsres = 0;
+            { vnam,m,b,stb,vc,stderr,sigma,cx,rsq,garb,garb } =
+              ols(0,yorig_pe,X_s_j_pe);
+            __con   = 1;
+            f_hat[ind_seas]         = x_s_j_pe * b;
+            if not(scalerr(ind_seas_xtj));
+                X_t_j_pe    = X_t_j[ind_seas_xtj,.];
+                f_hatpred[ind_seas_xtj] = x_t_j_pe * b;
+                g_hatpred[ind_seas_xtj] = x_t_j_pe * b;
+                sigma2_x_hat[1,seas_c]  = sigma^2;
+                var_ci_hat[1,seas_c]    = sigma^2 + x_t_j_pe*vc*x_t_j_pe';
+                ci_y_hat[ind_seas_xtj,2*seas_c-1:2*seas_c] =
+                      (g_hatpred[ind_seas_xtj] - sqrt(var_ci_hat[1,seas_c])*crit_val_phi)~
+                      (g_hatpred[ind_seas_xtj] + sqrt(var_ci_hat[1,seas_c])*crit_val_phi);
+            endif;
+            if printlog>1;
+                print "f_lin_seas_nonparam: seas_c:       " seas_c;
+                print "                     b:            " b;
+                print "                     g_hatpred:    " g_hatpred;
+                if comp_ci;
+                    print "                     sigma2_x_hat: " sigma2_x_hat;
+                    print "                     ci_y_hat      " ci_y_hat;
+                    print "                     var_ci_hat    " var_ci_hat;
+                endif;
+            endif;
+
+
+            seas_c = seas_c + 1;
+        endo;
+        g_hat   = f_hat;
+        b_bar  = 0;
+
+    elseif (seas_cha $== "seasD");
+
+        __con       = 0;
+        { vnam,m,b,stb,vc,stderr,sigma,cx,rsq,garb,garb } =
+                  ols(0,yorig,X_s_j);
+        __con       = 1;
+
+        b_bar       = b[rows(b)-ddummies+1:rows(b)];
+        f_hat       = x_s_j[.,1:rows(b)-ddummies] * b[1:rows(b)-ddummies];
+        g_hat       = x_s_j * b;
+        f_hatpred   = x_t_j[.,1:rows(b)-ddummies] * b[1:rows(b)-ddummies];
+        g_hatpred   = x_t_j * b;
+        if comp_ci;
+            sigma2_x_hat= sigma^2;
+            var_ci_hat  = sigma^2 + X_t_j * vc * X_t_j';
+                            /* forecast error */
+            ci_y_hat    = (g_hatpred - sqrt(var_ci_hat)*crit_val_phi)~
+                          (g_hatpred + sqrt(var_ci_hat)*crit_val_phi);
+        else;
+            ci_y_hat    = zeros(rows(g_hatpred),2);
+            var_ci_hat  = zeros(rows(g_hatpred),1);
+            sigma2_x_hat= zeros(rows(g_hatpred),1);
+        endif;
+        if printlog > 1;
+            print "f_lin_seas_nonparam: b " b;
+            print "                  rows and cols of x_t_j[,.1:rows(b)-ddummies]"
+                rows(x_t_j[.,1:rows(b)-ddummies])~cols(x_t_j[.,1:rows(b)-ddummies]);
+            print "f_lin_seas: x_t_j[1,.] " x_t_j[1,.];
+            print "                   g_hatpred:    " g_hatpred;
+            if comp_ci;
+                print "                   sigma2_x_hat: " sigma2_x_hat;
+                print "                   ci_y_hat      " ci_y_hat;
+                print "                   var_ci_hat    " var_ci_hat;
+            endif;
+        endif;
+    elseif seas_cha $== "shift";
+        /*
+        replaced by two-step estimator, see below, 030615 
+        if _print_cafpejm;
+            "f_lin_seas_nonparam: use the SDAR model for prediction as it";
+            "is equivalent with the SHAR model and provides complete";
+            "prediction variance";
+        endif;
+        end;
+        */
+    
+    
+        __con       = 0;
+        { vnam,m,b,stb,vc,stderr,sigma,cx,rsq,garb,garb } =
+                  ols(0,yorig,X_s_j);
+        __con       = 1;
+
+        b_bar       = meanseas;
+        f_hatpred   = x_t_j * b;
+        if  x_t_j_seas[1] == 1 and rows(x_t_j_seas) == 1;
+            g_hatpred   = f_hatpred;
+        elseif x_t_j_seas[1] > 1 and rows(x_t_j_seas) == 1;
+                            /* included/corr. June 29, 2001 */
+            g_hatpred   = f_hatpred + b_bar[x_t_j_seas[1]-1];
+        endif;
+
+        if comp_ci;
+            sigma2_x_hat= sigma^2;
+            var_ci_hat  = sigma^2 + X_t_j * vc * X_t_j';
+                            /* forecast error */
+            ci_y_hat    = (g_hatpred - sqrt(var_ci_hat)*crit_val_phi)~
+                          (g_hatpred + sqrt(var_ci_hat)*crit_val_phi);
+        else;
+            ci_y_hat    = zeros(rows(g_hatpred),2);
+            var_ci_hat  = zeros(rows(g_hatpred),1);
+            sigma2_x_hat= zeros(rows(g_hatpred),1);
+        endif;
+        if printlog > 1;
+            print "f_lin_seas_nonparam: b " b;
+            print "                  rows and cols of x_t_j"
+                rows(x_t_j)~cols(x_t_j);
+            print "f_lin_seas: x_t_j[1,.] " x_t_j[1,.];
+            print "                   g_hatpred:    " g_hatpred;
+            if comp_ci;
+                print "                   sigma2_x_hat: " sigma2_x_hat;
+                print "                   ci_y_hat      " ci_y_hat;
+                print "                   var_ci_hat    " var_ci_hat;
+            endif;
+        endif;
+
+
+
+    elseif seas_cha $== "standard";
+        { vnam,m,b,stb,vc,stderr,sigma,cx,rsq,garb,garb } =
+                  ols(0,yorig,X_s_j);
+        f_hat       = x_s_j * b;
+        g_hat       = f_hat;
+        f_hatpred   = x_t_j * b;
+        g_hatpred   = x_t_j * b;
+        b_bar  = zeros(1,seas);
+        if comp_ci;
+            sigma2_x_hat= sigma^2;
+            var_ci_hat  = sigma^2 + x_t_j*vc*x_t_j';
+                            /* June 3, 2002 */
+                        /* forecast error */
+            ci_y_hat    = (g_hatpred - sqrt(var_ci_hat)*crit_val_phi)~
+                          (g_hatpred + sqrt(var_ci_hat)*crit_val_phi);
+        else;
+            ci_y_hat    = zeros(rows(g_hatpred),2);
+            var_ci_hat  = zeros(rows(g_hatpred),1);
+            sigma2_x_hat= zeros(rows(g_hatpred),1);
+        endif;
+        if printlog > 1;
+            print "f_lin_seas_nonparam: b " b;
+            print "                     rows and cols of x_t_j[,.1:rows(b)-ddummies]"
+                rows(x_t_j[.,1:rows(b)-ddummies])~cols(x_t_j[.,1:rows(b)-ddummies]);
+            print "f_lin_seas: x_t_j[1,.] " x_t_j[1,.];
+            print "                         g_hatpred:    " g_hatpred;
+            if comp_ci;
+                print "                   sigma2_x_hat: " sigma2_x_hat;
+                print "                   ci_y_hat      " ci_y_hat;
+                print "                   var_ci_hat    " var_ci_hat;
+            endif;
+        endif;
+
+    endif;
+
+retp( g_hatpred,f_hatpred,b_bar,ci_y_hat,var_ci_hat,sigma2_x_hat );
+endp;
+
+
+/* ============================================================ */
+
+proc(6) = f_seas_nonparam(x_s_j,yorig,hA,x_t_j,x_t_j_seas,
+            kernel,seas,seas_cha,yorig_seas,ddummies,
+                    estimator,method_dum,printlog,seas_cha_orig,b_bar);
+
+local seasden_sta,sig_K,d_w,loo,fandg,lorq,g_hat,denA,ind_seas,
+      ind_seas_xtj,X_t_j_pe,X_s_j_pe,yorig_pe,mA_pe,g_sqA_pe,denA_pe,err,betaplus,
+        w_beta,mA,beta_hat,d_ols,g_sqA,garb,eps_hat,f_hat,seas_c,y_adj,
+        seasdummies,hA_pe,TRUEFUNCTION,obs_c;
+
+
+
+@ -------------------- initialize ------------------------------- @
+
+
+    seasden_sta     = yorig_seas[1];
+    sig_K           = 1;
+    d_w             = cols(X_t_j) - ddummies;
+
+
+@ ----------------- estimate mean functions  -------------------- @
+
+    loo     = 0;    /* no leave-one out */
+    fandg   = 0;    /* only cond. mean  */
+
+    if estimator $== "nw";
+        lorq    = 0;    /* local constant */
+    elseif estimator $== "loclin";
+        lorq    = 1;    /* local linear     */
+    endif;
+/*
+    if rows(X_s_j) > 1;
+         "np_pred: for one-period prediction only one x allowed";
+         end;
+    endif;
+*/
+    if printlog > 1;
+        print "f_seas_nonparam: seas_cha" seas_cha;
+        print "f_seas_nonparam: ddummies" ddummies; print
+        "f_seas_nonparam: estimator" estimator;
+    endif;
+
+    if seas_cha $== "periodic";
+        f_hat       = zeros(rows(x_t_j),1);
+        denA        = zeros(rows(x_t_j),1);
+
+
+        seas_c  = 1;
+        do while seas_c <= seas;
+            ind_seas    = indexcat(yorig_seas,seas_c);
+            ind_seas_xtj= indexcat(x_t_j_seas,seas_c);
+            if (not(scalerr(ind_seas)) and not(scalerr(ind_seas_xtj)));
+                yorig_pe    = yorig[ind_seas,.];
+                if printlog > 1;
+                    "";
+                    print "f_seas_nonparam: seas_c, hA'" seas_c~hA';
+                endif;
+                if hA <= 0;
+                    if _print_cafpejm;
+                        "f_seas_nonparam: plug-in bandwidth smaller than 0: ";
+                        "                 seasonal means of adjusted y's computed";
+                    endif;
+                    f_hat[ind_seas_xtj] = meanc(yorig_pe)*ones(rows(yorig_pe),1);
+                    denA[ind_seas_xtj]  = zeros(rows(yorig_pe),1);
+                    err             = 0;
+
+                else;
+                    if method_dum $== "perio_dif_h";
+                        hA_pe   = hA[seas_c]; /* added May 16, 2000 */
+                    else;
+                        hA_pe   = hA;
+                    endif;
+
+                    X_t_j_pe    = X_t_j[ind_seas_xtj,.];
+                    X_s_j_pe    = X_s_j[ind_seas,.];
+                    if printlog > 1;
+                        print "f_seas_nonparam: rows(x_t_j_pe)" rows(x_t_j_pe);
+                        print "f_seas_nonparam: rows(x_s_j_pe)" rows(x_s_j_pe);
+                    endif;
+                    
+                    { mA_pe,g_sqA_pe,denA_pe,err } =
+                        f_v_llc_nonparam(X_s_j_pe,yorig_pe,
+                                hA_pe,X_t_j_pe,kernel,
+                                lorq,fandg,loo,1,1,0);
+                                /* seas=1, seas_sta=1, ddummies =0, May 15, 2000 */
+
+                    if err == 1;
+                        goto toobad;
+                    endif;
+                    f_hat[ind_seas_xtj]  = mA_pe[.,1];
+                    denA[ind_seas_xtj]   = denA_pe;
+                endif;
+            endif;
+            seas_c = seas_c + 1;
+         endo;
+         g_hat  = f_hat;
+         y_adj  = yorig;
+
+   elseif seas_cha $== "standard" and estimator $== "nw"
+        and ddummies == 0;
+
+        { mA,g_sqA,denA,err } = f_v_llc_nonparam(X_s_j,Yorig,hA,
+                            X_t_j,kernel,lorq,fandg,loo,
+                            seas,seasden_sta,ddummies);
+
+    /* ?? ok */ "f_seas_nonparam: finish programming for Nadaraya_Watson estimator";
+        y_adj   = yorig;
+
+    elseif seas_cha $== "standard" and estimator $== "loclin"
+        and ddummies == 0;
+
+        if hA <= 0;
+            if _print_cafpejm;
+                "f_seas_nonparam: hA <= 0: mean of yorig computed";
+            endif;
+            f_hat = meanc(yorig)*ones(rows(yorig),1);
+            err = 0;
+        else;
+            { mA,g_sqA,denA,err } = f_v_llc_nonparam(X_s_j,Yorig,hA,
+                            X_t_j,kernel,lorq,fandg,loo,
+                            seas,seasden_sta,ddummies);
+
+             f_hat       = mA[.,1];
+        endif;
+        g_hat       = f_hat;
+        y_adj       = yorig;
+    else;
+        if _print_cafpejm;
+            "f_seas_nonparam: choose a valid and available combination";
+            "         of seas_cha, estimator and seasonal dummies";
+        endif;
+    endif;
+    toobad:
+    if err == 1;
+        if _print_cafpejm;
+            if printlog;
+                "f_seas_nonparam:";
+            endif;
+            print "Function estimation has missing values at current bandwidth " hA;
+            "         1e20 returned for function and density estimates";
+        endif;
+        f_hat   = 1e20*ones(rows(x_t_j),1);
+        g_hat   = 1e20*ones(rows(x_t_j),1);
+        denA    = 1e20*ones(rows(x_t_j),1);
+        b_bar   = 1e20*ones(1,seas);
+
+
+    endif;
+
+
+
+    if (seas_cha_orig $== "seasD" and estimator $== "loclin") or
+       (seas_cha_orig $== "shift" and estimator $== "loclin");
+        if x_t_j_seas[1] == 1 and rows(x_t_j_seas) > 1;
+            if seas_cha_orig $== "shift";
+                seas = rows(b_bar)+1;
+            endif;
+            seasdummies = ones(ceil(rows(x_t_j_seas)/seas),1) .*.
+                        (zeros(1,seas-1)|eye(seas-1));
+            if printlog > 1;
+                print "f_seas_nonparam: b_bar" b_bar;
+                print "f_seas_nonparam: seasdummies " seasdummies[1:10,.];
+            endif;
+            g_hat   = f_hat + seasdummies[1:rows(f_hat),.] * b_bar;
+        elseif  x_t_j_seas[1] == 1 and rows(x_t_j_seas) == 1;
+            g_hat   = f_hat;
+        elseif x_t_j_seas[1] > 1 and rows(x_t_j_seas) == 1;
+                            /* included/corr. June 29, 2001 */
+            g_hat   = f_hat + b_bar[x_t_j_seas[1]-1];
+        elseif x_t_j_seas[1] > 1 and rows(x_t_j_seas) > 1;
+            if printlog > 1;
+                "f_seas_nonparam: x_t_j_seas[1] > 1 and rows(x_t_j_seas) > 1 ";
+                "                 not programmed yet";
+            endif;
+            end;
+        endif;
+    endif;
+
+retp(g_hat,f_hat,b_bar,denA,y_adj,err);
+endp;
+
+
+/* ====================================================================== */
+
+ proc (20) = f_seas_prep_nonparam(xraw,Xresid,xexog,lags,lag_max,xexog_com,
+                    seas,seas_sta,seas_cha,volat,startval,robden,selcrit,printlog,
+                    method_dum,gtrue,estimator);
+
+local i,meanseas,sig_y2,x_s_j,n,n_total,lags_so,x_t_j,yorig,ddummies,
+    yorig_seas,d_w,seasden_sta,d,x_s_j_seas,iMS,gorig,gorig_seas,garb;
+
+
+   d           = rows(lags);       /*  number of lags of current
+                                                   specification      */
+
+@ ---- remove seasonal shift parameters and compute regressor matrices -------
+@
+
+    if seas_cha $== "shift";/* method_dum changed to seas_cha,
+                                8/8/1998 */
+        if volat $/= "no";
+            if _print_cafpejm;
+                "f_seas_prep_nonparam: seasonal shift model cannot used for";
+                "                  estimating volatility";
+            endif;
+            end;
+        endif;
+
+        i   = 1;            /* check for potential errors */
+        do while i <= rows(xexog_com);
+            if xexog_com[i] $== "SD";
+                if _print_cafpejm;
+                    "f_seas_prep_nonparam:  eliminate seasonal dummies from matrix";
+                    "                   of exogenous variables.";
+                    "                   Program is terminated";
+                endif;
+                end;
+            endif;
+            i   = i + 1;
+        endo;
+
+        { xraw, meanseas }        = rseasshd_nonparam(xraw,seas,seas_sta,printlog);
+        if printlog > 1;
+            print "f_seas_prep_nonparam: means of each season: meanseas'" meanseas';
+        endif;
+        { garb,garb,yorig_seas,ddummies } =
+            xorig_ex_nonparam(xraw,Xresid,xexog,lags,lag_max,xexog_com,seas,seas_sta,
+                        seas_cha,volat);
+                                    /* get yorig_seas, corr. June 29, 2001 */
+        gorig_seas  = yorig_seas;
+
+
+
+        seas        = 1;    /* now proceed with nonseasonal proc. */
+        seas_sta    = 1;
+        seas_cha    = "standard";
+        method_dum  = "";
+
+                                /* compute adjusted yorig, x_s_j, corr. June 29, 2001 */
+        { X_s_j,yorig,garb,ddummies } =
+            xorig_ex_nonparam(xraw,Xresid,xexog,lags,lag_max,xexog_com,seas,seas_sta,
+                        seas_cha,volat);
+        if printlog > 1;
+            print "f_seas_prep_nonparam: ddummies" ddummies;
+        endif;
+        { garb,gorig,garb,garb } =
+            xorig_ex_nonparam(gtrue,Xresid,xexog,lags,lag_max,xexog_com,seas,seas_sta,
+                        seas_cha,volat);
+        if printlog > 1;
+            print "f_seas_prep_nonparam: yorig_seas" 
+                    yorig_seas[rows(yorig_seas)-5:rows(yorig_seas)];
+        endif;
+    else;
+        meanseas    = 0;
+              /* compute yorig, x_s_j, corr. June 29, 2001 */
+        { X_s_j,yorig,yorig_seas,ddummies } =
+            xorig_ex_nonparam(xraw,Xresid,xexog,lags,lag_max,xexog_com,seas,seas_sta,
+                        seas_cha,volat);
+        if printlog > 1;
+            print "f_seas_prep_nonparam: ddummies" ddummies;
+        endif;
+        { garb,gorig,gorig_seas,garb } =
+            xorig_ex_nonparam(gtrue,Xresid,xexog,lags,lag_max,xexog_com,seas,seas_sta,
+                        seas_cha,volat);
+
+    endif;
+
+    sig_y2      = (stdc(xraw))^2;
+
+@ ---------------------- prepare regressor matrices ----------------------- @
+
+    if startval $== "same"; /* now also for seasonal processes, June 3, 2002 */
+        { X_s_j,Yorig,yorig_seas } =
+                xorig_st_nonparam(X_s_j,Yorig,Xraw,lag_max,seas,0,yorig_seas,lags,seas_cha);
+                                              /* drop lag_max starting
+                                                 values
+                                                 changes, June 3, 2002 */
+    endif;
+    if (printlog); print "fpe_npsl: number of ddummies " ddummies; endif;
+    n           = rows(Yorig);
+    n_total     = rows(xraw);
+    d_w         = d - ddummies;
+    lags_so     = sortc(lags,1);
+    seasden_sta = yorig_seas[1];
+    X_t_j       = X_s_j[1:rows(Yorig),.];
+
+    if (printlog>1);
+        print "fpe_npsl: rows(x_t_j)" rows(x_t_j);
+        print "          rows(X_s_j)" rows(X_s_j);
+    endif;
+
+@ -------------------- robustification of dens. est.--------------- @
+
+    if seas_cha $== "periodic" or seas_cha $== "seasD";
+        robden = "no";
+        /*"fpe_npsl: for seas_cha = periodic or seasD";
+        "          robden automatically set to no";         /* 8/8/1998 */
+        */
+    endif;
+    if robden $== "no";       /* to choose robustification of density estimation */
+        X_s_j   = x_t_j;      /* a la Auestad */
+    elseif robden $== "yes";
+        if estimator $== "ar";
+            X_s_j   = x_t_j;
+        else;
+            X_s_j   = X_s_j;
+        endif;
+    endif;
+
+    if rows(yorig) == rows(x_s_j);
+        x_s_j_seas = yorig_seas;
+    elseif yorig_seas == ones(rows(yorig_seas),1);
+        x_s_j_seas  = ones(rows(X_s_j),1);
+    else;
+        if _print_cafpejm;
+            "f_seas_prep_nonparam: x_s_j_seas not determined.";
+            "                  a missing value returned";
+            "                  set robden to no if you need it";
+        endif;
+        x_s_j_seas = {.};
+    endif;
+    if printlog > 1;
+        print "f_seas_prep: yorig[rows(yorig)-10:rows(yorig)] "
+        yorig[rows(yorig)-10:rows(yorig)]/*~yorig_seas[rows(yorig)-10:rows(yorig)]*/;
+    endif;
+retp(x_s_j,x_s_j_seas,yorig,yorig_seas,x_t_j,meanseas,ddummies,seas,
+     seas_cha,seas_sta,method_dum,xraw,d,d_w,seasden_sta,n_total,n,sig_y2,
+     gorig,gorig_seas);
+endp;
+
+/* ==================================================================== */
+
+
+proc(6) = f_nolags_nonparam(yorig,x_t_j,x_t_j_seas,
+                seas,seas_cha,yorig_seas,ddummies,printlog,ci_level,comp_ci);
+
+local seasden_sta,g_hat,ind_seas,ind_seas_xtj,X_t_j_pe,yorig_pe,
+        garb,f_hat,b_bar,seas_c;
+local f_hatpred,g_hatpred,crit_val_phi,sigma2wn,ci_y_hat,var_ci_hat;
+
+@ -------------------- initialize ------------------------------- @
+
+
+    seasden_sta     = yorig_seas[1];
+    crit_val_phi    = -cdfni((1-ci_level)/2);
+                        /* get critical value at size = a_size for normal dist.
+                           June 3, 2002 */
+
+
+@ ----------------- estimate mean functions  -------------------- @
+
+    if seas_cha $== "periodic";
+            f_hatpred   = zeros(rows(x_t_j),1);
+            g_hatpred   = zeros(rows(x_t_j),1);
+            f_hat       = zeros(rows(yorig),1);
+            sigma2wn    = zeros(1,seas);
+            var_ci_hat= zeros(1,seas);
+            ci_y_hat    = zeros(rows(x_t_j),2*seas); /* rows(x_t_j) put 040205 */
+            seas_c  = 1;
+            do while seas_c <= seas;
+                ind_seas    = indexcat(yorig_seas,seas_c);
+                ind_seas_xtj= indexcat(x_t_j_seas,seas_c);
+                if (not(scalerr(ind_seas)) and not(scalerr(ind_seas_xtj)));
+                    yorig_pe    = yorig[ind_seas,.];
+                    f_hat[ind_seas]     = meanc(yorig_pe)*ones(rows(f_hat[ind_seas]),1);
+                    f_hatpred[ind_seas_xtj] = meanc(yorig_pe)*
+                                                ones(rows(g_hatpred[ind_seas_xtj]),1);
+                    g_hatpred[ind_seas_xtj] = f_hatpred[ind_seas_xtj];
+                    sigma2wn[seas_c]    = sumc((yorig_pe - f_hat[ind_seas])^2)
+                                            /(rows(yorig_pe)-1);
+                                            /* sumc added, 040205 */
+                    var_ci_hat[seas_c]= sigma2wn[seas_c]* (1+1/rows(yorig_pe));
+                                            /* forecast error */
+                    ci_y_hat[ind_seas_xtj,2*seas_c-1:2*seas_c] =
+                        (g_hatpred[ind_seas_xtj] - sqrt(var_ci_hat[seas_c])*crit_val_phi)~
+                        (g_hatpred[ind_seas_xtj] + sqrt(var_ci_hat[seas_c])*crit_val_phi);
+                endif;
+                seas_c = seas_c + 1;
+            endo;
+            g_hat  = f_hat;
+            b_bar  = zeros(1,1); /* seas -> 1 , 040205 */
+            if printlog > 1;
+                print "g_hat"  g_hat;
+                print "g_hatpred " g_hatpred;
+                print "sigma2wn,var_ci_hat" sigma2wn~var_ci_hat;
+                print "ci_y_hat" ci_y_hat;
+            endif;
+    elseif seas_cha $== "seasD"  and ddummies > 0;
+
+        seas_c     = 1;
+        b_bar = zeros(seas-1,1);
+        f_hat       = zeros(rows(yorig),1);
+        g_hat       = zeros(rows(yorig),1);
+        f_hatpred   = zeros(rows(x_t_j),1);
+        g_hatpred   = zeros(rows(x_t_j),1);
+        do while seas_c <= seas;
+            ind_seas    = indexcat(yorig_seas,seas_c);
+            ind_seas_xtj= indexcat(x_t_j_seas,seas_c);
+            yorig_pe    = yorig[ind_seas,.];
+            if seas_c == 1;
+                f_hat           = meanc(yorig_pe)*ones(rows(f_hat),1);
+                g_hat[ind_seas] = f_hat[ind_seas];
+                if (not(scalerr(ind_seas)) and not(scalerr(ind_seas_xtj)));
+                    f_hatpred[ind_seas_xtj] = meanc(f_hat[ind_seas])
+                                                        * ones(rows(g_hatpred),1);
+                    g_hatpred[ind_seas_xtj] = f_hatpred[ind_seas_xtj];
+                endif;
+            else;
+                b_bar[seas_c-1] = meanc(yorig_pe);
+                g_hat[ind_seas] = f_hat[ind_seas] + b_bar[seas_c-1];
+                if (not(scalerr(ind_seas)) and not(scalerr(ind_seas_xtj)));
+                    f_hatpred[ind_seas_xtj] = meanc(f_hat[ind_seas])
+                                                        * ones(rows(f_hatpred),1);
+                    g_hatpred[ind_seas_xtj] = meanc(g_hat[ind_seas])
+                                                        * ones(rows(g_hatpred),1);
+
+                endif;
+            endif;
+            seas_c = seas_c + 1;
+        endo;
+        sigma2wn        = sumc((yorig - g_hat)^2) /(rows(yorig)-1); /* sumc added 040205 */
+        var_ci_hat      = sigma2wn* (1+1/rows(yorig));
+                                            /* forecast error */
+        ci_y_hat        = (g_hatpred - sqrt(var_ci_hat)*crit_val_phi)~
+                          (g_hatpred + sqrt(var_ci_hat)*crit_val_phi);
+
+        if printlog > 1;
+            print "g_hat~f_hat" g_hat~f_hat;
+            print "g_hatpred~f_hatpred" g_hatpred~f_hatpred;
+            print "b_bar~sigma2wn~var_ci_hat"  b_bar~sigma2wn~var_ci_hat;
+            print "ci_y_hat" ci_y_hat;
+        endif;
+
+
+   elseif seas_cha $== "shift";
+
+        seas_c     = 1;
+        b_bar = zeros(seas-1,1);
+        f_hat       = zeros(rows(x_t_j),1);
+        g_hat       = zeros(rows(x_t_j),1);
+        f_hatpred   = zeros(rows(x_t_j),1);
+        g_hatpred   = zeros(rows(x_t_j),1);
+        do while seas_c <= seas;
+            ind_seas    = indexcat(yorig_seas,seas_c);
+            ind_seas_xtj= indexcat(x_t_j_seas,seas_c);
+            yorig_pe    = yorig[ind_seas,.];
+            if seas_c == 1;
+                f_hat = meanc(yorig_pe)*ones(rows(f_hat),1);
+                g_hat   = f_hat;
+                if (not(scalerr(ind_seas)) and not(scalerr(ind_seas_xtj)));
+                    f_hatpred[ind_seas_xtj] = f_hat[ind_seas];
+                    g_hatpred[ind_seas_xtj] = f_hat[ind_seas];
+                 endif;
+            else;
+                b_bar[seas_c-1] = meanc(yorig_pe)-meanc(f_hat);
+                g_hat[ind_seas] = f_hat[ind_seas] + b_bar[seas_c-1];
+                if (not(scalerr(ind_seas)) and not(scalerr(ind_seas_xtj)));
+                    f_hatpred[ind_seas_xtj] = f_hat[ind_seas];
+                    g_hatpred[ind_seas_xtj] = f_hatpred[ind_seas_xtj] + b_bar[seas_c-1];
+                endif;
+            endif;
+            seas_c = seas_c + 1;
+        endo;
+        sigma2wn        = sumc((yorig - f_hat)^2) /(rows(yorig)-1); /* sumc added 040205 */
+        var_ci_hat      = sigma2wn* (1+1/rows(yorig));
+                                            /* forecast error */
+        ci_y_hat        = (g_hatpred - sqrt(var_ci_hat)*crit_val_phi)~
+                          (g_hatpred + sqrt(var_ci_hat)*crit_val_phi);
+
+        if printlog > 1;
+            print "g_hat~f_hat" g_hat~f_hat;
+            print "g_hatpred~f_hatpred" g_hatpred~f_hatpred;
+            print "b_bar~sigma2wn~var_ci_hat"  b_bar~sigma2wn~var_ci_hat;
+            print "ci_y_hat" ci_y_hat;
+        endif;
+
+    elseif seas_cha $== "standard" and ddummies == 0;
+
+        f_hat           = meanc(yorig)*ones(rows(yorig),1); 
+        g_hatpred       = rows(x_t_j)*meanc(f_hat);
+
+        g_hat           = f_hat;
+        b_bar           = 0;
+
+        sigma2wn    = sumc((yorig - g_hat)^2) /(rows(yorig)-1); /* sumc added 040205 */
+        var_ci_hat      = sigma2wn* (1+1/rows(yorig));
+                                            /* forecast error */
+        ci_y_hat        = (g_hatpred - sqrt(var_ci_hat)*crit_val_phi)~
+                          (g_hatpred + sqrt(var_ci_hat)*crit_val_phi);
+        f_hatpred       = f_hat;        /* added, 040213 */
+
+    else;
+        if _print_cafpejm;
+            "f_nolags_nonparam: choose a valid and available combination";
+            "               of seas_cha, estimator and seasonal dummies";
+        endif;
+    endif;
+retp(g_hatpred,f_hatpred,b_bar,ci_y_hat,var_ci_hat,sigma2wn);
+endp;
+
+/*  =======================================================  */

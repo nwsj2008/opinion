@@ -1,0 +1,662 @@
+/*
+ This file is part of the econometric software package JMulTi.
+ Copyright (C) 2000-2005  Stefan Lundbergh, Markus Kraetzig
+
+ This program is free software; you can redistribute it and/or
+ modify it under the terms of the GNU General Public License
+ as published by the Free Software Foundation; either version 2
+ of the License, or (at your option) any later version.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, write to the Free Software
+ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ */
+#ifos2win 
+/* to be used by library creation, windows only */
+#include extern.dec
+#endif
+
+/*
+------------------------------- REFERENCES ---------------------------------
+strestimate.src, by Markus Kraetzig, Oct 2001, using Stefan Lundberghs procedures
+
+   reference:
+   
+   Handbook of Applied Economic Statistics,
+   Aman Ullah, David E. A. Giles, 1998 (Marcel Dekker, Inc),
+   chapter 15, Timo Teräsvirta, Modeling Economic Relationships with STR
+
+
+
+We are estimating a STR model with conditional mean but constant variance
+Normality of the errors is assumed, all variables are assumed to be stationary,
+the only exception is, that the transition variable may be a trend
+
+the procedure depends on newton.lcg (defined in newton.src) and str.dll
+it is optimized to work with JMulTi, but can also be used without it
+
+input:
+
+y           is the endogenous variable  
+d           contains the deterministics without the constant 
+            (it will be appended automatically),if rows(d) < rows(y),
+            then only a const will be appended
+x           contains all lags of y and exogenous variables, also
+            all possible transition variables must be included here
+            endogenous lags, then exogenous, then trend
+res         is a col(x) x 1 vector of restrictions (0 or 1) on x
+            if you want include a trend as a transition variable, then 
+            append it to X, but exclude it from the AR term with the 
+            "res" vector, because it is not allowed to have a trend 
+            in the AR part, but it is possible to have a trend as 
+            transition variable (0-exclude, 1-include)
+trans       is the index of the column of X that is the transition
+            variable. That variable can also be excluded from the
+            linear AR part with the "res" vector
+nonlin      is a sumc(res)+ cols(d) + 1 x 1 vector that has possibly
+            restrictions on the nonlinear part of the STR model
+            it may be, that variables included in X (res[i] is 1)
+            can be held constant by excluding them from the nonlinear
+            part; if nonlin[i]==1 then hold constant, if nonlin[i]==0 then do not hold constant
+startvalues reasonable startvalues for the estimation, possibly obtained
+            by strgrid.src (a grid search routine) gamma|c1|(c2)
+thetphires  rows(nonlin) x 1, this is a vector that has possible restrictions between
+            theta and phi of the form theta_i=-phi_i, meaning that the
+	    variable i vanishes when F becomes 1 (1=restricted, 0=not restricted);
+phires      rows(nonlin) x 1, restriction only on phi, the variable disappears, when
+            F==0 (1=restrict, 0=not restricted)
+k           the order of the model k=1 is LSTR1, k!=1 is LSTR2
+
+(Attention: thetphires, phires and nonlin should not have a 1 at the same index, because
+a variable can only be restricted once, this will be checked and corrected)
+
+output:
+
+numbit~AIC~SBIC~HQ~R2~adjR2~inpvar~_dstd_est~resvar~sqrt(resvar)
+-number of iterations                       
+-AIC                                        
+-SBIC                                       
+-HQ                                         
+-R2                                         
+-Adjusted R2                                
+-Variance of the delay vector               
+-Standard deviation of the delay vector     
+-Variance of the residual vector            
+-Standard deviation of the residual vector  
+
+estimate 
+-start~estimate~SD~t-test~p-value
+
+resids~TransFkt~Z
+-Z is derivative with respect to g,c1,c2
+
+linPart
+nonlinPart
+
+linPart+nonlinPart
+-fitted values
+
+
+*/
+declare matrix 	_XL_est     = {};
+declare matrix 	_XNL_est    = {};	
+declare matrix 	_Y_est      = {};	
+declare matrix 	_Trans_est  = {};	
+declare matrix 	_dstd_est   = {};	
+declare matrix 	_k_est      = {};	
+declare matrix _insize_est  = {};
+declare matrix _scale_est   = {};
+declare matrix _thetphires_est   = {};
+
+proc(6) = strest_strest(Y,d,X,res,trans,nonlin,startvalues,thetphires,phires,k,maxloops);
+local XL,XNL,invertres,dstd,start,tottime,xx,f,g,hessian,numbit,dl,resids,nonpart;
+local AIC,SBIC,HQ,SSY,R2,adjR2,hhh,ett,hd,hdi,hdinv,Z,TransFkt,linpart,nonlinpart;
+local correl,inpvar,xvar,ttest,tprob,estimate,resvar,covar,T,i,j,tmp;
+
+d=d';
+x=x';
+res=res';
+
+
+if k == 1;
+  startvalues = startvalues[1:2,.];
+endif;
+
+if scalmiss(nonlin) == 1;
+  nonlin = zeros(sumc(res)+cols(d)+1,1);
+endif;
+
+if scalmiss(thetphires) == 1;
+  thetphires = zeros(sumc(res)+cols(d)+1,1);
+endif;
+if scalmiss(phires) == 1;
+  phires = zeros(sumc(res)+cols(d)+1,1);
+endif;
+
+/*check the restrictions and remove them, when there is something wrong*/
+i=1;
+do while i<=rows(nonlin);
+  if nonlin[i]+thetphires[i]+phires[i] > 1;
+    nonlin[i]=0;
+    thetphires[i]=0;
+    phires[i]=0;
+  endif;
+  i=i+1;
+endo;
+
+
+T=rows(Y);
+if rows(d) < rows(y);
+  d={};
+endif;
+
+
+/*just to make sure that there are only 0 and 1*/
+res = (res .gt 0);
+nonlin = (nonlin .gt 0);
+thetphires = (thetphires .gt 0);
+phires = (phires .gt 0);
+
+XL = {};
+/*impose the general restrictions on X*/
+invertres = (res .== 0);
+if cols(X) > 1; /* trend is always removed */
+  XL = delif(X',invertres)';
+endif;  
+
+/*append deterministics to the linear part*/
+
+XL = ones(rows(X),1)~D~XL;
+
+/*impose restrictions that theta_i = 0*/
+if sumc(nonlin) == rows(nonlin);
+  retp(0);
+else;
+  XNL = delif(XL',nonlin)';
+endif;
+
+
+/*set the global variables*/
+
+_dstd_est=stdc(X[.,trans]); 
+_Trans_est=X[.,trans];
+_Y_est=Y;
+
+/*impose restrictions that phi_i = 0 and that theta_i=-ph_i*/
+_XL_est = delif(XL',phires+thetphires)'; 
+
+/*this because the XNL matrix has already the restrictions imposed*/
+_thetphires_est = delif(thetphires,nonlin);
+
+_XNL_est = XNL;
+_k_est = k;
+_insize_est=zeros(4,1);
+if scalmiss(_XL_est)==0;
+  _insize_est[1]=cols(_XL_est);              /* sizeL */
+endif;
+_insize_est[2]=cols(_XNL_est);             /* sizeN */
+_insize_est[3]=0;                     /* sizeA */
+_insize_est[4]=0;                     /* sizeB */
+
+start=inival_strest(startvalues,_XL_est,_XNL_est,_Y_est,_Trans_est,_dstd_est,_k_est);
+start = start|startvalues;
+_scale_est=1/start;			
+start=start.*_scale_est;	
+
+/*the call to the NEWTON library*/
+
+/*here some global variables are used by ssrstar and hessproc*/
+
+{xx,f,g,hessian,numbit}=Newton_newton(&ssrstar_strest,&hessproc_strest,start,maxloops);
+
+g=g';	
+
+xx=xx./_scale_est;
+start=start./_scale_est;
+
+@ Untransformed values @
+_scale_est=ones(rows(xx),1);
+{dl,hessian}=hessproc_strest(xx);
+local tmp0;
+{resids,nonpart,TransFkt,Z,linpart,nonlinpart,tmp0}=resSTAR_strest(xx);
+
+resvar=f/(T-rows(xx)); /* Variance of the residuals. */
+covar=2*resvar*inv(hessian);
+
+/* diag(sqrt(covar)); */
+
+   /*---- Calculate some statistics for the estimated STAR-model --------*/
+
+ /* Following Teräsvirta, Mellin 1986, model selection criteria and model
+    selection tests in regressions models, Scand J Statist 13:159-171
+    T        number of observation's
+    rows(xx)    number of free parameters in the model */
+
+AIC=ln(f/(T))+2*rows(xx)/(T);            /* Akaike, 1974 */
+SBIC=ln(f/(T))+ln(T)*rows(xx)/(T);     /* Schwartz 1978, Rissanen 1978 */
+HQ=ln(f/(T))+2*rows(xx)*ln(ln(T))/(T); /* Hannan & Quinn 1979 */
+
+
+SSY=(Y-meanc(Y))'*(Y-meanc(Y));
+R2=1-f/SSY;
+adjR2=1-(f/(T))/(SSY/(T-1));
+
+hhh=zeros(rows(xx),rows(xx));
+hd=diag(covar);
+ett=ones(rows(xx),1);
+hdi=ett./hd;
+hdinv=diagrv(hhh,hdi);
+hdinv=sqrt(hdinv);
+correl=hdinv*covar*hdinv;             
+
+inpvar=_dstd_est^2;
+xvar=diag(covar);
+ttest=xx./sqrt(xvar);
+tprob=2*cdftc(abs(ttest),T-rows(xx));  
+estimate=start~xx~sqrt(xvar)~ttest~tprob;
+
+/*we have to set the thetphi restrictions back to the linear part*/
+/*j is index to count index of nonlinear part*/
+/*j is index to count index of linear part*/
+tmp ={};
+i = 1;
+j = 1; 
+k = 1; 
+do while i <= rows(phires);
+  if (phires[i]==0 and thetphires[i]==0);
+    tmp = tmp | estimate[k,.];
+    if nonlin[i] == 0;
+      j = j + 1;
+    endif;
+    k=k+1;
+  elseif  thetphires[i]==1;
+    tmp = tmp|-estimate[j+_insize_est[1],1:5]; 
+    tmp[rows(tmp), 3] = -tmp[rows(tmp), 3]; /*no reverse of SD */
+    j = j + 1;
+  elseif phires[i]==1 ;
+    j = j + 1;
+  endif;
+  i=i+1;
+endo;
+
+estimate=trimr(estimate,_insize_est[1],0);
+estimate=tmp|estimate;
+
+/*AIC                                        */
+/*SBIC                                       */
+/*HQ                                         */
+/*R2                                         */
+/*Adjusted R2                                */
+/*Variance of the delay vector               */
+/*Standard deviation of the delay vector     */
+/*Variance of the residual vector            */
+/*Standard deviation of the residual vector  */
+/*number of iterations                       */
+
+
+
+retp(numbit~AIC~SBIC~HQ~R2~adjR2~inpvar~_dstd_est~resvar~sqrt(resvar), estimate,resids~TransFkt~Z,linPart,nonlinPart,linPart+nonlinPart);
+endp;
+
+/**************************************************************************
+ * Procedure SSRSTAR                                                      *
+ *                                                                        *
+ * This procedure are used by NEWTON and calculate the Square Sum of      *
+ * Residuals given that we have all parameter-values. Because of NEWTON   *
+ * this procedure can only take the parameter-values as arguments. As a   *
+ * result of this we must use some "global" variables.                    *
+ *                                                                        *
+ * Arguments of the procedure are:                                        *
+ *                                                                        *
+ * in        A row vector that contains all parameter-values required to  *
+ *           identify the STAR model. Gamma, Constant(s), the linear AR   *
+ *           polynom (incl. the constant) and the non-linear AR polynom.  *
+ *                                                                        *
+ * The "global" variables are:                                            *
+ *                                                                        *
+ * _XL_est          The linear AR part of the STAR model.                 *
+ * _XNL_est         The non-linear AR part of the STAR model.             *
+ * _Y_est           Observation vectors.                                  *
+ * _Trans_est       the transition variable                               *
+ * _dstd_est        Standard deviation of the transition variable         *
+ * _k_est           Order of the STR model                                *
+ * _thetphires_est  The restriction vector.                               *
+ *                                                                        *
+ * The procedure returns the scalar SSR.                                  *
+ *************************************************************************/
+
+PROC(1)=ssrstar_strest(in);
+LOCAL temp,j,prod,F,indrest,STAR,residual,betaD,betaL,betaN,betaDL;
+LOCAL g,c,sizeL,sizeN,nonpart;
+
+in =in./_scale_est;      
+
+
+sizeL=_insize_est[1];
+sizeN=_insize_est[2];
+
+g=in[sizeL+sizeN+1];
+c=in[sizeL+sizeN+2:sizeL+sizeN+1+_k_est];
+
+betaN=in[sizeL+1:sizeL+sizeN];                         
+
+/* Calculate the non-linear part of the STAR model */
+
+temp=(_Trans_est-c[1]);
+j=2;
+do until j > _k_est;
+    temp=temp~(_Trans_est-c[j]);
+    j=j+1;
+endo;
+
+prod=prodc(temp');       /* We need the product of the rows */
+prod=prod/_dstd_est^_k_est;        /* Making gamma scale invariant */
+
+F=1/(1+EXP(-g*prod));
+
+
+nonpart={};
+
+/*impose restrictions theta_i=-phi_i*/
+j=1;
+do while j <=rows(_thetphires_est);
+  if _thetphires_est[j]==0;
+    nonpart=nonpart~_XNL_est[.,j].*F;
+  else;
+    nonpart=nonpart~_XNL_est[.,j].*(F-1);
+  endif;
+  j=j+1;
+endo;
+
+
+
+IF scalmiss(_XL_est)==1 ;
+    STAR=nonpart*betaN;    
+ELSE;
+    betaDL=in[1:sizeL];
+    STAR=_XL_est*betaDL+nonpart*betaN;            
+ENDIF;
+
+residual=_Y_est-STAR;
+
+RETP(residual'*residual);
+
+ENDP; /****************** END OF PROC SSRSTAR ***********************/
+
+/**************************************************************************
+ * Procedure INIVAL                                                       *
+ *                                                                        *
+ * This procedure calculate initial estimates of the linear AR polynom    *
+ * and the non-linear AR polynom.                                         *
+ *                                                                        *
+ * Arguments of the procedure are:                                        *
+ *                                                                        *
+ * in          A row vector that contains  Gamma and the Constant(s).     *
+ * XL          The linear AR part of the STR model.                       *
+ * XNL         The non-linear AR part of the STR model.                   *
+ * Y           Observation vectors.                                       *
+ * Trans       the transition variable                                    *
+ * dstd        Standard deviation of the transition variable              *
+ * k           Order of the STR model                                     *
+ *                                                                        *
+ * The procedure returns the estimated linear and non-linear polynom of   *
+ * the STR model given Gamma and the Constant(s).                         * 
+ *************************************************************************/
+
+PROC(1)=inival_strest(in,XL,XNL,Y,Trans,dstd,k);
+LOCAL X,i,j,F,temp,prod,beta,betaN,Fmean,templin,templ,tempnon,tempn,indrest;
+LOCAL g,c,betaL,nonpart,ARR,invxx;
+
+
+/* Identifying  */
+
+g=in[1];
+c=in[2:k+1];
+
+/* Calculate the non-linear part of the STAR model */
+
+temp=(Trans-c[1]);
+j=2;
+do until j > k;
+    temp=temp~(Trans-c[j]);
+    j=j+1;
+endo;
+
+prod=prodc(temp');                   /* We need the product of the rows */
+prod=prod/dstd^k;                    /* Making gamma scale invariant */
+
+F=1/(1+EXP(-g*prod));
+
+
+Nonpart={};
+
+/*impose restrictions theta_i=-phi_i*/
+j=1;
+do while j <=rows(_thetphires_est);
+  if _thetphires_est[j]==0;
+    Nonpart=Nonpart~XNL[.,j].*F;
+  else;
+    Nonpart=Nonpart~XNL[.,j].*(F-1);
+  endif;
+  j=j+1;
+endo;
+if scalmiss(XL)==0;
+  X=XL~Nonpart;                  
+else;
+  X=Nonpart;                  
+endif;
+  
+
+trap 1;				 
+invxx=invpd(X'X);
+if scalmiss(invxx)==0;   /* true, the inversion is possible. */ 
+  beta=invxx*X'Y;      
+else;                    /*  not, the matrix is singuar, can't inverse */
+  Fmean=meanc(F);
+  if Fmean < 0.5;      /* F-term is close to 0, i.e. use linear model. */
+    IF sumc(_thetphires_est)>0;
+      X=XL~-selif(XNL',_thetphires_est)';
+      beta=invpd(X'X)*X'Y;    
+      temp=beta[cols(XL)+1:rows(beta)];
+      betaN=zeros(cols(XNL),1);
+      j=1;
+      i=1;
+      do until j > cols(XNL);
+	if _thetphires_est[j]==1;
+	  betaN[j]=temp[i];
+	  i=i+1;
+	endif;
+	j=j+1;
+      endo;
+      beta=beta[1:cols(XL)]|betaN;
+    ELSE;
+      X=XL;          
+      beta=invpd(X'X)*X'Y;
+      betaN=zeros(cols(XNL),1);
+      beta=beta|betaN;
+    ENDIF;
+  else;                 /* F-term is close to 1, i.e. use linear model. */
+    X=XL;
+    beta=invpd(X'X)*X'Y;    
+    betaN=zeros(cols(XNL),1);
+    beta=beta|betaN;
+  endif;
+endif;			    
+trap 0;
+
+RETP(beta);                          /* Return estimated startvalues. */
+
+ENDP; /******************* END OF PROC INIVAL *************************/
+
+/**************************************************************************
+ * Procedure HESSPROC                                                     *
+ *                                                                        *
+ * This procedure are used by NEWTON and calculate the Square Sum of      *
+ * Residuals given that we have all parameter-values. Because of NEWTON   *
+ * this procedure can only take the parameter-values as arguments. As a   *
+ * result of this we must use some "global" variables.                    *
+ *                                                                        *
+ * Arguments of the procedure are:                                        *
+ *                                                                        *
+ * in        A row vector that contains all parameter-values required to  *
+ *           identify the STAR model. Dummys, the linear AR polynom       *
+ *           (incl. the constant), the non-linear AR polynom (incl. the   *
+ *           constant), Gamma, and Constant(s).                           * 
+ *                                                                        *
+ * The "global" variables are:                                            *
+ * _XL_est      The linear AR part of the STAR model.                     *
+ * _XNL_est     The non-linear AR part of the STAR model.                 *
+ * _Y_est       Observation vectors.                                      *
+ * _Trans_est   the transition variable                                   *
+ * _dstd_est    Standard deviation of the transition variable             *
+ * _k_est       Order of the STR model                                    *
+ * _scale_est
+ *                                                                        *
+ *                                                                        *
+ * The procedure returns the scalar SSR.                                  *
+ *************************************************************************/
+
+PROC(2)=hessproc_strest(in);
+LOCAL initial,u,nonpart,meanGRAD,meanHESS,ARDL,premult,colsXL,tmp,Z,F,x_i,betaN;
+
+if scalmiss(_XL_est)==1;
+  colsXL = 0;
+else;
+  colsXL = cols(_XL_est);
+endif;
+in =in./_scale_est;  
+
+{u,nonpart,F,Z,tmp,tmp,betaN}=resSTAR_strest(in);
+
+initial=_k_est|_dstd_est|rows(_XNL_est)|colsXL|cols(_XNL_est);
+meanGRAD=zeros(1,rows(in)); 
+meanHESS=zeros(rows(in),rows(in));
+
+/* computes gradient and hessian of SSR of STR residuals */
+dllcall _hstco(initial,in,_XL_est,_XNL_est,nonpart,_Y_est,_Trans_est,u,meanGRAD,meanHESS);
+
+
+/*	Adjust for the squared terms	=>	 insure positive values 
+	Adjust for the scaling		=>	 faster convergence */
+
+
+premult=diagrv(zeros(rows(in),rows(in)),1./_scale_est);
+meanGRAD=meanGRAD*premult;
+meanHESS=premult*meanHESS*premult;
+
+
+retp(meanGRAD,meanHESS);
+
+
+ENDP; /******************* END OF PROC HESSPROC *************************/
+
+/**************************************************************************
+ * Procedure resSTAR                                                      *
+ *                                                                        *
+ * Given a STAR model with constant variance this procedure construct the *
+ * likelihoodfunction. Used in Powell's algorithm.                        *
+ *                                                                        *
+ * in        A row vector that contains all parameter-values required to  *
+ *           identify the STAR model. Gamma, Constant(s), the linear AR   *
+ *           polynom (incl. the constant) and the non-linear AR polynom.  *
+ * _XL_est      The linear AR part of the STAR model.                     *
+ * _XNL_est     The non-linear AR part of the STAR model.                 *
+ * _Y_est       Observation vectors.                                      *
+ * _Trans_est   the transition variable                                   *
+ * _dstd_est    Standard deviation of the transition variable             *
+ * _k_est       Order of the STR model                                    *
+ * _thetphires_est  The restriction vector.                               *
+ *                                                                        *
+ * The procedure returns the value of the likelihoodfunction for a given  *
+ * parameter vector.                                                      *
+ *************************************************************************/
+
+PROC(7 )=resSTAR_strest(in);
+LOCAL temp,j,prod,F,indrest,STR,residual,betaD,betaL,betaN,betaDL;
+LOCAL g,c,sizeL,sizeN,var,likeli,nonpart,denom, temp1,Z,cprod,lin,nonlin;
+
+sizeL=_insize_est[1];
+sizeN=_insize_est[2];
+g=in[sizeL+sizeN+1];
+c=in[sizeL+sizeN+2:sizeL+sizeN+1+_k_est];
+
+betaN=in[sizeL+1:sizeL+sizeN];     
+betaDL=0;
+if sizeL > 0;
+  betaDL=in[1:sizeL];
+endif;
+
+/* Calculate the non-linear part of the STAR model */
+
+temp=(_Trans_est-c[1]);
+j=2;
+do until j > _k_est;
+    temp=temp~(_Trans_est-c[j]);
+    j=j+1;
+endo;
+
+prod=prodc(temp');       /* We need the product of the rows */
+prod=prod/_dstd_est^_k_est;        /* Making gamma scale invariant */
+F=1/(1+EXP(-g*prod));
+
+Nonpart={};
+
+/*impose restrictions theta_i=-phi_i*/
+j=1;
+do while j <=rows(_thetphires_est);
+  if _thetphires_est[j]==0;
+    Nonpart=Nonpart~_XNL_est[.,j].*F;
+  else;
+    Nonpart=Nonpart~_XNL_est[.,j].*(F-1);
+  endif;
+  j=j+1;
+endo;
+
+
+
+/* Creating a Matrix that consist of the products used when calculating
+   the derivative in respect to all c */
+
+IF _k_est==1;
+    cprod=ones(rows(_Y_est),1)/_dstd_est;   /* Special case when k=1 */
+ELSE;
+    temp1=temp[.,2:_k_est];
+    cprod=prodc(temp1');
+    temp1=temp[.,1:_k_est-1];
+    cprod=cprod~prodc(temp1');
+    cprod=cprod/_dstd_est^_k_est;
+ENDIF;
+
+
+Denom=(EXP((g/2)*prod)+EXP((-g/2)*prod)).^2;
+if rows(_XL_est) < rows(Nonpart);
+  _XL_est = {};
+endif;
+Z=_XL_est~Nonpart;			 /* Derivative in respect to polynoms*/
+Z=Z~((_XNL_est*betaN).*prod)./Denom;	 /* Derivative in respect to gamma */
+Z=Z~((-g*_XNL_est*betaN).*cprod)./Denom; /* Derivative in respect to all c */
+
+
+lin ={};
+IF scalmiss(_XL_est)==1 ;
+    STR=Nonpart*betaN;    
+  ELSE;
+    lin = _XL_est*betaDL;
+    STR=_XL_est*betaDL+Nonpart*betaN;            
+ENDIF;
+nonlin = Nonpart*betaN;
+
+residual=_Y_est-STR;
+
+retp(residual,Nonpart,F,Z,lin,nonlin,betaN);
+
+ENDP; 
+
+/********************* END OF PROC resSTAR **************************/
+
+

@@ -1,0 +1,298 @@
+/*
+ This file is part of the econometric software package JMulTi.
+ Copyright (C) 2000-2005  Stefan Lundbergh, Markus Kraetzig
+
+ This program is free software; you can redistribute it and/or
+ modify it under the terms of the GNU General Public License
+ as published by the Free Software Foundation; either version 2
+ of the License, or (at your option) any later version.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, write to the Free Software
+ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ */
+
+/*
+** newton.dec - declarations for globals used in NEWTON.
+*/
+
+
+declare matrix _tol = 1e-7;   /* convergence tolerance for gradient  */
+
+
+/*-------- Newtons algorithm and Powells algorithm for line search ------------*/
+
+
+/**************************************************************************
+ * Procedure  Newton    ( Searching for a minima )                        *
+ *                                                                        *
+ * fpoint:   Pointer to the function to be minimised. The function takes  *
+ *           one input, a k times 1 vector and returns a scalar.          * 
+ * hpoint:   Pointer to the hessian of the function to be minimised.      *
+ *           The hessian takes one input, a k times 1 vector and returns  *
+ *           the k times 1 gradient and the k times k hessian.            * 
+ * in:       Start value for minimazation, a k times 1 vector.            *
+ **************************************************************************/
+PROC(5)=Newton_newton(fpoint,hpoint,in,maxloops);
+LOCAL function,hessian;
+LOCAL oldin,i,j,tid,dir,dl,d2l,step,temp,cx,cy,empty,loopcount;
+
+         /*----------- Converting pointer to proc --------------*/
+i=1;
+hessian=hpoint; 
+function=fpoint;
+LOCAL hessian:proc;
+LOCAL function:proc;
+
+
+        /*----------- Initialize Newtons algorithm --------------*/
+
+
+
+oldin=in + 1;
+
+
+dl={};
+d2l={};
+           /*----------- Optimization iteration --------------*/
+loopcount=1;
+if maxloops == 0;
+  maxloops = 1;
+  loopcount = -1;
+endif;
+
+do while maxc(oldin-in) .> _tol and loopcount <= maxloops; 
+  /* End when the required precision is obtained */
+  tid=hsec;
+  
+  {dl,d2l}=hessian(in);     /* Calculate the gradient and hessian. */
+
+  dir=inv(d2l)*dl';          /* Direction  next iteration. */
+  
+  step=powell_newton(in,dir,&function);   /* Obtain optimal steplength. */
+
+  oldin=in;
+  in=oldin+step*dir;        /* New estimate of the parameters. */
+  
+  temp=eigh(d2l);                    /* Calculate eigenvalues of Hessian. */
+  if minc(temp)>0; 
+    print "Hessian is positive definite           "; 
+  else; 
+    print "Hessian is NOT positive definite";
+  endif;
+  print "Param. id         Param. value         Direction";
+  j = 1;
+  i;
+/*  do until j > rows(in);
+    print "  " j;; 
+    print "          " in[j,1];;
+    print "          " dir[j,1];        
+    j=j+1;
+  endo;
+	*/
+
+  format /mat /on /mb1 /ros 16,8;
+    j=1;                              
+    if loopcount > maxloops;
+      print "terminating because maximum number of loops is reached ";
+    endif;
+    if loopcount > 0;
+      loopcount=loopcount+1;
+    endif;
+    i=i+1;
+  endo;
+
+/*if (abs(step) le 0.00001);
+    retp(in,function(in),dl,d2l,9999);
+endif;*/
+if loopcount <= maxloops;
+  print " ";
+  print "Optimization algorithm terminated, because the required accuracy " ;
+  print _tol;
+  print " is obtained for the estimated parameters.";
+  print " ";
+endif;
+{dl,d2l}=hessian(in);
+retp(in,function(in),dl,d2l,i-1);
+
+ENDP;/****************** END OF PROC Newton ***********************/
+
+/**************************************************************************
+ * Procedure  Powell    ( Searching for minima )                          *
+ *                                                                        *
+ * X0:       Start value for univariat minimazation, a k times 1 vector.  *
+ * R0:       Direction for univariat minimazation, a k times 1 vector.    *
+ * fpoint:   Pointer to the function to be minimised. The function takes  *
+ *           one input, a k times 1 vector and returns a scalar.          * 
+ **************************************************************************/
+
+PROC(1)=powell_newton(X0,R0,fpoint);
+LOCAL YfD,D0,Dub,Dac,Ds,D23,D23s,D31,D31s,D12,D12s,capitalD;
+LOCAL stopp,newX0,temp1,temp2,count,Ycheck,Ytemp,function,total;
+LOCAL brack;
+
+         /*----------- Converting pointer to proc --------------*/
+
+function=fpoint; 
+LOCAL function:proc;
+
+       /*----------- Some model definition parameters ----------*/
+
+D0=-1;             /* Starting step magnitude. */
+Dub=2;             /* Upper bound for step magnitude. */
+Dac=0.001;         /* Accuracy for the assumed minimum obtained. */
+
+          /*----------- Initiate the alogrithm ----------*/
+
+YfD=zeros(3,2);       /* Y as a function of the step magnitude, d.
+                         In the first column:  Step magnitude, d.
+                         In the second column: Function value correspond to
+                                               step magnitude, d. */
+newX0=X0;
+YfD[1,1]=0;
+YfD[1,2]=function(newX0);
+
+newX0=X0+D0*R0;
+YfD[2,1]=D0;
+YfD[2,2]=function(newX0);
+
+if YfD[1,2] .ge YfD[2,2];   /* if f(X0) >= f(X0+D0*R0) */
+    newX0=X0+2*D0*R0;
+    YfD[3,1]=2*D0;
+else;                       /* else f(X0) < f(X0+D0*R0) */
+    newX0=X0-D0*R0;
+    YfD[3,1]=-D0;
+endif;
+YfD[3,2]=function(newX0);
+
+YfD=sortc(YfD,1);           /* Sort step magnitude: D3 > D2 > D1 */
+
+     /*----------- Iterate until minimum is obtained ----------*/
+total=0;
+count=1;
+stopp=0;
+brack=0;
+Ycheck=zeros(3,2);
+
+do until stopp .ne 0;
+
+	/* When two consecutive values of function to minimize are equal, terminate
+       the search for steplenght. */  
+    temp1=YfD[1,2]-YfD[2,2];
+    temp2=YfD[2,2]-YfD[3,2];
+    if temp1==0 or temp2==0; 
+        stopp=1;              /* Terminate iteration */
+        Ds=-1;                /* Return steplength 1, see comments */
+    elseif total >= 50;
+        stopp=1;
+        Ds=-1; 
+    else; 
+
+        D23 =YfD[2,1]-Yfd[3,1];
+        D23s=YfD[2,1].^2-Yfd[3,1].^2;
+        D31 =YfD[3,1]-Yfd[1,1];
+        D31s=YfD[3,1].^2-Yfd[1,1].^2;
+        D12 =YfD[1,1]-Yfd[2,1];
+        D12s=YfD[1,1].^2-Yfd[2,1].^2;
+
+        /* Equation 6-26 in Pierre 1969.
+           Stationary point for step magnitude Ds. */
+        Ds=0.5*(D23s*YfD[1,2]+D31s*YfD[2,2]+D12s*YfD[3,2]);
+	Ds=Ds/(D23*YfD[1,2]+D31*YfD[2,2]+D12*YfD[3,2]);
+
+
+
+        /* Equation 6-27 in Pierre 1969.
+           Stationary point is minimum if capitalD is positive. */
+        capitalD=-2*(D23*YfD[1,2]+D31*YfD[2,2]+D12*YfD[3,2])/(D23*D31*D12);
+
+        total=total+1;
+
+        if capitalD .le 0;  /* Staionary point is not minimum. */
+
+            if YfD[3,2] .le YfD[1,2];    /* action (2) in Pierre 1969 */
+                YfD[1,.]=YfD[2,.];
+                YfD[2,.]=YfD[3,.];
+                YfD[3,1]=YfD[2,1]+Dub;
+                newX0=X0+YfD[3,1]*R0;
+                YfD[3,2]=function(newX0);
+            else;
+                YfD[3,.]=YfD[2,.];       /* action (1) in Pierre 1969 */
+                YfD[2,.]=YfD[1,.];
+                YfD[1,1]=YfD[2,1]-Dub;
+                newX0=X0+YfD[1,1]*R0;
+                YfD[1,2]=function(newX0);
+            endif;
+
+        else;               /* Stationary point is minimum. */
+
+            if minc(abs(YfD[1,1]-Ds)|abs(YfD[3,1]-Ds)) .gt Dub;
+                                            /* Case A in Pierre 1969 */
+                if  Ds .lt YfD[1,1]-Dub;    /* action (1) in Pierre 1969 */
+                    YfD[3,.]=YfD[2,.];
+                    YfD[2,.]=YfD[1,.];
+                    YfD[1,1]=YfD[2,1]-Dub;
+                    newX0=X0+YfD[1,1]*R0;
+                    YfD[1,2]=function(newX0);
+
+                elseif Ds .gt YfD[3,1]+Dub; /* action (2) in Pierre 1969 */
+
+                    YfD[1,.]=YfD[2,.];
+                    YfD[2,.]=YfD[3,.];
+                    YfD[3,1]=YfD[2,1]+Dub;
+                    newX0=X0+YfD[3,1]*R0;
+                    YfD[3,2]=function(newX0);
+
+                endif;
+
+            else;                           /* Case B in Pierre 1969 */
+
+                if     Dac .gt abs(Ds-YfD[1,1]); stopp=1;  /* If either of these */
+                elseif Dac .gt abs(Ds-YfD[2,1]); stopp=1;  /* conditions are true */
+                elseif Dac .gt abs(Ds-YfD[3,1]); stopp=1;  /* terminate iteration */
+			    else;  /* Replace the the point corresponding to the largest value */ 
+                       /* of the function with the "stationary" point. If this doesn't*/
+                       /* work replace another point with the "statonary" point. */
+				
+                    if(count%5)==4;    /* Look for cycles in parameter seclection. */
+                        Ycheck=YfD;
+                    endif;
+
+                    YfD=sortc(Yfd,2);      /* Replace d that correspond to the largest 
+                                              function value. */
+                    YfD[3,1]=Ds;
+                    newX0=X0+Ds*R0;
+                    YfD[3,2]=function(newX0);
+                    YfD=sortc(YfD,1);
+
+                    if Ycheck==YfD;    /* Check if braketing is needed */
+                        if Brack >=10;
+                            print "Bracketing does not seem to work.";
+                            retp(-1);
+                        endif;
+                        print "Bracketing...";
+                        brack=brack+1;
+                        YfD=sortc(Yfd,2);  /* Replace d that correspond to the second largest 
+                                              function value. */
+                        YfD[2,1]=Ds;
+                        newX0=X0+Ds*R0;
+                        YfD[2,2]=function(newX0);
+                        YfD=sortc(YfD,1);
+
+                    endif;
+                    count=count+1;
+                endif;
+            endif;
+        endif;
+    endif;
+endo;
+
+retp(Ds);
+ENDP; /****************** END OF PROC Powell ***********************/
+
+

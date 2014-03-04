@@ -1,0 +1,192 @@
+2009-03-20 09:15:47,515 INFO  model.GaussPCall - GRTE:               true
+2009-03-20 09:15:51,250 INFO  component.SystemOutHolder - *** Fri, 20 Mar 2009 09:15:51 ***
+ADF Test for series:      ≤‚ ‘ 
+sample range:             [1981, 2004], T = 24
+lagged differences:       2 
+intercept, time trend, seasonal dummies
+asymptotic critical values
+reference: Davidson, R. and MacKinnon, J. (1993),
+"Estimation and Inference in Econometrics" p 708, table 20.1,
+Oxford University Press, London
+ 1%         5%         10%       
+-3.96      -3.41      -3.13     
+value of test statistic: 0.6563
+regression results:
+---------------------------------------
+variable      coefficient   t-statistic  
+---------------------------------------
+ x(-1)         0.0237        0.6563      
+dx(-1)         1.3796        6.2806      
+dx(-2)        -0.8140       -3.5376      
+constant       1512.3250     0.8541      
+trend          142.3962      0.7261      
+RSS            67151830.2142
+
+
+2009-03-20 09:15:51,515 INFO  component.SystemOutHolder - *** Fri, 20 Mar 2009 09:15:51 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             ≤‚ ‘ 
+order of differencing (d):     1 
+adjusted sample range:         [1990, 2004], T = 15
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=2, q=0
+Hannan-Quinn Criterion:   p=2, q=0
+Schwarz Criterion:        p=2, q=0
+
+2009-03-20 09:15:51,656 INFO  component.SystemOutHolder - *** Fri, 20 Mar 2009 09:15:51 ***
+sample range:       [1979, 2004], T = 26
+Model:  ARIMA(2,1,0)
+
+
+Final Results:
+
+Iterations Until Convergence:  12
+
+Log Likelihood:   -230.604693         Number of Residuals: 26    
+AIC           :    469.209386         Error Variance     : 3201246.783191411
+SBC           :    474.241772         Standard Error     : 1789.202834558   
+
+DF: 22      Adj. SSE: 76978905.922355697    SSE: 70427429.230211049
+
+Dependent Variable:             ≤‚ ‘ 
+
+            Coefficients     Std. Errors      T-Ratio    Approx. Prob.
+AR1           1.30279850      0.19736638      6.60091          0.00000
+AR2          -0.71971208      0.20119672     -3.57716          0.00168
+const     -3025.60750951   1914.07192468     -1.58072          0.12821
+TREND       585.14957463    126.98715927      4.60794          0.00014
+
+Total Computation Time: 0.00 (seconds)
+
+AR Roots and Moduli:
+
+Real :    0.90508   0.90508 
+Imag.:    0.75516  -0.75516 
+Mod. :    1.17875   1.17875 
+
+
+2009-03-20 09:15:51,718 INFO  component.SystemOutHolder - *** Fri, 20 Mar 2009 09:15:51 ***
+
+forecasted variable: ≤‚ ‘ (in levels)
+forecast range:      [2005, 2014], T = 10
+
+time           lower CI             forecast             upper CI             std. err            
+2005            149103.0342          152609.8072          156116.5801          1789.2028          
+2006            150037.0165          158840.9591          167644.9017          4491.8902          
+2007            140817.7007          155303.5642          169789.4277          7390.8828          
+2008            127080.1928          146332.7936          165585.3944          9822.9364          
+2009            115003.4631          137557.9274          160112.3917          11507.5917         
+2010            108646.2204          133192.7078          157739.1952          12523.9487         
+2011            108958.3646          134675.3314          160392.2982          13121.1431         
+2012            114314.2005          140846.7972          167379.3938          13537.2885         
+2013            121846.9693          149162.0730          176477.1766          13936.5341         
+2014            128874.8609          157139.6417          185404.4224          14421.0721         
+
+2009-03-20 09:15:51,812 INFO  component.SystemOutHolder - *** Fri, 20 Mar 2009 09:15:51 ***
+PORTMANTEAU TEST with 10 lags
+
+Portmanteau:               6.0261      
+ p-Value (Chi^2):          0.5367      
+Ljung & Box:               8.4589      
+ p-Value (Chi^2):          0.2939      
+
+
+2009-03-20 09:18:41,703 INFO  model.GaussPCall - GRTE:               true
+2009-03-20 09:18:42,109 INFO  component.SystemOutHolder - *** Fri, 20 Mar 2009 09:18:42 ***
+ADF Test for series:      ≤‚ ‘ 
+sample range:             [1981, 2004], T = 24
+lagged differences:       2 
+intercept, time trend, seasonal dummies
+asymptotic critical values
+reference: Davidson, R. and MacKinnon, J. (1993),
+"Estimation and Inference in Econometrics" p 708, table 20.1,
+Oxford University Press, London
+ 1%         5%         10%       
+-3.96      -3.41      -3.13     
+value of test statistic: 0.6563
+regression results:
+---------------------------------------
+variable      coefficient   t-statistic  
+---------------------------------------
+ x(-1)         0.0237        0.6563      
+dx(-1)         1.3796        6.2806      
+dx(-2)        -0.8140       -3.5376      
+constant       1512.3250     0.8541      
+trend          142.3962      0.7261      
+RSS            67151830.2142
+
+
+2009-03-20 09:18:42,187 INFO  component.SystemOutHolder - *** Fri, 20 Mar 2009 09:18:42 ***
+OPTIMAL LAGS FROM HANNAN-RISSANEN MODEL SELECTION
+(Hannan & Rissanen, 1982, Biometrika 69)
+
+original variable:             ≤‚ ‘ 
+order of differencing (d):     1 
+adjusted sample range:         [1990, 2004], T = 15
+
+optimal lags p, q (searched all combinations where max(p,q) <= 3)
+Akaike Info Criterion:    p=2, q=0
+Hannan-Quinn Criterion:   p=2, q=0
+Schwarz Criterion:        p=2, q=0
+
+2009-03-20 09:18:42,343 INFO  component.SystemOutHolder - *** Fri, 20 Mar 2009 09:18:42 ***
+sample range:       [1979, 2004], T = 26
+Model:  ARIMA(2,1,0)
+
+
+Final Results:
+
+Iterations Until Convergence:  12
+
+Log Likelihood:   -230.604693         Number of Residuals: 26    
+AIC           :    469.209386         Error Variance     : 3201246.783191411
+SBC           :    474.241772         Standard Error     : 1789.202834558   
+
+DF: 22      Adj. SSE: 76978905.922355697    SSE: 70427429.230211049
+
+Dependent Variable:             ≤‚ ‘ 
+
+            Coefficients     Std. Errors      T-Ratio    Approx. Prob.
+AR1           1.30279850      0.19736638      6.60091          0.00000
+AR2          -0.71971208      0.20119672     -3.57716          0.00168
+const     -3025.60750951   1914.07192468     -1.58072          0.12821
+TREND       585.14957463    126.98715927      4.60794          0.00014
+
+Total Computation Time: 0.02 (seconds)
+
+AR Roots and Moduli:
+
+Real :    0.90508   0.90508 
+Imag.:    0.75516  -0.75516 
+Mod. :    1.17875   1.17875 
+
+
+2009-03-20 09:18:42,453 INFO  component.SystemOutHolder - *** Fri, 20 Mar 2009 09:18:42 ***
+
+forecasted variable: ≤‚ ‘ (in levels)
+forecast range:      [2005, 2014], T = 10
+
+time           lower CI             forecast             upper CI             std. err            
+2005            149103.0342          152609.8072          156116.5801          1789.2028          
+2006            150037.0165          158840.9591          167644.9017          4491.8902          
+2007            140817.7007          155303.5642          169789.4277          7390.8828          
+2008            127080.1928          146332.7936          165585.3944          9822.9364          
+2009            115003.4631          137557.9274          160112.3917          11507.5917         
+2010            108646.2204          133192.7078          157739.1952          12523.9487         
+2011            108958.3646          134675.3314          160392.2982          13121.1431         
+2012            114314.2005          140846.7972          167379.3938          13537.2885         
+2013            121846.9693          149162.0730          176477.1766          13936.5341         
+2014            128874.8609          157139.6417          185404.4224          14421.0721         
+
+2009-03-20 09:18:42,515 INFO  component.SystemOutHolder - *** Fri, 20 Mar 2009 09:18:42 ***
+PORTMANTEAU TEST with 10 lags
+
+Portmanteau:               6.0261      
+ p-Value (Chi^2):          0.5367      
+Ljung & Box:               8.4589      
+ p-Value (Chi^2):          0.2939      
+
+

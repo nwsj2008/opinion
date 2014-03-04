@@ -1,0 +1,421 @@
+/*
+ This file is part of the econometric software package JMulTi.
+ Copyright (C) 2000-2005  Alexander Benkwitz, Markus Kraetzig
+
+ This program is free software; you can redistribute it and/or
+ modify it under the terms of the GNU General Public License
+ as published by the Free Software Foundation; either version 2
+ of the License, or (at your option) any later version.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, write to the Free Software
+ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ */
+#ifos2win 
+/* to be used by library creation, windows only */
+#include var.dec
+#include svar.dec
+#endif
+/*
+**
+** PURPOSE  Computes bootstrap impulse responses a given VAR or SVAR model. 
+**          The distinction between these models is done via the databuffer that is given. 
+**
+** SYNTAX  {irfe_hat, irfe_star, irfe_star_sd, irfe_hat_ac, irfe_star_ac, irfe_star_sd_ac, 
+**          iror_hat, iror_star, iror_star_sd, iror_hat_ac, iror_star_ac, iror_star_sd_ac, 
+**          new_seed_star, new_seed_star_sd} =
+**		  vml__bootstrapIR(var, nob, seed, nob_sd, seed_sd, compute_sd, ir_max);
+**
+** INPUT    var    / (N,1) / matrix / data buffer with model information
+**          nob    / (1,1) / matrix / number of bootstrap replications
+**          seed   / (1,1) / matrix / seed for drawing residuals 
+**                                    (seed=0 for using no seed)
+**          nob_sd / (1,1) / matrix / number of bootstrap replications for estimating
+**                                    the standard deviation
+**          seed_sd/ (1,1) / matrix / seed for drawing residuals when computing standard
+**                                    deviation
+**                                    (seed=0 for using no seed)
+**          compute_sd/(1,1)/ matrix / 0:= do not compute bootstrap standard deviation.
+**                                     otherwise compute bootstrap standard deviation.
+**          ir_max / (1,1) / matrix / maximum number impulse responses to compute
+**
+** OUTPUT   
+**          irfe_hat     / (1,(1+ir_max)*K*K)   / matrix / estimated forecast
+**                                                         error impulse responses
+**          irfe_star    / (nob,(1+ir_max)*K*K) / matrix / bootstrapped forecast
+**                                                         error impulse responses
+**          irfe_star_sd / (nob,(1+ir_max)*K*K) / matrix / bootstrapp standard deviation
+**                                                         for {\tt irfe\_star}
+**          irfe_hat_ac     / (1,(1+ir_max)*K*K)   / matrix / estimated accumulated forecast
+**                                                         error impulse responses
+**          irfe_star_ac    / (nob,(1+ir_max)*K*K) / matrix / bootstrapped accumulated  forecast
+**                                                         error impulse responses
+**          irfe_star_sd_ac / (nob,(1+ir_max)*K*K) / matrix / bootstrapp standard deviation
+**                                                         for {\tt irfe\_star_ac}
+**          iror_hat    / (1,(1+ir_max)*K*K)   / matrix / estimated orthogonal
+**                                                         impulse responses
+**          iror_star    / (nob,(1+ir_max)*K*K) / matrix / bootstrapped orthogonal
+**                                                         impulse responses
+**          iror_star_sd / (nob,(1+ir_max)*K*K) / matrix / bootstrapp standard deviation
+**                                                         for {\tt iror\_star}
+**          iror_hat_ac    / (1,(1+ir_max)*K*K)   / matrix / estimated accumulated orthogonal
+**                                                         impulse responses
+**          iror_star_ac    / (nob,(1+ir_max)*K*K) / matrix / bootstrapped accumulated orthogonal
+**                                                         impulse responses
+**          iror_star_sd_ac / (nob,(1+ir_max)*K*K) / matrix / bootstrapp standard deviation
+**                                                         for {\tt iror\_star_ac}  
+**          new_seed_star/ (1,1)                / matrix / updated seed
+**          new_seed_star_sd / (1,1)            / matrix / updated seed
+**
+** REMARK   
+**          
+**
+** GLOBAL
+** __var_Note_StartTime
+**
+*/
+
+
+proc(14)=vml__bootstrapIR(var, nob, seed, nob_sd, seed_sd, compute_sd, ir_max);
+	local irfe,iror,irfe_star,irfe_star_i,iror_star,iror_star_i,varHat,
+   	      irfe_ac,iror_ac,irfe_star_ac,irfe_star_i_ac,iror_star_ac,iror_star_i_ac,
+	      y_star,varStar,cvu_IR,A0_IR,A_IR,varIR,
+	      A0,A,B,C_VAR,F_VAR,mx_c,mx_c_var,mx_tf,
+	      y,u,x,d,z, y0,  
+	      reducedForm, i,est_resids,
+	      irfe_star_sd, irfe_sd, iror_star_sd, iror_sd, 
+	      irfe_star_sd_ac, irfe_sd_ac, iror_star_sd_ac, iror_sd_ac, 
+	      trash1, trash2, trash3, trash4, trash5, _startTime, _minLoops;
+	      local resMatrix, normConst, startValues, relParamCh, relLikCh, maxIterations,model,numOfObs,mtype,SVAR_A0;
+	      local alpha_bs, beta, beta_d,gamma_bs, mC1_BS,mS_BS,vs_BS,nfreea,nfreeb,nfreeall;
+	      local  nResB, nResC1,DegreeofOverIdent,mB_Res,mC1_Res,tmp,K,del_boot_rep, modelDefNam;
+	      
+	  mtype = 1; /* VAR */
+	  normConst = vml_vread(var, __svar_normConst);
+
+	  modelDefNam =  vml_veread(var, __svar);
+	
+	  if strsect(modelDefNam,1,2)$=="AB";         /* Set SVAR AB model*/
+	  mtype           = 2;
+	  normConst       = vml_vread(var, __svar_normConst);
+	  startValues     = vml_vread(var, __svar_startValues);
+	  relParamCh      = vml_vread(var, __svar_relParamCh);
+	  relLikCh        = vml_vread(var, __svar_relLikCh);
+	  maxIterations   = vml_vread(var, __svar_maxIterations);
+	  model           = vml_vread(var, __svar_ABmodelType);
+	  resMatrix       = vml_vread(var, __svar_resMatrix);
+	  numOfObs        = rows(vml_vread(var,"y"));
+	elseif strsect(modelDefNam,1,8)$=="BLANQUAH";  /* Set SVAR Blanchard-Quah model*/
+	  mtype           = 3;
+	elseif strsect(modelDefNam,1,4)$=="SVEC";  /* Set SVEC model*/  
+	  mtype           = 4;
+	  normConst       = vml_vread(var, __svar_normConst);
+	  startValues     = vml_vread(var, __svar_startValues);
+	  relParamCh      = vml_vread(var, __svar_relParamCh);
+	  relLikCh        = vml_vread(var, __svar_relLikCh);
+	  maxIterations   = vml_vread(var, __svar_maxIterations);
+	  resMatrix       = vml_vread(var, __svar_resMatrix);
+	  numOfObs        = rows(vml_vread(var,"y"));
+	  mB_Res          = vml_vread(var, __svec_resB);
+	  mC1_Res         = vml_vread(var, __svec_resC1);
+	  K               = cols(mB_Res);
+	  tmp=vec(mB_Res);
+	  for i (1,rows(tmp),1);
+	    if tmp[i] < SVAR_UNRESTRICTED;
+	      tmp[i]=SVAR_UNRESTRICTED;
+	    endif;
+	  endfor;
+	  mB_Res = reshape(tmp,K,K)';
+	  tmp=vec(mC1_Res);
+	  for i (1,rows(tmp),1);
+	    if tmp[i] < SVAR_UNRESTRICTED;
+	      tmp[i]=SVAR_UNRESTRICTED;
+	    endif;
+	  endfor;
+	  mC1_Res = reshape(tmp,K,K)';
+	endif;
+	
+	@ model estimation @
+		varHat = var_EstimateModel(var); 
+
+	@ prepare all parameters for recomputing the time series @
+	      {A0,A,B,C_VAR,F_VAR, mx_c_var,mx_tf, y0,u,x,d,z} = 
+		vml_residualBootstrap_prepare(varHat);
+	@ Give model transformation a chance @
+		varIR = vml_VAR_For_IRA(varHat);
+	@ now compute point estimates @
+		cvu_IR     = vml_VeRead(varIR,"cvRes");
+		est_resids = vml_VeRead(varIR,"u");
+		A0_IR      = vml_VeRead(varIR,"A0");
+		A_IR       = vml_VeRead(varIR,"A");
+		irfe = {}; iror = {};	irfe_ac = {}; iror_ac = {};
+		
+		if mtype == 1 ; /* VAR */		
+		  {irfe,irfe_ac,iror,iror_ac} = var_impulseResponses(A0_IR,A_IR,cvu_IR, ir_max, 0);		
+		elseif mtype == 2 or mtype == 3 or mtype == 4; /* SVAR AB, SVEC or Blanchard-Quah */
+		  @ Decomposition @
+		  if mtype == 2;
+		    SVAR_A0 = 
+		    GetStructDecomp_svar_var(est_resids'est_resids/rows(est_resids), resMatrix, normConst, startValues, 
+		    numOfObs, relParamCh, relLikCh, maxIterations,model,0);
+		  elseif mtype == 3;
+		    {SVAR_A0,trash1} = GetmA0_svar_var(A_IR,est_resids'est_resids/rows(est_resids));
+		  elseif mtype == 4;  
+		    	  alpha_BS     = vml_VeRead(varHat,"alpha");
+			  Gamma_BS     = vml_VeRead(varHat,"G");
+			  beta         = vml_VeRead(varHat,"beta_x")'; 
+/* 			  beta_d       = vml_VeRead(varHat,"beta_d_x")';  */
+
+			  mC1_BS = ComputeC1_svec_var(alpha_BS,beta,Gamma_BS);			  
+			  {mS_BS,vs_BS,model,nfreea,nfreeb,nfreeall, nResB, nResC1}  =  
+			  GetResMatricesLR_svec_var(mB_Res, mC1_Res, mC1_BS); 	
+			  {trash1, DegreeofOverIdent} = 
+			  CheckIdentificationLR_svec_var(startValues,mS_BS,vs_BS,nfreeall, nResB, nResC1);
+			  SVAR_A0 = GetStructDecompinBS_svec_var(est_resids'est_resids/rows(est_resids), mS_BS, 
+			  vs_BS, startValues, numOfObs,  relParamCh, relLikCh,DegreeofOverIdent, maxIterations,model,0);	
+		  endif;
+		  @ Compute SVAR IRs @
+		  {iror,iror_ac} = ComputeIRF_svar_var(A_IR,ir_max, SVAR_A0);
+		  iror =vec(iror)';
+		  iror_ac =vec(iror_ac)';
+		endif;
+
+		reducedForm = cols(A0_IR)<1;
+			if not reducedForm;
+				reducedForm = A0_IR == eye(rows(A0_IR));
+			endif;
+			      
+
+	@ generate placeholder for bootstrapped impulse responses @
+	irfe_star = {}; irfe_star_sd = {}; iror_star_sd = {}; iror_star = {}; 
+	irfe_star_ac = {}; irfe_star_sd_ac = {}; iror_star_sd_ac = {}; iror_star_ac = {}; 
+
+	        if rows(irfe) and rows(irfe_ac);
+		  irfe_star = zeros( nob, rows(irfe)*cols(irfe));
+		  irfe_star_ac = zeros( nob, rows(irfe_ac)*cols(irfe_ac));
+		  if compute_sd;
+		    irfe_star_sd = irfe_star;
+		    irfe_star_sd_ac = irfe_star_ac;
+		  endif;
+		endif;
+
+		if rows(iror) and rows(iror_ac);
+		  iror_star = zeros( nob, rows(iror)*cols(iror));
+		  iror_star_ac = zeros( nob, rows(iror_ac)*cols(iror_ac));				  
+		  if compute_sd;
+		    iror_star_sd = iror_star;
+		    iror_star_sd_ac = iror_star_ac;
+		  endif;
+		endif;
+		
+	@ and the rest @
+		_startTime = hsec;
+		_minLoops  = __var_Note_MinElapsedLoops;
+   		__var_Note_StartTime = _startTime; /* set a GLOBAL */
+
+/* 	vector to hold index of bootstrap replications that did not work	 */
+	del_boot_rep=zeros(nob,1);
+
+	@ loop @
+	i = 1;
+	do while i<=nob;
+		@ compute bootstrap time series @
+			{y_star,seed} = 
+			     vml_residualBootstrap(A0,A,B,C_VAR,F_VAR, mx_c_var,mx_tf, y0,u,x,d,z, seed);
+		@ update var @
+			varStar = vml_SetEndogenousVariables(var, y_star);
+		@ estimate model (bootstrap data) @
+			varStar = var_EstimateModel(varStar);
+
+		@ compute forecast error and orthogonal impulse responses after transformation @
+		/*transformation can be done in this method, but are not actually*/
+			varIR   = vml_VAR_For_IRA(varStar); 
+			cvu_IR  = vml_VeRead(varIR,"cvRes");
+			est_resids = vml_VeRead(varIR,"u");
+			A0_IR   = vml_VeRead(varIR,"A0");
+			A_IR    = vml_VeRead(varIR,"A");
+			@ Test what model type needs to bootstrapped VAR or SVAR @
+
+			if mtype == 1 ; /* VAR */
+			  {irfe_star_i,irfe_star_i_ac,iror_star_i,iror_star_i_ac} = var_impulseResponses(A0_IR,A_IR,cvu_IR, ir_max, 0);
+			  irfe_star[i,.] = irfe_star_i;
+			  irfe_star_ac[i,.] = irfe_star_i_ac;
+			  if reducedForm;
+			    iror_star[i,.] = iror_star_i;
+			    iror_star_ac[i,.] = iror_star_i_ac;
+			  endif;
+			elseif mtype == 2 or mtype == 3 or mtype == 4; /* SVAR AB, SVEC or Blanchard-Quah */
+			  @ Decomposition @
+			  if mtype == 2;    /* SVAR-AB */
+			    SVAR_A0 = 
+			    GetStructDecomp_svar_var(est_resids'est_resids/rows(est_resids), resMatrix, normConst, 
+			    startValues, numOfObs, relParamCh, relLikCh, maxIterations,model,i);
+			  
+			  elseif mtype == 3;   /* Blanchard-Qua */  
+			    {SVAR_A0,trash1} = GetmA0_svar_var(A_IR,est_resids'est_resids/rows(est_resids));
+			  elseif mtype == 4;   /* SVEC model */
+			    alpha_BS     = vml_VeRead(varStar,"alpha");
+			    Gamma_BS     = vml_VeRead(varStar,"G");
+			    beta         = vml_VeRead(varStar,"beta_x")'; 
+/* 			    beta_d       = vml_VeRead(varStar,"beta_d_x")';  */
+
+			    mC1_BS = ComputeC1_svec_var(alpha_BS,beta,Gamma_BS);
+			    {mS_BS,vs_BS,model,nfreea,nfreeb,nfreeall, nResB, nResC1}  =
+			    GetResMatricesLR_svec_var(mB_Res, mC1_Res, mC1_BS);
+			    if cols(mS_BS) == rows(startValues);
+			      {trash1, DegreeofOverIdent} = CheckIdentificationLR_svec_var(startValues,mS_BS,vs_BS,
+			      nfreeall, nResB, nResC1);
+			      SVAR_A0 = GetStructDecompinBS_svec_var(est_resids'est_resids/rows(est_resids), mS_BS,
+			      vs_BS, startValues, numOfObs,  relParamCh, relLikCh,DegreeofOverIdent, maxIterations,model,i);
+			    else;
+			      "failure in SVEC bootstrap replication" i;
+			      del_boot_rep[i,1] = 1;
+			    endif;
+			  endif;
+			  @ Compute SVAR IRs when there was no error @
+			  if del_boot_rep[i,1] == 0;
+			    {iror_star_i,iror_star_i_ac} = ComputeIRF_svar_var(A_IR,ir_max, SVAR_A0);
+			      iror_star[i,.]               = vec(iror_star_i)';
+			      iror_star_ac[i,.]            = vec(iror_star_i_ac)';
+			  endif;
+			endif;
+			
+		@ compute bootstrap standard deviation if necessary @
+		if compute_sd and del_boot_rep[i,1] == 0;
+			 __var_Note_MinElapsedLoops = nob_sd + 1;
+			{trash1, irfe_sd, trash2, trash1, irfe_sd_ac, trash2, 
+			 trash3, iror_sd, trash4, trash3, iror_sd_ac, trash4, 
+			 seed_sd, trash5} =
+			 vml__bootstrapIR(varStar, nob_sd, seed_sd, 0, 0, 0, ir_max);
+
+			if rows(irfe_sd) and rows(irfe_sd_ac);
+			  irfe_star_sd[i,.]    = stdc(irfe_sd)';
+			  irfe_star_sd_ac[i,.] = stdc(irfe_sd_ac)';
+			endif;
+
+			if reducedForm;
+			  iror_star_sd[i,.]    = stdc(iror_sd)';
+			  iror_star_sd_ac[i,.] = stdc(iror_sd_ac)';			  
+			endif;
+			__var_Note_StartTime       = _startTime; /* reset a GLOBAL */
+			__var_Note_MinElapsedLoops = _minLoops;  /* reset a GLOBAL */
+		endif;
+
+		@ Progress notification @
+			var__ProgressNotification(i+0,nob);
+		i = i + 1;
+	endo;
+	/* 	remove failed bootstrap replications, currently only with SVEC */
+	if sumc(del_boot_rep) > 0 and mtype == 4;
+	  iror_star=delif(iror_star, del_boot_rep);
+	  iror_star_ac=delif( iror_star_ac, del_boot_rep);
+	  if compute_sd;
+	    iror_star_sd=delif(iror_star_sd, del_boot_rep);
+	    iror_star_sd_ac=delif( iror_star_sd_ac, del_boot_rep);
+	  endif;
+	endif;
+
+	@ finish @
+	retp(irfe, irfe_star, irfe_star_sd,irfe_ac, irfe_star_ac, irfe_star_sd_ac, 
+	     iror, iror_star, iror_star_sd,iror_ac, iror_star_ac, iror_star_sd_ac, seed, seed_sd);
+endp;
+
+
+
+
+/*
+**
+*/
+proc(1)=vml__checkForAutocorrelation(varHat);
+	local em_sys_x,u_ar,msg,i,temp;
+
+	msg="";
+	em_sys_x = vread(varHat,"em_sys_x");
+/*
+	if strindx(em_sys_x,"3SLS",1)==1;
+*/
+	   	varHat = var_ComputeModelStatistics(varHat);
+		u_ar   = vread(varHat,"u_ar");
+	   	temp   = selif(seqa(1,1,rows(u_ar)),abs(u_ar).>2);
+   		if not(scalmiss(temp));
+	  		msg = "Autocorrelation detected in equation ";
+		   	i=1;
+			do while i<=rows(temp);
+		   		msg = msg$+ftocv(temp[i],1,0)$+", ";
+				i   = i + 1;
+			endo;
+			msg = msg$+"Confidence intervals not computed.";
+		endif;
+/*
+	endif;
+*/
+
+	retp(msg);
+endp;
+
+
+/*
+**
+*/
+proc(0)=var__ProgressNotification(i,nob);
+	if not i%__var_Note_MinElapsedLoops;
+		local temp, elapsedTime,totalTime;
+   		temp = (hsec-__var_Note_LastTime)/100;
+   		if temp>__var_Note_MinElapsedTime;
+			print "";
+			print   /flush    "Loop "$+ftocv(i,1,0)$+" of total "$+ftocv(nob,1,0);
+
+			__var_Note_LastTime = hsec;
+			elapsedTime = __var_Note_LastTime - __var_Note_StartTime;
+			/*print        "Elapsed time  : "$+etstr(elapsedTime);*/
+			totalTime = (elapsedTime)*nob/i;
+			/*print        "Time to finish: "$+etstr(totalTime-elapsedTime);*/
+			/*print /flush "Total time    : "$+etstr(totalTime);*/
+
+		endif;
+	endif;
+endp;
+
+/*
+**
+*/
+proc(1)=vml__bootstrapIRCheckInputs(message, coverage, nob, ir_max);
+	
+	if coverage<=0 OR coverage>=1;
+	   	"";
+		errorlog(message);
+		errorlog(""$+ftocv(coverage,1,3)$+" is a bad coverage parameter!"); 
+		errorlog(" 0 < coverage < 1 )");
+		retp(1);
+	endif;
+   	if nob*((1-coverage)/2)<1 or nob*(1-(1-coverage)/2)>(nob-1);
+	   	"";
+		errorlog(message);
+		errorlog("Insufficient number of bootstrap replications.");
+		retp(1);
+	endif;
+   	if ir_max<0;
+	   	"";
+		errorlog(message);
+   		errorlog("Maximum number of impulse responses must be positive!");
+		retp(1);
+   	endif;
+	retp(0);
+endp;
+
+
+
+
+
+
+
+
+
+
+
+
